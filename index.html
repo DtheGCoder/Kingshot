@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1a1226">
+<title>Kingshot — Verteidige das letzte Königreich</title>
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Nunito:wght@600;800;1000&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<!-- Virtueller Joystick -->
+<div id="joy" class="hidden">
+  <div id="joy-base"><div id="joy-ring"></div></div>
+  <div id="joy-thumb"></div>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div id="topbar">
+    <div class="tb-group">
+      <div id="gold-pill" class="pill gold-pill">
+        <span class="coin-ico"></span><span id="gold-txt">0</span>
+      </div>
+      <div id="income-float"></div>
+    </div>
+    <div class="tb-center">
+      <div id="day-pill" class="pill day-pill">
+        <span id="phase-ico">☀️</span>
+        <span id="day-txt">Tag 1</span>
+        <div id="phase-bar"><div id="phase-fill"></div></div>
+      </div>
+    </div>
+    <div class="tb-group tb-right">
+      <div id="save-ind" title="Automatisch gespeichert">💾</div>
+      <button id="btn-sound" class="hud-btn" title="Ton">🔊</button>
+      <button id="btn-pause" class="hud-btn" title="Menü">⚙️</button>
+    </div>
+  </div>
+
+  <!-- Burg-HP (eigene Zeile, mittig) -->
+  <div id="base-hp-wrap" title="Burg">
+    <span class="castle-ico">🏰</span>
+    <div id="base-hp"><div id="base-hp-fill"></div><span id="base-hp-txt"></span></div>
+  </div>
+
+  <!-- Boss-Leiste -->
+  <div id="boss-bar" class="hidden">
+    <div id="boss-name">Schleimkönig</div>
+    <div id="boss-hp"><div id="boss-hp-fill"></div></div>
+  </div>
+
+  <!-- Quest-Karte -->
+  <div id="quest-card">
+    <div id="quest-chapter">Kapitel 1 · Der letzte Funke</div>
+    <div id="quest-row">
+      <div id="quest-ico">⚔️</div>
+      <div id="quest-body">
+        <div id="quest-text">Sammle Münzen</div>
+        <div id="quest-prog"><div id="quest-prog-fill"></div><span id="quest-prog-txt"></span></div>
+      </div>
+      <div id="quest-reward"><span class="coin-ico small"></span><span id="quest-reward-txt">40</span></div>
+    </div>
+  </div>
+
+  <div id="toasts"></div>
+  <div id="banner" class="hidden"><div id="banner-title"></div><div id="banner-sub"></div></div>
+</div>
+
+<!-- Story-Overlay -->
+<div id="story" class="overlay hidden">
+  <div class="story-card">
+    <div id="story-kapitel">Kapitel 1</div>
+    <div id="story-title">Der letzte Funke</div>
+    <div class="story-divider"></div>
+    <div id="story-text"></div>
+    <button id="story-btn" class="big-btn">Weiter ⚔️</button>
+  </div>
+</div>
+
+<!-- Pause / Menü -->
+<div id="menu" class="overlay hidden">
+  <div class="menu-card">
+    <div class="menu-title">KINGSHOT</div>
+    <div class="menu-sub" id="menu-day">Tag 1 · Kapitel 1</div>
+    <div class="menu-tabs">
+      <button class="mtab active" data-tab="stats">Statistik</button>
+      <button class="mtab" data-tab="chronik">Chronik</button>
+      <button class="mtab" data-tab="optionen">Optionen</button>
+    </div>
+    <div id="mtab-stats" class="mtab-page">
+      <div id="stats-grid"></div>
+    </div>
+    <div id="mtab-chronik" class="mtab-page hidden">
+      <div id="chronik-list"></div>
+    </div>
+    <div id="mtab-optionen" class="mtab-page hidden">
+      <label class="opt-row"><span>🔊 Soundeffekte</span><input type="checkbox" id="opt-sfx" checked></label>
+      <label class="opt-row"><span>🎵 Musik</span><input type="checkbox" id="opt-music" checked></label>
+      <label class="opt-row"><span>📳 Bildschirm-Wackeln</span><input type="checkbox" id="opt-shake" checked></label>
+      <div class="opt-actions">
+        <button id="btn-export" class="small-btn">Spielstand exportieren</button>
+        <button id="btn-import" class="small-btn">Spielstand importieren</button>
+        <button id="btn-reset" class="small-btn danger">Neu beginnen</button>
+      </div>
+      <div class="menu-credits">Auto-Save aktiv — dein Fortschritt wird ständig gesichert.</div>
+    </div>
+    <button id="menu-close" class="big-btn">Weiterspielen ▶</button>
+  </div>
+</div>
+
+<!-- Titel / Fortsetzen -->
+<div id="title-screen" class="overlay">
+  <div class="title-inner">
+    <div class="title-crown">👑</div>
+    <div class="title-logo">KINGSHOT</div>
+    <div class="title-tag">Verteidige das letzte Königreich</div>
+    <div id="title-info"></div>
+    <button id="btn-continue" class="big-btn gold">▶ &nbsp;Weiterspielen</button>
+    <button id="btn-new" class="small-btn ghost">Neues Abenteuer beginnen</button>
+    <div class="title-hint">Bewege den König mit dem Finger (Joystick) oder WASD</div>
+  </div>
+</div>
+
+<!-- Niederlage -->
+<div id="defeat" class="overlay hidden">
+  <div class="story-card defeat-card">
+    <div class="defeat-ico">🔥</div>
+    <div id="defeat-title">Die Burg ist gefallen…</div>
+    <div id="defeat-text">Doch ein König gibt niemals auf. Die Überlebenden sammeln sich in den Ruinen — bereit für einen neuen Versuch.</div>
+    <button id="defeat-btn" class="big-btn">Wieder aufstehen 👑</button>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/core.js"></script>
+<script src="js/art.js"></script>
+<script src="js/entities.js"></script>
+<script src="js/systems.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>

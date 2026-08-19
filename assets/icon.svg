@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#34204a"/>
+      <stop offset="1" stop-color="#171028"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffe084"/>
+      <stop offset="0.55" stop-color="#f7c948"/>
+      <stop offset="1" stop-color="#c9971e"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="26" fill="url(#bg)"/>
+  <circle cx="64" cy="70" r="40" fill="#f7c948" opacity="0.12"/>
+  <!-- Krone -->
+  <path d="M30 78 L30 46 L46 60 L64 38 L82 60 L98 46 L98 78 Q64 88 30 78 Z"
+        fill="url(#gold)" stroke="#7a5410" stroke-width="4" stroke-linejoin="round"/>
+  <rect x="30" y="78" width="68" height="12" rx="5" fill="url(#gold)" stroke="#7a5410" stroke-width="4"/>
+  <circle cx="64" cy="66" r="6" fill="#e5484d" stroke="#7a5410" stroke-width="3"/>
+  <circle cx="44" cy="70" r="4.4" fill="#3b6ea5" stroke="#7a5410" stroke-width="2.6"/>
+  <circle cx="84" cy="70" r="4.4" fill="#3f9e4e" stroke="#7a5410" stroke-width="2.6"/>
+</svg>

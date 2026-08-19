@@ -1,0 +1,14 @@
+{
+  "name": "Kingshot — Verteidige das letzte Königreich",
+  "short_name": "Kingshot",
+  "description": "Verteidige deine Burg gegen die Monsterflut, sammle Gold und baue dein Königreich wieder auf.",
+  "start_url": ".",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#171028",
+  "theme_color": "#1a1226",
+  "lang": "de",
+  "icons": [
+    { "src": "assets/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
