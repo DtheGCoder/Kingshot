@@ -255,9 +255,18 @@ html, body {
 }
 #quest-tab:active { transform: scale(0.94); }
 #quest-tab .ico { width: 17px; height: 17px; color: #7a5418; }
-#quest-tab.raised, #quest-card.raised { bottom: calc(84px + var(--sai-bottom)); }
+#quest-tab.raised, #quest-card.raised { bottom: calc(96px + var(--sai-bottom)); }
 /* Im Baumodus verschwinden die Seitenknöpfe, damit die Leiste Platz hat */
 #side-btns.hidden-soft { opacity: 0; pointer-events: none; transition: opacity 0.15s; }
+/* Die Quest verlangt genau das hier — der Knopf winkt kurz */
+.round-btn.nudge {
+  animation: rb-nudge 1.4s ease-in-out infinite;
+  border-color: var(--gold);
+}
+@keyframes rb-nudge {
+  0%, 100% { box-shadow: 0 3px 10px rgba(0,0,0,0.4); }
+  50% { box-shadow: 0 3px 10px rgba(0,0,0,0.4), 0 0 0 5px rgba(247,201,72,0.28); }
+}
 /* Neben dem Aktionsknopf schrumpft der Reiter aufs Symbol — kein Gedränge */
 #quest-tab.raised { padding: 7px 9px; }
 #quest-tab.raised #quest-tab-prog { display: none; }
@@ -818,7 +827,7 @@ html, body {
 #demo-btn {
   position: absolute;
   right: calc(12px + var(--sai-right));
-  bottom: calc(86px + var(--sai-bottom));
+  bottom: calc(96px + var(--sai-bottom));
   pointer-events: auto;
   display: flex; align-items: center; gap: 6px;
   padding: 7px 13px 7px 11px;
@@ -840,6 +849,12 @@ html, body {
   animation: demo-pulse 0.7s ease-in-out infinite alternate;
 }
 @keyframes demo-pulse { to { box-shadow: 0 3px 0 rgba(70,18,16,0.8), 0 0 20px rgba(229,72,77,0.7); } }
+/* Auf schmalen Handys nur das Symbol — sonst stößt er an die Questkarte.
+   Die Nachfrage bleibt beschriftet, damit klar ist, was der zweite Tipper tut. */
+@media (max-width: 380px) {
+  #demo-btn:not(.armed) #demo-txt { display: none; }
+  #demo-btn:not(.armed) { padding: 8px 10px; }
+}
 #act-btn:active { transform: translateX(-50%) translateY(4px); box-shadow: 0 1px 0 #8a5f14, 0 4px 10px rgba(0,0,0,0.4); }
 #act-btn.running {
   background: linear-gradient(180deg, #cdf0b4, #7ecb5a 52%, #4f9e34);
@@ -864,7 +879,7 @@ html, body {
 #act-sub .coin-ico { width: 13px; height: 13px; border-width: 1.5px; }
 #act-hint { font-size: 10.5px; font-weight: 800; opacity: 0.6; flex: none; }
 /* Quest-Karte weicht dem Knopf aus */
-#quest-card.raised { bottom: calc(78px + var(--sai-bottom)); transition: bottom 0.2s; }
+#quest-card.raised { bottom: calc(96px + var(--sai-bottom)); transition: bottom 0.2s; }
 
 /* ============ Markt (Vollbild) ============ */
 .market-card {

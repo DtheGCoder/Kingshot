@@ -193,7 +193,7 @@ KS.CFG = (() => {
       baseCost: 110, costMul: 1.75,
       res: 'wood', node: 'tree', workRange: 620,
       workers: t => Math.min(5, 1 + Math.floor(t / 2)),     // Arbeiter je Stufe
-      load: t => Math.round(10 * Math.pow(1.42, t - 1)),    // Holz pro Fuhre
+      load: t => Math.round(10 * Math.pow(1.32, t - 1)),    // Holz pro Fuhre
       chopTime: t => Math.max(0.9, 2.2 - t * 0.14),
       desc: 'Arbeiter fällen Bäume im Umland und tragen das Holz ins Lager.',
     },
@@ -202,7 +202,7 @@ KS.CFG = (() => {
       baseCost: 170, costMul: 1.78,
       res: 'stone', node: 'rock', workRange: 660,
       workers: t => Math.min(5, 1 + Math.floor(t / 2)),
-      load: t => Math.round(8 * Math.pow(1.42, t - 1)),
+      load: t => Math.round(8 * Math.pow(1.32, t - 1)),
       chopTime: t => Math.max(1.1, 2.8 - t * 0.16),
       desc: 'Bricht Stein aus den Felsen ringsum — schwer, aber wertvoll.',
     },
@@ -211,7 +211,7 @@ KS.CFG = (() => {
       baseCost: 140, costMul: 1.72,
       res: 'grain', node: 'field', workRange: 210,          // eigene Felder am Hof
       workers: t => Math.min(5, 1 + Math.floor((t + 1) / 2)),
-      load: t => Math.round(12 * Math.pow(1.40, t - 1)),
+      load: t => Math.round(12 * Math.pow(1.30, t - 1)),
       chopTime: t => Math.max(0.8, 1.9 - t * 0.12),
       desc: 'Bestellt die Felder ringsum. Getreide füllt Mägen und Kassen.',
     },
@@ -220,25 +220,25 @@ KS.CFG = (() => {
     saegewerk: {
       name: 'Sägewerk', ico: 'saw', kind: 'craft', tiers: 10, placeable: true,
       baseCost: 190, costMul: 1.8,
-      res: 'wood', batch: t => Math.max(2, 6 + t),          // Holz pro Durchgang
-      gold: t => Math.round(26 * Math.pow(1.5, t - 1)),     // Gold pro Durchgang
-      interval: t => Math.max(2.6, 6.5 - t * 0.35),
+      res: 'wood', batch: t => Math.round(7 * Math.pow(1.34, t - 1)),   // Holz pro Durchgang
+      gold: t => Math.round(28 * Math.pow(1.5, t - 1)),                  // Gold pro Durchgang
+      interval: t => Math.max(3.6, 6.2 - t * 0.26),
       desc: 'Sägt Bretter aus Holz und verkauft sie — verwandelt Holz in Gold.',
     },
     steinmetz: {
       name: 'Steinmetz', ico: 'chisel', kind: 'craft', tiers: 10, placeable: true,
       baseCost: 260, costMul: 1.82,
-      res: 'stone', batch: t => Math.max(2, 5 + t),
-      gold: t => Math.round(44 * Math.pow(1.5, t - 1)),
-      interval: t => Math.max(3.4, 8 - t * 0.42),
+      res: 'stone', batch: t => Math.round(6 * Math.pow(1.34, t - 1)),
+      gold: t => Math.round(46 * Math.pow(1.5, t - 1)),
+      interval: t => Math.max(4.2, 7.4 - t * 0.3),
       desc: 'Meißelt Quader und Zierwerk — langsam, aber sehr einträglich.',
     },
     muehle: {
       name: 'Mühle & Backhaus', ico: 'mill', kind: 'craft', tiers: 10, placeable: true,
       baseCost: 165, costMul: 1.76,
-      res: 'grain', batch: t => Math.max(2, 7 + t),
-      gold: t => Math.round(20 * Math.pow(1.5, t - 1)),
-      interval: t => Math.max(2.2, 5.5 - t * 0.3),
+      res: 'grain', batch: t => Math.round(8 * Math.pow(1.32, t - 1)),
+      gold: t => Math.round(24 * Math.pow(1.5, t - 1)),
+      interval: t => Math.max(3.2, 5.4 - t * 0.22),
       bread: t => 0.02 * t,                                 // Bonus: Überlebende-Einkommen
       desc: 'Mahlt und backt. Brot bringt Geld — und lockt weitere Überlebende an.',
     },
@@ -507,10 +507,16 @@ Wie lange kann ein König wachen? Zeig es der Ewigkeit.` },
     { ch: 2, type: 'build', pad: 'tower_n', tier: 3, ico: 'bow', text: 'Wachturm Nord auf Stufe 3', reward: 150 },
     { ch: 2, type: 'boss', boss: 'boss_slime', ico: 'crown', text: 'Besiege den Schleimkönig (Nacht 5)', reward: 400, unlock: ['tower_s', 'tower_w', 'wall'] },
     // Kapitel 4 — Die grüne Flut
+    // Erst die Vorräte, dann die Mauer: die Wirtschaft bezahlt den Krieg.
+    { ch: 3, type: 'place', bt: 'lager', n: 1, ico: 'crate', text: 'Errichte ein Lager für Vorräte', reward: 120 },
+    { ch: 3, type: 'place', bt: 'holzfaeller', n: 1, ico: 'axe', text: 'Stelle einen Holzfäller ein', reward: 140 },
+    { ch: 3, type: 'res', res: 'wood', n: 40, ico: 'log', text: 'Lass 40 Holz ins Lager bringen', reward: 160 },
+    { ch: 3, type: 'place', bt: 'saegewerk', n: 1, ico: 'saw', text: 'Baue das Sägewerk — Holz wird zu Gold', reward: 220 },
+    { ch: 3, type: 'tech', n: 1, ico: 'flask', text: 'Erforsche deine erste Neuerung', reward: 250 },
     { ch: 3, type: 'build', pad: 'wall', tier: 1, ico: 'wall', text: 'Errichte die Stadtmauer', reward: 150, unlock: ['gates'] },
     { ch: 3, type: 'build', pad: 'gates', tier: 1, ico: 'gate', text: 'Setze die Stadttore ein', reward: 200 },
     { ch: 3, type: 'build', pad: 'tower_w', tier: 1, ico: 'cannon', text: 'Errichte den Kanonenturm West', reward: 150 },
-    { ch: 3, type: 'kill', cls: 2, n: 60, ico: 'swords', text: 'Besiege 60 Goblins',        reward: 200 },
+    { ch: 3, type: 'kill', cls: 2, n: 35, ico: 'swords', text: 'Besiege 35 Goblins',        reward: 200 },
     { ch: 3, type: 'castle', tier: 2, ico: 'castle', text: 'Baue die Burg auf Stufe 2 aus', reward: 250 },
     { ch: 3, type: 'boss', boss: 'boss_gob', ico: 'crown', text: 'Besiege den Goblin-Häuptling (Nacht 10)', reward: 700, unlock: ['shrine', 'mine_2'] },
     // Kapitel 5 — Flüstern im Netz
@@ -578,9 +584,12 @@ Wie lange kann ein König wachen? Zeig es der Ewigkeit.` },
       if (i > 32) i += 2;
       else if (i > 11) i += 1;
     }
+    if ((fromVersion || 1) < 4) {          // v3 → v4: Wirtschaftsbogen in Kapitel 4
+      if (i > 10) i += 5;
+    }
     return i;
   }
-  const QUEST_VERSION = 3;
+  const QUEST_VERSION = 4;
 
   // Morgen-Sprüche
   const DAWN_LINES = [

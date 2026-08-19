@@ -146,15 +146,27 @@ KS.Ent = (() => {
     });
   }
 
-  // Wert hübsch in Münz-Stückelungen zerlegen
+  // Wert hübsch in Münz-Stückelungen zerlegen. Kleine Beträge werden in
+  // Münze/Großmünze/Beutel/Truhe aufgeteilt — das fühlt sich am besten an.
+  // Große Beträge dagegen in wenige dicke Truhen, sonst liegt am Ende das
+  // halbe Dorf voller Münzen und die Bildrate bricht ein.
+  const BURST_MAX = 8;
   function spawnCoinBurst(G, x, y, value) {
     let v = Math.max(1, Math.round(value));
     const drops = [];
-    while (v >= 100 && drops.length < 3) { drops.push(100); v -= 100; }
-    while (v >= 25 && drops.length < 8) { drops.push(25); v -= 25; }
-    while (v >= 5 && drops.length < 16) { drops.push(5); v -= 5; }
-    while (v > 0 && drops.length < 22) { drops.push(1); v -= 1; }
-    if (v > 0 && drops.length) drops[drops.length - 1] += v;
+    if (v <= 100 * BURST_MAX) {
+      while (v >= 100 && drops.length < 3) { drops.push(100); v -= 100; }
+      while (v >= 25 && drops.length < 8) { drops.push(25); v -= 25; }
+      while (v >= 5 && drops.length < 16) { drops.push(5); v -= 5; }
+      while (v > 0 && drops.length < 22) { drops.push(1); v -= 1; }
+      if (v > 0 && drops.length) drops[drops.length - 1] += v;
+    } else {
+      // Reiche Beute: gleichmäßig auf wenige Truhen verteilen
+      const n = BURST_MAX;
+      const each = Math.floor(v / n);
+      for (let i = 0; i < n; i++) drops.push(each);
+      drops[0] += v - each * n;
+    }
     for (const d of drops) spawnCoin(G, x + U.rand(-6, 6), y + U.rand(-6, 6), d);
   }
 
@@ -203,20 +215,47 @@ KS.Ent = (() => {
         }
       }
     }
-    // Zu viele Münzen? Älteste kleine zu Beuteln zusammenfassen
-    if (C.length > CFG.COINS.maxOnGround) {
+    // Zu viele Münzen? Liegengebliebene je Umgebung zu einer dicken Truhe
+    // zusammenfassen. Kein Gold geht verloren, nur die Zahl der Münzen sinkt —
+    // sonst überlebt die Bildrate den Vollausbau nicht.
+    if (C.length > CFG.COINS.maxOnGround) mergeCoins(G, C);
+  }
+
+  const MERGE_CELL = 150;
+  function mergeCoins(G, C) {
+    // Nach Rasterzelle bündeln, damit Haufen dort bleiben, wo sie liegen
+    const cells = new Map();
+    for (let i = 0; i < C.length; i++) {
+      const c = C[i];
+      if (c.state !== 'idle') continue;
+      const key = ((c.x / MERGE_CELL) | 0) + ':' + ((c.y / MERGE_CELL) | 0);
+      let list = cells.get(key);
+      if (!list) cells.set(key, list = []);
+      list.push(i);
+    }
+    // Volle Zellen zuerst — dort bringt das Zusammenfassen am meisten
+    const groups = [...cells.values()].filter(l => l.length > 1).sort((a, b) => b.length - a.length);
+    let toRemove = C.length - CFG.COINS.maxOnGround + 10;   // etwas Luft, damit nicht jeden Frame gemischt wird
+    const dead = new Set();
+    for (const list of groups) {
+      if (toRemove <= 0) break;
       let sum = 0, cx = 0, cy = 0, n = 0;
-      for (let i = 0; i < C.length && n < 30; i++) {
-        if (C[i].state === 'idle' && C[i].kind <= 1) {
-          sum += C[i].value; cx += C[i].x; cy += C[i].y; n++;
-          C.splice(i, 1); i--;
-        }
+      for (const i of list) {
+        const c = C[i];
+        sum += c.value; cx += c.x; cy += c.y; n++;
+        dead.add(i);
+        if (n >= 2 && toRemove - (n - 1) <= 0) break;
       }
-      if (n > 0) {
-        const c = { x: cx / n, y: cy / n, value: sum, kind: 2, vx: 0, vy: 0, z: 0, vz: 0, state: 'idle', t: 0, spin: 4 };
-        C.push(c);
-        ring(G, c.x, c.y, { r0: 4, r1: 30, color: 'rgba(255,220,120,0.7)' });
-      }
+      if (n < 2) { for (const i of list) dead.delete(i); continue; }
+      toRemove -= n - 1;
+      const x = cx / n, y = cy / n;
+      C.push({ x, y, value: sum, kind: COIN_KIND(sum), vx: 0, vy: 0, z: 0, vz: 0, state: 'idle', t: 0, spin: 4 });
+      ring(G, x, y, { r0: 4, r1: 34, life: 0.4, color: 'rgba(255,220,120,0.7)' });
+    }
+    if (dead.size) {
+      // Von hinten löschen, damit die gemerkten Indizes gültig bleiben
+      const idx = [...dead].sort((a, b) => b - a);
+      for (const i of idx) C.splice(i, 1);
     }
   }
 

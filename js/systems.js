@@ -94,6 +94,7 @@ KS.Systems = (() => {
       }
     }
     // Lagerbestand auf Kapazität begrenzen
+    if (!st.resTotal) st.resTotal = { wood: 0, stone: 0, grain: 0 };
     for (const r of CFG.RES_ORDER) st.res[r] = Math.min(st.res[r] || 0, G.storeCap);
 
     // Stadtmauer
@@ -665,7 +666,13 @@ KS.Systems = (() => {
   function storeAdd(G, res, n) {
     const free = storeFree(G, res);
     const put = Math.min(n, free);
-    if (put > 0) G.state.res[res] = (G.state.res[res] || 0) + put;
+    if (put > 0) {
+      const st = G.state;
+      st.res[res] = (st.res[res] || 0) + put;
+      // Gesamtmenge fürs Chronik-/Questwesen mitzählen
+      if (!st.resTotal) st.resTotal = { wood: 0, stone: 0, grain: 0 };
+      st.resTotal[res] = (st.resTotal[res] || 0) + put;
+    }
     return put;
   }
   function storeTake(G, res, n) {
@@ -701,20 +708,23 @@ KS.Systems = (() => {
       const r = g.def.workRange * 0.55;
       return { x: px + Math.cos(a) * r, y: py + Math.sin(a) * r, kind };
     }
-    // Holz/Stein: passende Requisite in Reichweite suchen (mit etwas Streuung,
-    // damit nicht alle am selben Baum stehen)
+    // Holz/Stein: die passende Requisite mit dem kürzesten Weg suchen —
+    // gewertet wird der ganze Rundgang Hütte → Baum → Lager, nicht nur die
+    // Entfernung zur Hütte. Sonst rennen die Arbeiter quer über die Karte.
     const want = kind === 'tree' ? ['tree', 'pine'] : ['rock', 'ruin'];
+    const store = nearestStore(G, px, py);
+    const sx = store ? store.x : px, sy = store ? store.y : py;
     let best = null, bd = Infinity;
     const R2 = g.def.workRange * g.def.workRange;
     const skip = worker.lastNode;
     for (const p of G.props) {
       if (!want.includes(p.kind)) continue;
-      const d = U.dist2(px, py, p.x, p.y);
-      if (d > R2) continue;
+      if (U.dist2(px, py, p.x, p.y) > R2) continue;
       if (p === skip) continue;
-      // etwas Zufall über den Index, damit sich Arbeiter verteilen
-      const jitter = ((p.x * 7 + p.y * 13) % 97) * 40;
-      const score = d + jitter;
+      // Rundweg-Länge, plus etwas Streuung, damit nicht alle am selben Baum stehen
+      const trip = U.dist(px, py, p.x, p.y) + U.dist(p.x, p.y, sx, sy);
+      const jitter = ((p.x * 7 + p.y * 13) % 97) * 0.9;
+      const score = trip + jitter;
       if (score < bd) { bd = score; best = p; }
     }
     if (best) return { x: best.x, y: best.y, kind, prop: best };
@@ -849,7 +859,7 @@ KS.Systems = (() => {
               Ent.particle(G, s.x, s.y - 16, { vz: 40, grav: 120, life: 0.35, size: 3, color: CFG.RESOURCES[w.res].color });
             } else if (G.storeFullT <= 0) {
               KS.UI.toast('Das Lager ist voll — baue es aus!', 2600, 'crate');
-              G.storeFullT = 12;
+              G.storeFullT = 22;
             }
             w.carry = 0;
             w.state = 'idle';
@@ -1382,6 +1392,25 @@ KS.Systems = (() => {
         }
         return [Math.min(q.count, n), q.count];
       }
+      // Selbst gesetzte Wirtschaftsgebäude ab Stufe 1 zählen
+      case 'place': {
+        let n = 0;
+        for (const pad of (st.placed || [])) {
+          if (pad.type !== q.bt) continue;
+          const b = st.buildings[pad.id];
+          if (b && b.tier >= (q.tier || 1)) n++;
+        }
+        return [Math.min(q.n, n), q.n];
+      }
+      // Insgesamt ins Lager gelieferte Rohstoffe
+      case 'res': {
+        const got = (st.resTotal && st.resTotal[q.res] || 0) - (st.questBase || 0);
+        return [U.clamp(got, 0, q.n), q.n];
+      }
+      case 'tech': {
+        const n = Object.keys(st.tech || {}).length - (st.questBase || 0);
+        return [U.clamp(n, 0, q.n), q.n];
+      }
     }
     return [0, 1];
   }
@@ -1392,6 +1421,8 @@ KS.Systems = (() => {
     if (q.type === 'kill') return st.killsByClass[q.cls] || 0;
     if (q.type === 'kill_any') return st.stats.kills;
     if (q.type === 'gold_collect') return st.goldCollected;
+    if (q.type === 'res') return (st.resTotal && st.resTotal[q.res]) || 0;
+    if (q.type === 'tech') return Object.keys(st.tech || {}).length;
     return 0;
   }
 
@@ -1400,6 +1431,12 @@ KS.Systems = (() => {
     if (q.type === 'build') return G.padList.find(p => p.id === q.pad);
     if (q.type === 'weapon') return G.padList.find(p => p.id === 'forge');
     if (q.type === 'castle') return G.padList.find(p => p.id === 'castle');
+    // Wirtschaftsquests zeigen auf das erste Gebäude dieser Art (oder nichts,
+    // wenn noch keines steht — dann führt der Bau-Knopf weiter)
+    if (q.type === 'place') return (G.state.placed || []).find(p => p.type === q.bt) || null;
+    if (q.type === 'res') {
+      return G.padList.find(p => CFG.BUILDINGS[p.type] && CFG.BUILDINGS[p.type].kind === 'store') || null;
+    }
     return null;
   }
 

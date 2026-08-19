@@ -36,6 +36,7 @@ KS.Game = (() => {
       market: {},
       tech: {},                                  // erforschte Knoten
       res: { wood: 0, stone: 0, grain: 0 },      // Lagerbestand
+      resTotal: { wood: 0, stone: 0, grain: 0 }, // je gelieferte Gesamtmenge
       placed: [], placedSeq: 0,                  // frei platzierte Bauplätze
       wall: null,
       gates: null,

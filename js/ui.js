@@ -18,6 +18,7 @@ KS.UI = (() => {
   let lastGold = -1, lastQuestKey = '', lastDay = -1, lastPhase = '';
   let goldBumpT = 0;
   let marketVisible = false, marketRefreshT = 0;
+  let hintBuild = false, hintTech = false;
 
   function init() {
     els = {
@@ -303,6 +304,12 @@ KS.UI = (() => {
     }
     // Bau-/Forschungsknöpfe verstecken, solange ein Bauplatz-Knopf im Weg wäre
     els.sideBtns.classList.toggle('hidden-soft', !!G.placeMode || !!G.nearPad || G.playerDown);
+    // Verlangt die Quest ein neues Gebäude oder eine Forschung? Dann darf der
+    // passende Knopf ruhig auf sich aufmerksam machen.
+    const wantBuild = !!q && (q.type === 'place' || q.type === 'res');
+    const wantTech = !!q && q.type === 'tech';
+    if (wantBuild !== hintBuild) { hintBuild = wantBuild; $('btn-build').classList.toggle('nudge', wantBuild); }
+    if (wantTech !== hintTech) { hintTech = wantTech; $('btn-tech').classList.toggle('nudge', wantTech); }
     // Aktionsknopf am Bauplatz
     refreshActBtn(G);
   }
