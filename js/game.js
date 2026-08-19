@@ -675,9 +675,11 @@ KS.Game = (() => {
     if (!pm) return;
     const Z = CFG.BUILD_ZONE;
     const pl = G.state.player;
-    // Der Geist steht ein Stück vor dem König, gerastert
+    // Der Geist steht ein Stück vor dem König (gerastert). Der Abstand ist
+    // wichtig: läge er genau auf dem König, würde das halbdurchsichtige Haus
+    // die Figur verdecken und man sieht nicht mehr, wo man steht.
     pm.x = Math.round(pl.x / Z.gridSnap) * Z.gridSnap;
-    pm.y = Math.round((pl.y - 6) / Z.gridSnap) * Z.gridSnap;
+    pm.y = Math.round((pl.y - 38) / Z.gridSnap) * Z.gridSnap;
     pm.problem = Sys.placeProblem(G, pm.type, pm.x, pm.y);
     pm.ok = !pm.problem;
     KS.UI.updatePlaceBar(G);
@@ -733,10 +735,20 @@ KS.Game = (() => {
     ctx.beginPath(); ctx.arc(CFG.WORLD.cx, CFG.WORLD.cy, Z.rMin, 0, TAU); ctx.stroke();
     ctx.beginPath(); ctx.arc(CFG.WORLD.cx, CFG.WORLD.cy, Z.rMax, 0, TAU); ctx.stroke();
     ctx.restore();
+    // Pulsierender Ring, damit das Auge den Bauplatz sofort findet
+    const puls = (G.time * 0.9) % 1;
+    ctx.save();
+    ctx.globalAlpha = (1 - puls) * 0.5;
+    ctx.strokeStyle = pm.ok ? '#bff5a0' : '#ffb4b4';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.ellipse(pm.x, pm.y + 8, 20 + puls * 46, (20 + puls * 46) * 0.48, 0, 0, TAU);
+    ctx.stroke();
+    ctx.restore();
     // Geist
     const spr = KS.Art.building(pm.type, 1);
     ctx.save();
-    ctx.globalAlpha = 0.55 + Math.sin(G.time * 4) * 0.08;
+    ctx.globalAlpha = 0.5 + Math.sin(G.time * 4) * 0.07;
     if (!pm.ok) {
       // rot einfärben
       ctx.filter = 'grayscale(1)';

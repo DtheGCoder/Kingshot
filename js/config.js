@@ -516,7 +516,7 @@ Wie lange kann ein König wachen? Zeig es der Ewigkeit.` },
     { ch: 3, type: 'build', pad: 'wall', tier: 1, ico: 'wall', text: 'Errichte die Stadtmauer', reward: 150, unlock: ['gates'] },
     { ch: 3, type: 'build', pad: 'gates', tier: 1, ico: 'gate', text: 'Setze die Stadttore ein', reward: 200 },
     { ch: 3, type: 'build', pad: 'tower_w', tier: 1, ico: 'cannon', text: 'Errichte den Kanonenturm West', reward: 150 },
-    { ch: 3, type: 'kill', cls: 2, n: 35, ico: 'swords', text: 'Besiege 35 Goblins',        reward: 200 },
+    { ch: 3, type: 'kill', cls: 2, n: 25, ico: 'swords', text: 'Besiege 25 Goblins',        reward: 200 },
     { ch: 3, type: 'castle', tier: 2, ico: 'castle', text: 'Baue die Burg auf Stufe 2 aus', reward: 250 },
     { ch: 3, type: 'boss', boss: 'boss_gob', ico: 'crown', text: 'Besiege den Goblin-Häuptling (Nacht 10)', reward: 700, unlock: ['shrine', 'mine_2'] },
     // Kapitel 5 — Flüstern im Netz
