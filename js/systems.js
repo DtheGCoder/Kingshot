@@ -888,6 +888,7 @@ KS.Systems = (() => {
       const gold = Math.max(1, Math.round(c.gold * (took / c.batch) * G.goldMul));
       Ent.spawnCoinBurst(G, c.pad.x + U.rand(-16, 16), c.pad.y + U.rand(12, 28), gold);
       Ent.text(G, c.pad.x, c.pad.y - 58, `+${U.fmt(gold)}`, { color: '#ffe084', size: 13, life: 0.9 });
+      sendHauler(G, c);
       // Rauch/Funken je Werk
       for (let i = 0; i < 3; i++) {
         Ent.particle(G, c.pad.x + U.rand(-10, 10), c.pad.y - U.rand(20, 40), {
@@ -895,6 +896,45 @@ KS.Systems = (() => {
           life: 1.1, size: 3.4, endSize: 8, color: 'rgba(220,215,205,0.3)',
         });
       }
+    }
+  }
+
+  // Zweiter Abschnitt der Kette: ein Träger bringt den Rohstoff sichtbar vom
+  // Lager zum Werk. Das Gold ist bereits gebucht — der Träger ist Beiwerk und
+  // darf jederzeit verschwinden (Neuladen, Abriss), ohne dass etwas fehlt.
+  function sendHauler(G, c) {
+    if (G.haulers.length >= 16) return;
+    const store = nearestStore(G, c.pad.x, c.pad.y);
+    if (!store) return;
+    const d = U.dist(store.x, store.y, c.pad.x, c.pad.y);
+    if (d < 70) return;                       // direkt daneben — kein Weg zu zeigen
+    G.haulers.push({
+      x: store.x + U.rand(-10, 10), y: store.y + U.rand(4, 16),
+      tx: c.pad.x + U.rand(-10, 10), ty: c.pad.y + U.rand(10, 22),
+      res: c.def.res, idx: (G.haulers.length + c.tier) % 6,
+      speed: U.rand(64, 76) * G.tech.workerSpeed,
+      animT: Math.random() * 10, face: 1,
+    });
+  }
+
+  function updateHaulers(G, dt) {
+    for (let i = G.haulers.length - 1; i >= 0; i--) {
+      const h = G.haulers[i];
+      h.animT += dt;
+      const dx = h.tx - h.x, dy = h.ty - h.y;
+      const d = Math.hypot(dx, dy) || 1;
+      if (d < 12) {
+        // Abgeliefert: kurzer Staubwirbel am Werk
+        Ent.particle(G, h.x, h.y - 8, {
+          vx: U.rand(-14, 14), vz: U.rand(20, 40), grav: 180,
+          life: 0.4, size: 2.6, color: CFG.RESOURCES[h.res].color,
+        });
+        G.haulers.splice(i, 1);
+        continue;
+      }
+      h.x += dx / d * h.speed * dt;
+      h.y += dy / d * h.speed * dt;
+      h.face = dx < 0 ? -1 : 1;
     }
   }
 
@@ -1486,7 +1526,7 @@ KS.Systems = (() => {
     wallSegAt, wallSegArc, wallSegCenter, damageWall, repairWallAtDawn,
     // Wirtschaft
     storeTotal, storeFree, storeAdd, storeTake, nearestStore,
-    updateWorkers, updateCrafters, syncWorkers,
+    updateWorkers, updateCrafters, updateHaulers, syncWorkers,
     // Freies Bauen
     placeableTypes, placeProblem, placeCost, placeBuilding, demolish, refundOf,
     // Techtree

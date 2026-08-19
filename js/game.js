@@ -71,7 +71,9 @@ KS.Game = (() => {
     G.gateFlash = new Array(CFG.GATES.length).fill(0);
     G.nearPad = null; G.buildArmed = null; G.buildLock = null;
     // Wirtschaft
-    G.workers = []; G.craftT = {}; G.storeFullT = 0; G.workerSyncT = 0;
+    G.workers = [];
+    G.haulers = [];      // Träger Lager → Werk (reine Optik)
+    G.craftT = {}; G.storeFullT = 0; G.workerSyncT = 0;
     // Baumodus (freies Platzieren)
     G.placeMode = null;      // { type, def, x, y, ok, problem }
     G.wallBreachT = 0;
@@ -267,6 +269,7 @@ KS.Game = (() => {
     Sys.updateBuildings(G, dt);
     Sys.updateWorkers(G, dt);
     Sys.updateCrafters(G, dt);
+      Sys.updateHaulers(G, dt);
     updatePlaceMode();
     Sys.updateDeposit(G, dt);
     Sys.updateDepositFx(G, dt);
@@ -415,6 +418,7 @@ KS.Game = (() => {
     for (const m of G.monsters) if (!m.dead && inView(m.x, m.y, 160)) items.push({ y: m.y, kind: 'mon', m });
     for (const v of G.villagers) if (inView(v.x, v.y, 60)) items.push({ y: v.y, kind: 'vil', v });
     for (const w of G.workers) if (inView(w.x, w.y, 70)) items.push({ y: w.y, kind: 'worker', w });
+    for (const h of G.haulers) if (inView(h.x, h.y, 70)) items.push({ y: h.y, kind: 'hauler', h });
     // Stadtmauer (Pfosten & Torpfeiler, einzeln y-sortiert)
     if (G.wallMax > 0 && st.wall) {
       const wTier = st.buildings.wall.tier;
@@ -454,6 +458,8 @@ KS.Game = (() => {
         Ent.drawMonster(G, ctx, it.m);
       } else if (it.kind === 'worker') {
         drawWorker(it.w);
+      } else if (it.kind === 'hauler') {
+        drawHauler(it.h);
       } else if (it.kind === 'vil') {
         Ent.drawVillager(G, ctx, it.v);
       } else if (it.kind === 'wall') {
@@ -719,6 +725,16 @@ KS.Game = (() => {
       ctx.fillText(msg, w.x, w.y - 36);
       ctx.globalAlpha = 1;
     }
+  }
+
+  // Träger vom Lager zum Werk — trägt immer eine Last
+  function drawHauler(h) {
+    ctx.globalAlpha = 0.25;
+    ctx.fillStyle = '#1c2814';
+    ctx.beginPath(); ctx.ellipse(h.x, h.y, 8, 3.4, 0, 0, TAU); ctx.fill();
+    ctx.globalAlpha = 1;
+    const frame = Math.floor(h.animT * 6) % 2;
+    KS.Art.draw(ctx, KS.Art.worker(h.res, h.idx, frame, 'carry'), h.x, h.y, 1, 1, h.face === -1);
   }
 
   // Bau-Geist: zeigt, wo das Gebäude landen würde

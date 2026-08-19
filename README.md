@@ -201,9 +201,10 @@ innerhalb der Mauern und abseits der Wege:
 | 🔨 **Steinmetz** | Meißelt Quader — langsam, aber sehr einträglich |
 | 🥖 **Mühle & Backhaus** | Mahlt Getreide zu Brot: Gold *und* mehr Steuern aus den Tavernen |
 
-Die Kette lautet immer **Sammler → Lager → Verarbeiter → Münzen**. Arbeiter wählen
-ihren Baum nach dem kürzesten Rundweg, es lohnt sich also, das Lager klug zwischen
-Hütte und Wald zu setzen. Sammler und Werke wachsen im gleichen Takt: grob ein
+Die Kette lautet immer **Sammler → Lager → Verarbeiter → Münzen**, und du siehst jeden
+Abschnitt: Arbeiter fällen draußen Bäume und schleppen die Fuhre ins Lager, Träger
+bringen den Rohstoff vom Lager zum Werk. Arbeiter wählen ihren Baum nach dem kürzesten
+Rundweg, es lohnt sich also, das Lager klug zwischen Hütte und Wald zu setzen. Sammler und Werke wachsen im gleichen Takt: grob ein
 Sammler versorgt zwei Verarbeiter. Rohstoffe zahlen außerdem die Forschung.
 
 ### 🧪 Techtree — 25 Neuerungen in drei Zweigen
