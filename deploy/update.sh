@@ -11,7 +11,9 @@
 # ============================================================
 set -euo pipefail
 
+# Webroot: --root > /etc/kingshot.conf (von install.sh gesetzt) > Standard
 WEBROOT="/var/www/kingshot"
+[[ -f /etc/kingshot.conf ]] && . /etc/kingshot.conf
 DEPLOY_ONLY=0
 while [[ $# -gt 0 ]]; do
   case "$1" in

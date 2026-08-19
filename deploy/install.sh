@@ -137,6 +137,9 @@ copy() {
   fi
 }
 copy
+# Gewähltes Webroot merken → update.sh/auto-update.sh deployen später dorthin
+printf 'WEBROOT=%s\n' "$WEBROOT" > /etc/kingshot.conf
+chmod 644 /etc/kingshot.conf
 # Cache-Busting-Stempel + version.json (für Auto-Update-Erkennung im Spiel)
 "$SRC_DIR/deploy/stamp-version.sh" "$WEBROOT" || true
 # Webroot gehört root, Webserver darf nur LESEN (kein Schreibzugriff für www-data)

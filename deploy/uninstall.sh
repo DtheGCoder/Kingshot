@@ -11,6 +11,7 @@
 set -euo pipefail
 
 WEBROOT="/var/www/kingshot"
+[[ -f /etc/kingshot.conf ]] && . /etc/kingshot.conf
 SITE_NAME="kingshot"
 PURGE=0
 
@@ -56,5 +57,6 @@ if [[ $PURGE -eq 1 && -d "$WEBROOT" ]]; then
   rm -rf "$WEBROOT"
   echo "🗑️  Webroot gelöscht: $WEBROOT"
 fi
+rm -f /etc/kingshot.conf
 
 echo "👋 KINGSHOT wurde vom Server entfernt."
