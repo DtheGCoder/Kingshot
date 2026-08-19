@@ -599,29 +599,39 @@ KS.Ent = (() => {
         tx = pl.x; ty = pl.y; stopDist = CFG.PLAYER.r + m.r - 2;
       } else if (m.state === 'chase') m.state = 'march';
 
-      // Stadtmauer: blockiert Bodenmonster auf dem Weg nach innen
-      let wallSeg = -1;
-      if (G.wallMax > 0 && !m.fly && G.state.wall) {
+      // Stadtmauer & Tore: blockieren Bodenmonster auf dem Weg nach innen
+      let wallSeg = -1, gateIdx = -1;
+      if (!m.fly && (G.wallMax > 0 || G.gateMax > 0)) {
         const wR = CFG.WALL.r;
         const dC = Math.sqrt(U.dist2(m.x, m.y, cx, cy));
         if (dC > wR - 6) {
           const targetInside = !targetPlayer || U.dist2(tx, ty, cx, cy) < wR * wR;
           if (targetInside) {
             const ang = Math.atan2(m.y - cy, m.x - cx);
-            const seg = KS.Systems.wallSegAt(ang);
+            const seg = G.wallMax > 0 && G.state.wall ? KS.Systems.wallSegAt(ang) : -1;
             if (seg >= 0 && G.state.wall.hp[seg] > 0) {
               wallSeg = seg;
               tx = cx + Math.cos(ang) * wR;
               ty = cy + Math.sin(ang) * wR;
               stopDist = m.r + 10;
               targetPlayer = false;
+            } else if (seg < 0) {
+              // Toröffnung — steht dort ein intaktes Tor, muss es fallen
+              const gi = KS.Systems.gateAt(ang);
+              if (KS.Systems.gateBlocks(G, gi)) {
+                gateIdx = gi;
+                tx = cx + Math.cos(ang) * wR;
+                ty = cy + Math.sin(ang) * wR;
+                stopDist = m.r + 10;
+                targetPlayer = false;
+              }
             }
           }
         }
       }
 
-      // Fernkampf (nicht gegen die Mauer — die wird im Nahkampf zerlegt)
-      if (m.sp.ranged && wallSeg < 0) {
+      // Fernkampf (nicht gegen Mauer/Tor — die werden im Nahkampf zerlegt)
+      if (m.sp.ranged && wallSeg < 0 && gateIdx < 0) {
         const rr = m.sp.ranged.range;
         const distT = Math.sqrt(targetPlayer ? distPl2 : U.dist2(m.x, m.y, cx, cy)) - (targetPlayer ? 0 : baseRadius);
         m.rangedCd -= dt;
@@ -648,7 +658,7 @@ KS.Ent = (() => {
 
       const a = U.angleTo(m.x, m.y, tx, ty);
       const distT = targetPlayer ? Math.sqrt(distPl2)
-        : (wallSeg >= 0 ? U.dist(m.x, m.y, tx, ty) : Math.sqrt(U.dist2(m.x, m.y, cx, cy)));
+        : (wallSeg >= 0 || gateIdx >= 0 ? U.dist(m.x, m.y, tx, ty) : Math.sqrt(U.dist2(m.x, m.y, cx, cy)));
       if (distT > stopDist + 2) {
         const sp = m.speed * speedF;
         m.x += Math.cos(a) * sp * dt;
@@ -662,6 +672,8 @@ KS.Ent = (() => {
           m.lunge = 1;
           if (wallSeg >= 0) {
             KS.Systems.damageWall(G, wallSeg, m.dmg * (m.boss ? 3 : 1), m);
+          } else if (gateIdx >= 0) {
+            KS.Systems.damageGate(G, gateIdx, m.dmg * (m.boss ? 3 : 1));
           } else if (targetPlayer) {
             damagePlayer(G, m.dmg, m.x, m.y);
             if (m.venom) { G.regenWait = Math.max(G.regenWait, 5); }
@@ -691,6 +703,30 @@ KS.Ent = (() => {
       m.kx *= Math.pow(0.001, dt); m.ky *= Math.pow(0.001, dt);
       m.x = U.clamp(m.x, 10, CFG.WORLD.w - 10);
       m.y = U.clamp(m.y, 10, CFG.WORLD.h - 10);
+
+      // Harte Barriere: Mauer und Tore lassen sich nicht durch Gedränge oder
+      // Rückstoß überwinden. Wer draußen ist, bleibt draußen — solange dort
+      // ein intakter Abschnitt bzw. ein intaktes Tor steht.
+      if (!m.fly && (G.wallMax > 0 || G.gateMax > 0)) {
+        const wR = CFG.WALL.r;
+        const dx = m.x - cx, dy = m.y - cy;
+        const dC = Math.hypot(dx, dy) || 1;
+        const minR = wR + m.r * 0.5;
+        if (dC < minR && dC > wR * 0.35) {
+          const ang = Math.atan2(dy, dx);
+          const seg = G.wallMax > 0 && G.state.wall ? KS.Systems.wallSegAt(ang) : -1;
+          const closed = seg >= 0
+            ? G.state.wall.hp[seg] > 0
+            : KS.Systems.gateBlocks(G, KS.Systems.gateAt(ang));
+          if (closed && !m.insideWall) {
+            m.x = cx + dx / dC * minR;
+            m.y = cy + dy / dC * minR;
+            m.kx *= 0.2; m.ky *= 0.2;
+          }
+        }
+        // Wer einmal drin ist (Durchbruch), darf drin bleiben
+        if (dC < wR - m.r) m.insideWall = true;
+      }
     }
   }
 

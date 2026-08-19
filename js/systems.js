@@ -42,6 +42,16 @@ KS.Systems = (() => {
         for (let i = 0; i < st.wall.hp.length; i++) st.wall.hp[i] = Math.min(st.wall.hp[i], G.wallMax);
       }
     }
+    // Stadttore (verschließen die acht Durchgänge)
+    const gateB = st.buildings.gates;
+    G.gateMax = gateB && gateB.tier >= 1 ? CFG.BUILDINGS.gates.gateHp(gateB.tier) : 0;
+    if (G.gateMax > 0) {
+      if (!st.gates || !Array.isArray(st.gates.hp) || st.gates.hp.length !== CFG.GATES.length) {
+        st.gates = { hp: Array.from({ length: CFG.GATES.length }, () => G.gateMax) };
+      } else {
+        for (let i = 0; i < st.gates.hp.length; i++) st.gates.hp[i] = Math.min(st.gates.hp[i], G.gateMax);
+      }
+    }
     // Türme
     G.towers = [];
     for (const pad of G.padList) {
@@ -101,6 +111,71 @@ KS.Systems = (() => {
     };
   }
 
+  // ---- Tore ----
+  // Index 0..7, wenn der Winkel in einer Toröffnung liegt, sonst −1
+  function gateAt(ang) {
+    const TAU2 = Math.PI * 2;
+    const span = Math.PI / 4;
+    let rel = (ang - CFG.GATES[0]) % TAU2;
+    if (rel < 0) rel += TAU2;
+    const k = Math.floor(rel / span) % 8;
+    const within = rel - Math.floor(rel / span) * span;
+    const g = CFG.WALL.gateHalf;
+    if (within < g) return k;                       // Öffnung am Anfang des Bogens
+    if (within > span - g) return (k + 1) % 8;      // Öffnung am Ende → nächstes Tor
+    return -1;
+  }
+
+  function gateCenter(i) {
+    const a = CFG.GATES[i];
+    return {
+      x: CFG.WORLD.cx + Math.cos(a) * CFG.WALL.r,
+      y: CFG.WORLD.cy + Math.sin(a) * CFG.WALL.r,
+    };
+  }
+
+  // Steht dort ein intaktes Tor?
+  function gateBlocks(G, i) {
+    return G.gateMax > 0 && G.state.gates && i >= 0 && G.state.gates.hp[i] > 0;
+  }
+
+  function damageGate(G, i, dmg) {
+    const st = G.state;
+    if (!gateBlocks(G, i)) return;
+    st.gates.hp[i] = Math.max(0, st.gates.hp[i] - dmg);
+    G.gateFlash[i] = 1;
+    if (G.baseHitSfxT <= 0) { KS.Audio.SFX.baseHit(); G.baseHitSfxT = 0.3; }
+    const c = gateCenter(i);
+    if (Math.random() < 0.5) {
+      Ent.particle(G, c.x + U.rand(-16, 16), c.y - U.rand(10, 34), {
+        vz: U.rand(40, 90), grav: 240, life: 0.5, size: 3,
+        color: U.pick(['#8a6234', '#5c3f1e', '#c9a13a']),
+      });
+    }
+    if (st.gates.hp[i] <= 0) {
+      Ent.burst(G, c.x, c.y - 16, 20, { colors: ['#8a6234', '#5c3f1e', '#c9a13a'], speed: 130, up: 150, size: 4.6, life: 0.8 });
+      Ent.ring(G, c.x, c.y, { r0: 8, r1: 70, life: 0.5, color: 'rgba(200,160,80,0.8)' });
+      G.shake = Math.max(G.shake, 6);
+      if (G.wallBreachT <= 0) {
+        KS.UI.toast('Ein Stadttor ist zerborsten!', 3400, 'gate');
+        G.wallBreachT = 6;
+      }
+    }
+  }
+
+  function repairGatesAtDawn(G) {
+    const st = G.state;
+    if (!st.gates || G.gateMax <= 0) return 0;
+    let broken = 0;
+    for (let i = 0; i < st.gates.hp.length; i++) {
+      if (st.gates.hp[i] < G.gateMax) {
+        if (st.gates.hp[i] <= 0) broken++;
+        st.gates.hp[i] = G.gateMax;
+      }
+    }
+    return broken;
+  }
+
   function damageWall(G, seg, dmg, from) {
     const st = G.state;
     if (!st.wall || G.wallMax <= 0 || st.wall.hp[seg] <= 0) return;
@@ -124,8 +199,11 @@ KS.Systems = (() => {
 
   function repairWallAtDawn(G) {
     const st = G.state;
-    if (!st.wall || G.wallMax <= 0) return;
-    let broken = 0;
+    let broken = repairGatesAtDawn(G);
+    if (!st.wall || G.wallMax <= 0) {
+      if (broken > 0) KS.UI.toast('Die Überlebenden haben die Tore über Nacht wieder eingesetzt.', 3400, 'hammer');
+      return;
+    }
     for (let i = 0; i < st.wall.hp.length; i++) {
       if (st.wall.hp[i] < G.wallMax) {
         if (st.wall.hp[i] <= 0) broken++;
@@ -133,7 +211,7 @@ KS.Systems = (() => {
       }
     }
     if (broken > 0) {
-      KS.UI.toast('Die Überlebenden haben die Mauer über Nacht repariert.', 3400, 'hammer');
+      KS.UI.toast('Die Überlebenden haben Mauer und Tore über Nacht repariert.', 3400, 'hammer');
     }
   }
 
@@ -167,26 +245,78 @@ KS.Systems = (() => {
     return true;
   }
 
-  // ============ EINZAHLUNG (satisfying!) ============
+  // ============ EINZAHLUNG ============
+  // Wichtig: Gold fließt NIE allein durchs Vorbeilaufen. Der König muss in
+  // Reichweite stehen UND das Bauen bestätigen (Knopf / Leertaste). Sobald er
+  // weggeht oder erneut drückt, hört es sofort auf.
+
+  // Nächster bedienbarer Bauplatz in Reichweite (oder null)
+  function nearestPad(G) {
+    const st = G.state, pl = st.player;
+    if (G.playerDown) return null;
+    let best = null, bestD = Infinity;
+    for (const pad of G.padList) {
+      if (!isUnlocked(G, pad.id)) continue;
+      if (!st.buildings[pad.id]) st.buildings[pad.id] = { tier: 0, prog: 0 };
+      const r = CFG.interactR(pad.type);
+      const d = U.dist2(pl.x, pl.y, pad.x, pad.y);
+      if (d < r * r && d < bestD) { bestD = d; best = pad; }
+    }
+    return best;
+  }
+
+  function padMaxed(G, pad) {
+    const b = G.state.buildings[pad.id];
+    return !!b && b.tier >= CFG.BUILDINGS[pad.type].tiers;
+  }
+
+  // Bauen bestätigen / abbrechen (vom Knopf oder der Tastatur)
+  function toggleBuild(G) {
+    const pad = G.nearPad;
+    if (!pad) return false;
+    if (G.buildArmed === pad.id) {          // schon aktiv → anhalten
+      G.buildArmed = null;
+      G.depositT = 0; G.depositAcc = 0;
+      return false;
+    }
+    if (padMaxed(G, pad)) {
+      KS.UI.toast(`${CFG.BUILDINGS[pad.type].name} ist schon auf Maximalstufe.`, 2200, 'check');
+      return false;
+    }
+    if (G.state.gold <= 0) {
+      const b = G.state.buildings[pad.id];
+      const cost = CFG.costOf(pad.type, b.tier + 1);
+      KS.UI.toast(`Kein Gold — es fehlen ${U.fmt(cost - b.prog)} Münzen.`, 2400, 'coin');
+      return false;
+    }
+    G.buildArmed = pad.id;
+    G.depositT = 0; G.depositAcc = 0;
+    KS.Audio.SFX.click();
+    return true;
+  }
+
   function updateDeposit(G, dt) {
     const st = G.state, pl = st.player;
-    let active = null;
-    if (!G.playerDown) {
-      for (const pad of G.padList) {
-        if (!isUnlocked(G, pad.id)) continue;
-        const b = st.buildings[pad.id] || (st.buildings[pad.id] = { tier: 0, prog: 0 });
-        const def = CFG.BUILDINGS[pad.type];
-        if (b.tier >= def.tiers) continue;
-        if (U.dist2(pl.x, pl.y, pad.x, pad.y) < PAD_R * PAD_R) { active = pad; break; }
+    // Wer ist in Reichweite?
+    const near = nearestPad(G);
+    if (G.nearPad !== near) {
+      // Bauplatz gewechselt oder verlassen → Bestätigung verfällt
+      if (!near || !G.buildArmed || G.buildArmed !== near.id) {
+        G.buildArmed = null;
+        G.depositT = 0; G.depositAcc = 0;
       }
+      G.nearPad = near;
     }
+
+    const active = (near && G.buildArmed === near.id && !padMaxed(G, near)) ? near : null;
     G.activePad = active;
     if (!active) { G.depositT = 0; G.depositAcc = 0; return; }
 
     const b = st.buildings[active.id];
     const def = CFG.BUILDINGS[active.type];
     const cost = CFG.costOf(active.type, b.tier + 1);
-    if (st.gold <= 0 || b.prog >= cost) { G.depositT = 0; return; }
+    if (b.prog >= cost) { G.depositT = 0; return; }
+    if (st.gold <= 0) { G.depositT = 0; return; }   // wartet, bis wieder Gold da ist
 
     G.depositT += dt;
     const D = CFG.DEPOSIT;
@@ -218,6 +348,10 @@ KS.Systems = (() => {
     const def = CFG.BUILDINGS[pad.type];
     b.tier += 1;
     b.prog = 0;
+    // Bestätigung verfällt: die nächste Stufe startet erst auf erneuten Wunsch,
+    // damit nicht unbemerkt das ganze Gold in Folge-Stufen wandert.
+    G.buildArmed = null;
+    G.depositT = 0; G.depositAcc = 0;
     G.buildBounce[pad.id] = 1;
     const first = b.tier === 1;
     KS.Audio.SFX[first ? 'build' : 'upgrade']();
@@ -800,6 +934,8 @@ KS.Systems = (() => {
     tavernCapacity, dawnArrivals, onSurvivorArrived, syncVillagers,
     activeQuest, questProgress, questBaseline, questTargetPad, updateQuests,
     wallSegAt, wallSegArc, wallSegCenter, damageWall, repairWallAtDawn,
+    gateAt, gateCenter, gateBlocks, damageGate,
+    nearestPad, padMaxed, toggleBuild,
     marketLvl, marketCost, buyMarket,
   };
 })();

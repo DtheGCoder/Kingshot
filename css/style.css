@@ -506,52 +506,122 @@ html, body {
 #defeat-title { font-family: 'Cinzel', serif; font-size: 26px; font-weight: 800; color: #7a1f23; margin: 6px 0 10px; }
 #defeat-text { font-size: 15px; line-height: 1.5; font-weight: 700; color: #4a3820; margin-bottom: 18px; }
 
-/* ============ Markt-Panel ============ */
-#market-panel {
+/* ============ Aktionsknopf (bauen / Markt öffnen) ============ */
+/* Bewusstes Bestätigen: Gold fließt nur, wenn der König das hier drückt. */
+#act-btn {
   position: absolute;
-  right: calc(10px + var(--sai-right));
-  bottom: calc(12px + var(--sai-bottom));
-  width: min(300px, 58vw);
-  background: linear-gradient(165deg, var(--parch), var(--parch-dark));
-  border: 2px solid var(--wood);
-  border-radius: 14px;
-  padding: 9px 10px 10px;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.5);
+  left: 50%;
+  bottom: calc(18px + var(--sai-bottom));
+  transform: translateX(-50%);
   pointer-events: auto;
-  animation: card-in 0.25s ease;
+  display: flex; align-items: center; gap: 10px;
+  min-width: min(260px, 74vw);
+  max-width: 92vw;
+  padding: 10px 16px 10px 12px;
+  font-family: 'Nunito', sans-serif;
+  text-align: left;
+  color: #4a2f08;
+  background: linear-gradient(180deg, #ffe89a, var(--gold) 52%, #e0a52a);
+  border: 2.5px solid #8a5f14;
+  border-radius: 16px;
+  box-shadow: 0 5px 0 #8a5f14, 0 9px 22px rgba(0,0,0,0.45);
+  cursor: pointer;
+  z-index: 45;
+  animation: act-in 0.22s cubic-bezier(0.2, 1.5, 0.4, 1);
 }
+@keyframes act-in { from { opacity: 0; transform: translateX(-50%) translateY(14px) scale(0.94); } }
+#act-btn:active { transform: translateX(-50%) translateY(4px); box-shadow: 0 1px 0 #8a5f14, 0 4px 10px rgba(0,0,0,0.4); }
+#act-btn.running {
+  background: linear-gradient(180deg, #cdf0b4, #7ecb5a 52%, #4f9e34);
+  border-color: #3d7a26; box-shadow: 0 5px 0 #3d7a26, 0 9px 22px rgba(0,0,0,0.45);
+  color: #1d3d10;
+}
+#act-btn.broke { filter: saturate(0.5) brightness(0.95); }
+#act-ico { flex: none; display: flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 10px;
+  background: rgba(255,255,255,0.42); border: 1.5px solid rgba(90,61,36,0.4); }
+#act-ico .ico { width: 21px; height: 21px; }
+#act-body { display: flex; flex-direction: column; line-height: 1.15; flex: 1; min-width: 0; }
+#act-title { font-size: 15.5px; font-weight: 900; letter-spacing: 0.2px; }
+#act-sub { font-size: 12px; font-weight: 800; opacity: 0.85; display: flex; align-items: center; gap: 4px; }
+#act-sub .coin-ico { width: 13px; height: 13px; border-width: 1.5px; }
+#act-hint { font-size: 10.5px; font-weight: 800; opacity: 0.6; flex: none; }
+/* Quest-Karte weicht dem Knopf aus */
+#quest-card.raised { bottom: calc(78px + var(--sai-bottom)); transition: bottom 0.2s; }
+
+/* ============ Markt (Vollbild) ============ */
+.market-card {
+  position: relative;
+  width: min(440px, 94vw);
+  max-height: calc(100vh - 40px - var(--sai-top) - var(--sai-bottom));
+  overflow-y: auto;
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(255,240,200,0.9), rgba(0,0,0,0) 60%),
+    linear-gradient(165deg, var(--parch), var(--parch-dark));
+  border: 3px solid var(--wood);
+  outline: 2px solid rgba(247,201,72,0.5);
+  outline-offset: -7px;
+  border-radius: 18px;
+  padding: 18px 18px 16px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  animation: card-in 0.35s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+.close-btn {
+  position: absolute; top: 10px; right: 10px;
+  width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.5);
+  border: 1.5px solid var(--wood);
+  border-radius: 10px;
+  color: var(--ink);
+  cursor: pointer; pointer-events: auto;
+  box-shadow: 0 2px 0 rgba(90,61,36,0.5);
+}
+.close-btn:active { transform: translateY(2px); box-shadow: none; }
+.close-btn .ico { width: 17px; height: 17px; }
 #market-head {
-  display: flex; align-items: baseline; gap: 6px;
+  display: flex; align-items: center; gap: 8px;
   font-family: 'Cinzel', serif; font-weight: 800;
-  font-size: 15px; color: var(--ink);
-  margin-bottom: 6px;
+  font-size: 24px; color: var(--ink);
 }
-#market-head .ico { width: 17px; height: 17px; color: #8a6018; align-self: center; }
-#market-sub { font-family: 'Nunito', sans-serif; font-size: 10px; font-weight: 800; color: #8a6a3a; margin-left: auto; }
+#market-head .ico { width: 24px; height: 24px; color: #8a6018; }
+#market-sub { font-size: 12.5px; font-weight: 800; color: #8a6a3a; margin-bottom: 8px; }
+#market-gold {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 17px; font-weight: 900; color: #6e4a08;
+  background: rgba(255,255,255,0.45);
+  border: 1.5px solid rgba(90,61,36,0.4);
+  border-radius: 999px; padding: 4px 12px 4px 8px;
+  margin-bottom: 10px;
+}
+#market-note {
+  font-size: 11.5px; font-weight: 700; color: #8a6a3a;
+  text-align: center; margin: 12px 0 12px;
+}
 .mk-row {
-  display: flex; align-items: center; gap: 7px;
-  padding: 4.5px 2px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 2px;
   border-top: 1px dashed rgba(90,61,36,0.3);
 }
 .mk-ico {
-  width: 30px; height: 30px; flex: none;
+  width: 38px; height: 38px; flex: none;
   display: flex; align-items: center; justify-content: center;
   color: #7a5418;
   background: radial-gradient(circle at 35% 30%, #fff8e2, #f3ddad);
   border: 1.5px solid var(--wood);
   border-radius: 8px;
 }
-.mk-ico .ico { width: 18px; height: 18px; }
+.mk-ico .ico { width: 23px; height: 23px; }
 .mk-body { flex: 1; min-width: 0; }
-.mk-name { font-size: 12.5px; font-weight: 800; color: var(--ink); line-height: 1.15; }
-.mk-desc { font-size: 10.5px; font-weight: 700; color: #7a5e38; }
-.mk-lvl { font-size: 10px; font-weight: 800; color: #8a6a3a; }
+.mk-name { font-size: 14.5px; font-weight: 800; color: var(--ink); line-height: 1.2; }
+.mk-desc { font-size: 12px; font-weight: 700; color: #7a5e38; }
+.mk-lvl { font-size: 11.5px; font-weight: 800; color: #8a6a3a; }
 .mk-buy {
   pointer-events: auto;
   display: flex; align-items: center; gap: 4px;
-  padding: 7px 9px;
+  padding: 9px 13px;
   font-family: 'Nunito', sans-serif;
-  font-size: 12.5px; font-weight: 900; color: #4a2f08;
+  font-size: 14.5px; font-weight: 900; color: #4a2f08;
   background: linear-gradient(180deg, #ffe084, var(--gold) 50%, #e2a72e);
   border: 1.5px solid #8a5f14;
   border-radius: 9px;
@@ -562,12 +632,14 @@ html, body {
 .mk-buy:active { transform: translateY(2px); box-shadow: 0 0.5px 0 #8a5f14; }
 .mk-buy.max { background: linear-gradient(180deg, #e2ddd0, #c8c2b2); border-color: #8a8478; color: #6a6458; box-shadow: 0 2.5px 0 #8a8478; }
 .mk-buy.broke { filter: saturate(0.35) brightness(0.9); }
-.mk-buy .coin-ico { width: 13px; height: 13px; border-width: 1.5px; }
+.mk-buy .coin-ico { width: 15px; height: 15px; border-width: 1.5px; }
 
 /* Landscape-Anpassung */
 @media (max-height: 480px) {
   #quest-card { width: min(270px, 44vw); }
-  #market-panel { width: min(280px, 44vw); }
+  .market-card { padding: 12px 14px 10px; }
+  #market-head { font-size: 19px; }
+  #act-btn { padding: 8px 14px 8px 10px; }
   .story-card, .menu-card { padding: 14px 16px 12px; }
   #story-text { font-size: 13.5px; margin-bottom: 10px; }
   .title-crown { width: 46px; height: 46px; }

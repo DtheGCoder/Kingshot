@@ -36,6 +36,9 @@ KS.UI = (() => {
       title: $('title-screen'), titleInfo: $('title-info'),
       defeat: $('defeat'), defeatTitle: $('defeat-title'), defeatText: $('defeat-text'),
       market: $('market-panel'), marketRows: $('market-rows'),
+      marketGold: $('market-gold-txt'),
+      actBtn: $('act-btn'), actIco: $('act-ico'), actTitle: $('act-title'),
+      actSub: $('act-sub'), actHint: $('act-hint'),
       sndOn: $('snd-on'), sndOff: $('snd-off'),
     };
 
@@ -62,6 +65,22 @@ KS.UI = (() => {
       els.defeat.classList.add('hidden');
       KS.Game.reviveAfterDefeat();
     });
+    // Aktionsknopf: bauen bestätigen oder Markt öffnen
+    els.actBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      KS.Audio.unlock();
+      const G = KS.Game.G;
+      const pad = G.nearPad;
+      if (!pad) return;
+      if (pad.type === 'markt' && (G.state.buildings.markt || {}).tier >= 1) openMarket(G);
+      else KS.Systems.toggleBuild(G);
+      refreshActBtn(G);
+    });
+    // Markt schließen
+    const closeM = () => { KS.Audio.SFX.click(); closeMarket(); };
+    $('market-close').addEventListener('click', closeM);
+    $('market-done').addEventListener('click', closeM);
+    els.market.addEventListener('click', e => { if (e.target === els.market) closeM(); });
     // Menü-Tabs
     document.querySelectorAll('.mtab').forEach(tab => {
       tab.addEventListener('click', () => {
@@ -106,6 +125,11 @@ KS.UI = (() => {
       if (!btn || btn.classList.contains('max')) return;
       KS.Systems.buyMarket(KS.Game.G, btn.dataset.track);
       renderMarketRows(KS.Game.G);
+      els.marketGold.textContent = U.fmt(KS.Game.G.state.gold);
+    });
+    // Escape schließt den Markt
+    window.addEventListener('keydown', e => {
+      if (e.code === 'Escape' && marketVisible) { e.preventDefault(); closeMarket(); }
     });
   }
 
@@ -189,23 +213,98 @@ KS.UI = (() => {
     // Markt-Preise regelmäßig auffrischen (Kaufkraft-Anzeige)
     if (marketVisible) {
       marketRefreshT -= dt;
-      if (marketRefreshT <= 0) { marketRefreshT = 0.4; refreshMarketAfford(G); }
+      if (marketRefreshT <= 0) {
+        marketRefreshT = 0.4;
+        refreshMarketAfford(G);
+        els.marketGold.textContent = U.fmt(st.gold);
+      }
+    }
+    // Aktionsknopf am Bauplatz
+    refreshActBtn(G);
+  }
+
+  // ---------- Aktionsknopf ----------
+  // Erscheint nur, wenn der König an einem Bauplatz steht. Ohne Druck auf
+  // diesen Knopf fließt kein einziges Goldstück — Vorbeilaufen tut nichts.
+  let lastActKey = '';
+
+  function refreshActBtn(G) {
+    const pad = G.nearPad;
+    if (!pad || G.playerDown || marketVisible) {
+      if (!els.actBtn.classList.contains('hidden')) {
+        els.actBtn.classList.add('hidden');
+        els.questCard.classList.remove('raised');
+        lastActKey = '';
+      }
+      return;
+    }
+    const st = G.state;
+    const def = CFG.BUILDINGS[pad.type];
+    const b = st.buildings[pad.id] || { tier: 0, prog: 0 };
+    const maxed = b.tier >= def.tiers;
+    const isMarket = pad.type === 'markt' && b.tier >= 1;
+    const running = G.buildArmed === pad.id;
+    const cost = maxed ? 0 : CFG.costOf(pad.type, b.tier + 1);
+    const rest = Math.max(0, cost - b.prog);
+
+    let title, sub, hint, ico;
+    if (isMarket) {
+      title = 'Markt öffnen';
+      sub = 'Dauerhafte Verbesserungen';
+      hint = 'Tippen';
+      ico = 'market';
+    } else if (maxed) {
+      title = `${pad.label}`;
+      sub = 'Maximalstufe erreicht';
+      hint = '';
+      ico = 'check';
+    } else {
+      title = b.tier === 0 ? `${pad.label} bauen` : `${pad.label} → Stufe ${b.tier + 1}`;
+      sub = `<span class="coin-ico"></span>${U.fmt(rest)}${b.prog > 0 ? ` von ${U.fmt(cost)}` : ''}`;
+      hint = running ? 'Stop' : 'Tippen';
+      ico = running ? 'hammer' : def.ico;
+    }
+    const key = `${pad.id}|${b.tier}|${running}|${maxed}|${rest}|${isMarket}`;
+    if (key !== lastActKey) {
+      lastActKey = key;
+      els.actIco.innerHTML = icon(ico);
+      els.actTitle.textContent = title;
+      els.actSub.innerHTML = sub;
+      els.actHint.textContent = hint;
+    }
+    els.actBtn.classList.toggle('running', running);
+    els.actBtn.classList.toggle('broke', !isMarket && !maxed && st.gold <= 0 && !running);
+    if (els.actBtn.classList.contains('hidden')) {
+      els.actBtn.classList.remove('hidden');
+      els.questCard.classList.add('raised');
     }
   }
 
-  // ---------- Markt ----------
-  function updateMarket(G, near) {
-    if (near && !marketVisible) {
-      marketVisible = true;
-      renderMarketRows(G);
-      els.market.classList.remove('hidden');
-      els.questCard.classList.add('tucked');   // Quest-Karte weicht dem Panel
-    } else if (!near && marketVisible) {
-      marketVisible = false;
-      els.market.classList.add('hidden');
-      els.questCard.classList.remove('tucked');
+  // ---------- Markt (Vollbild, pausiert das Spiel) ----------
+  function openMarket(G) {
+    if (marketVisible) return;
+    marketVisible = true;
+    renderMarketRows(G);
+    els.marketGold.textContent = U.fmt(G.state.gold);
+    els.market.classList.remove('hidden');
+    els.actBtn.classList.add('hidden');
+    els.questCard.classList.remove('raised');
+    lastActKey = '';
+    KS.Game.setPaused(true);      // Welt ruht — niemand greift an
+  }
+
+  function closeMarket() {
+    if (!marketVisible) return;
+    marketVisible = false;
+    els.market.classList.add('hidden');
+    if (els.story.classList.contains('hidden') &&
+        els.defeat.classList.contains('hidden') &&
+        els.menu.classList.contains('hidden')) {
+      KS.Game.setPaused(false);
     }
   }
+
+  function isMarketOpen() { return marketVisible; }
 
   function renderMarketRows(G) {
     const st = G.state;
@@ -398,6 +497,7 @@ KS.UI = (() => {
     init, update, bumpGold, toast, banner, questComplete,
     showBossBar, hideBossBar, showChapter, showVictory, showDefeat,
     toggleMenu, showTitle, hideTitle, applySettings,
-    updateMarket, renderMarketRows, icon,
+    renderMarketRows, icon, refreshActBtn,
+    openMarket, closeMarket, isMarketOpen,
   };
 })();

@@ -63,6 +63,8 @@ KS.Game = (() => {
     G.boss = null; G.night = state.night || null;
     G.pingT = 0; G.dayTrickleT = 0;
     G.wallFlash = new Array(CFG.WALL.segs).fill(0);
+    G.gateFlash = new Array(CFG.GATES.length).fill(0);
+    G.nearPad = null; G.buildArmed = null;
     G.wallBreachT = 0;
     G.paused = true;
     G.cam = { x: state.player.x, y: state.player.y };
@@ -129,7 +131,7 @@ KS.Game = (() => {
     for (const k of Object.keys(fresh.stats)) if (st.stats[k] === undefined) st.stats[k] = fresh.stats[k];
     // Quest-Kette wurde erweitert → alte Indizes übersetzen
     if ((st.questVersion || 1) < CFG.QUEST_VERSION) {
-      if (st.questIdx < 99) st.questIdx = CFG.migrateQuestIdx(st.questIdx);
+      if (st.questIdx < 99) st.questIdx = CFG.migrateQuestIdx(st.questIdx, st.questVersion || 1);
       st.questVersion = CFG.QUEST_VERSION;
     }
     initRuntime(st);
@@ -280,14 +282,8 @@ KS.Game = (() => {
     if (G.pingT > 0) G.pingT -= dt;
     if (G.wallBreachT > 0) G.wallBreachT -= dt;
     for (let i = 0; i < G.wallFlash.length; i++) if (G.wallFlash[i] > 0) G.wallFlash[i] -= dt * 3;
+    for (let i = 0; i < G.gateFlash.length; i++) if (G.gateFlash[i] > 0) G.gateFlash[i] -= dt * 3;
     G.shake = Math.max(0, G.shake - dt * 26);
-
-    // Markt-Panel bei Nähe anzeigen
-    const marktPad = G.padList.find(p => p.id === 'markt');
-    const marktB = st.buildings.markt;
-    const marktNear = marktB && marktB.tier >= 1 && !G.playerDown &&
-      U.dist2(st.player.x, st.player.y, marktPad.x, marktPad.y) < 150 * 150;
-    KS.UI.updateMarket(G, !!marktNear);
 
     // Dunkelheit angleichen
     const targetDark = st.phase === 'night' ? 0.62 : 0;
@@ -409,7 +405,16 @@ KS.Game = (() => {
       }
       for (const p of G.gatePosts) {
         if (!inView(p.x, p.y, 70)) continue;
-        items.push({ y: p.y, kind: 'gate', p, wTier });
+        items.push({ y: p.y, kind: 'gatepost', p, wTier });
+      }
+    }
+    // Stadttore (Torflügel in den Durchgängen)
+    if (G.gateMax > 0 && st.gates) {
+      const gTier = st.buildings.gates.tier;
+      for (let i = 0; i < CFG.GATES.length; i++) {
+        const c = Sys.gateCenter(i);
+        if (!inView(c.x, c.y, 90)) continue;
+        items.push({ y: c.y, kind: 'gatedoor', gi: i, gx: c.x, gy: c.y, gTier });
       }
     }
     items.push({ y: st.player.y, kind: 'player' });
@@ -446,8 +451,26 @@ KS.Game = (() => {
           ctx.fill();
           ctx.globalAlpha = 1;
         }
-      } else if (it.kind === 'gate') {
+      } else if (it.kind === 'gatepost') {
         KS.Art.draw(ctx, KS.Art.gatePost(it.wTier), it.p.x, it.p.y);
+      } else if (it.kind === 'gatedoor') {
+        const hp = st.gates.hp[it.gi];
+        const pct = hp / G.gateMax;
+        const spr = hp <= 0
+          ? KS.Art.gateBroken(it.gTier)
+          : KS.Art.gateDoor(it.gTier, pct < 0.35 ? 2 : pct < 0.7 ? 1 : 0);
+        // Tore stehen quer zur Mauer → in Blickrichtung des Rings drehen
+        const rot = Math.cos(CFG.GATES[it.gi]) === 0 ? 0 : 0;
+        KS.Art.draw(ctx, spr, it.gx, it.gy, 1, 1, false, rot);
+        const fl = G.gateFlash[it.gi];
+        if (fl > 0 && hp > 0) {
+          ctx.globalAlpha = fl * 0.45;
+          ctx.fillStyle = '#fff';
+          ctx.beginPath();
+          ctx.ellipse(it.gx, it.gy - 22, 30, 26, 0, 0, TAU);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        }
       } else {
         Ent.drawPlayer(G, ctx);
       }
@@ -465,6 +488,21 @@ KS.Game = (() => {
         const pct = hp / G.wallMax;
         ctx.fillStyle = pct > 0.5 ? '#58d162' : pct > 0.25 ? '#ffd34e' : '#e5484d';
         ctx.fillRect(c.x - w / 2, c.y - 51, w * pct, h);
+      }
+    }
+    // HP-Balken beschädigter Tore
+    if (G.gateMax > 0 && st.gates) {
+      for (let i = 0; i < CFG.GATES.length; i++) {
+        const hp = st.gates.hp[i];
+        if (hp >= G.gateMax || hp <= 0) continue;
+        const c = Sys.gateCenter(i);
+        if (!inView(c.x, c.y, 70)) continue;
+        const w = 56, h = 6;
+        ctx.fillStyle = 'rgba(20,14,10,0.78)';
+        ctx.fillRect(c.x - w / 2 - 1, c.y - 66, w + 2, h + 2);
+        const pct = hp / G.gateMax;
+        ctx.fillStyle = pct > 0.5 ? '#58d162' : pct > 0.25 ? '#ffd34e' : '#e5484d';
+        ctx.fillRect(c.x - w / 2, c.y - 65, w * pct, h);
       }
     }
 
@@ -634,7 +672,8 @@ KS.Game = (() => {
         ctx.lineCap = 'butt';
       }
       // Kosten-Text
-      const isActive = G.activePad === pad;
+      const isActive = G.activePad === pad;      // wird gerade bezahlt
+      const isNear = G.nearPad === pad;          // bedienbar
       const yTx = pad.y + 46;
       ctx.font = '900 15px Nunito, sans-serif';
       const label = b.prog > 0 ? `${U.fmt(b.prog)} / ${U.fmt(cost)}` : `${U.fmt(cost)}`;
@@ -649,7 +688,7 @@ KS.Game = (() => {
       ctx.fillStyle = cg;
       ctx.beginPath(); ctx.arc(pad.x - tw / 2 - 1, yTx - 5, 6.4, 0, TAU); ctx.fill();
       ctx.strokeStyle = '#a86e08'; ctx.lineWidth = 1.6; ctx.stroke();
-      // Hinweis bei Geldmangel / Aktion
+      // Hinweis bei Geldmangel, während gerade eingezahlt wird
       if (isActive && st.gold <= 0 && b.prog < cost) {
         const miss = cost - b.prog;
         ctx.font = '900 13.5px Nunito, sans-serif';
@@ -659,6 +698,18 @@ KS.Game = (() => {
         ctx.fillStyle = '#ff9d9d';
         ctx.fillText(`Es fehlen ${U.fmt(miss)} Münzen!`, pad.x, yTx + 19);
         ctx.globalAlpha = 1;
+      }
+      // Bedienbar: Ring hervorheben, damit klar ist, worauf der Knopf wirkt
+      if (isNear) {
+        ctx.save();
+        ctx.globalAlpha = isActive ? 0.9 : 0.55 + Math.sin(G.time * 4) * 0.15;
+        ctx.strokeStyle = isActive ? '#7ecb5a' : '#ffe9a8';
+        ctx.lineWidth = 3;
+        ctx.setLineDash(isActive ? [] : [10, 8]);
+        ctx.beginPath();
+        ctx.ellipse(pad.x, pad.y + 16, R + 9, (R + 9) * 0.48, 0, 0, TAU);
+        ctx.stroke();
+        ctx.restore();
       }
       // Mauerring-Vorschau am Stadtmauer-Bauplatz
       if (pad.id === 'wall' && b.tier === 0 && isActivePadNear(pad)) {
@@ -1025,6 +1076,33 @@ KS.Game = (() => {
     window.addEventListener('resize', resize);
     window.addEventListener('orientationchange', () => setTimeout(resize, 120));
     KS.Input.init(canvas);
+
+    // Tippen auf ein Gebäude löst dessen Aktion aus (Markt öffnen / bauen).
+    // Nur in Reichweite — sonst wandert der König erst einmal hin.
+    KS.Input.onTap((sx, sy) => {
+      if (G.paused) return;
+      // Bildschirm → Welt
+      const wx = (sx - W / 2) / ZOOM + G.cam.x;
+      const wy = (sy - H / 2) / ZOOM + G.cam.y;
+      let hit = null, bestD = Infinity;
+      for (const pad of G.padList) {
+        if (!Sys.isUnlocked(G, pad.id)) continue;
+        // Trefferfläche: das Gebäude steht über seinem Fußpunkt
+        const dx = wx - pad.x, dy = wy - (pad.y - 40);
+        const rx = pad.type === 'castle' ? 110 : 60, ry = pad.type === 'castle' ? 120 : 74;
+        const q = (dx * dx) / (rx * rx) + (dy * dy) / (ry * ry);
+        if (q < 1 && q < bestD) { bestD = q; hit = pad; }
+      }
+      if (!hit) return;
+      if (G.nearPad !== hit) {
+        KS.UI.toast(`Zu weit weg — geh näher an ${hit.label}.`, 1800, CFG.BUILDINGS[hit.type].ico);
+        return;
+      }
+      const b = G.state.buildings[hit.id];
+      if (hit.type === 'markt' && b && b.tier >= 1) KS.UI.openMarket(G);
+      else Sys.toggleBuild(G);
+      KS.UI.refreshActBtn(G);
+    });
     KS.UI.init();
 
     // Spielstand laden oder neu beginnen
@@ -1129,6 +1207,10 @@ KS.Game = (() => {
         save, state: () => G.state,
         version: () => KS.Updater.version,
         checkUpdate: () => KS.Updater.check(true),
+        build1: () => Sys.toggleBuild(G),
+        near: () => G.nearPad && G.nearPad.id,
+        armed: () => G.buildArmed,
+        market: () => KS.UI.openMarket(G),
         quality: () => ({ dpr: DPR, step: dprIdx, frameAvg: Math.round(frameAvg * 10) / 10, zoom: ZOOM }),
       };
     }

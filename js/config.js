@@ -30,6 +30,20 @@ KS.CFG = (() => {
     aggroR: 150,              // Monster jagen den Spieler in dieser Nähe
   };
 
+  // ---------- Interaktion mit Bauplätzen ----------
+  // Radius, in dem der König ein Gebäude bedienen kann. Die Burg ist groß und
+  // schiebt den König bei 95 px weg — ihr Radius muss deutlich darüber liegen,
+  // sonst wäre sie unerreichbar.
+  // Die Burg schiebt den König bei 95 px weg — 128 lässt genug Luft zum
+  // Bedienen, beansprucht aber nicht den halben Dorfplatz.
+  const INTERACT_R = {
+    castle: 128,
+    wall: 78,
+    gates: 78,
+    default: 66,
+  };
+  const interactR = type => INTERACT_R[type] || INTERACT_R.default;
+
   // ---------- Tore & Stadtmauer ----------
   // 8 Tore — identisch mit den Pfaden auf dem Boden
   const GATES = Array.from({ length: 8 }, (_, i) => i * Math.PI / 4 + 0.12);
@@ -113,7 +127,7 @@ KS.CFG = (() => {
     mine: {
       name: 'Goldmine', ico: 'pickaxe', kind: 'prod', tiers: 10,
       baseCost: 90, costMul: 1.9,
-      income: t => Math.round(3 * Math.pow(1.55, t - 1)),
+      income: t => Math.round(12 * Math.pow(1.55, t - 1)),
       interval: 6,
       desc: 'Fördert stetig Gold aus der Tiefe.',
     },
@@ -142,6 +156,12 @@ KS.CFG = (() => {
       baseCost: 150, costMul: 1.85,
       segHp: t => Math.round(260 * Math.pow(1.5, t - 1)),
       desc: 'Schützt das Dorf. Abschnitte können brechen — im Morgengrauen wird repariert.',
+    },
+    gates: {
+      name: 'Stadttore', ico: 'gate', kind: 'gates', tiers: 10,
+      baseCost: 200, costMul: 1.85,
+      gateHp: t => Math.round(340 * Math.pow(1.5, t - 1)),   // etwas zäher als die Mauer
+      desc: 'Verschließt alle acht Durchgänge. Ohne Tore läuft die Horde einfach hindurch.',
     },
     shrine: {
       name: 'Schrein des Lichts', ico: 'sparkle', kind: 'shrine', tiers: 10,
@@ -178,6 +198,7 @@ KS.CFG = (() => {
     pad('shrine',   'shrine',          270, 192, 'Schrein'),
     pad('markt',    'markt',           330, 205, 'Markt'),
     pad('wall',     'wall',            112, 352, 'Stadtmauer'),
+    pad('gates',    'gates',            68, 352, 'Stadttore'),
     pad('mine_1',   'mine',            205, 470, 'Alte Goldmine'),
     pad('mine_2',   'mine',            335, 470, 'Tiefenstollen'),
   ];
@@ -343,7 +364,8 @@ Wie lange kann ein König wachen? Zeig es der Ewigkeit.` },
     { ch: 2, type: 'build', pad: 'tower_n', tier: 3, ico: 'bow', text: 'Wachturm Nord auf Stufe 3', reward: 150 },
     { ch: 2, type: 'boss', boss: 'boss_slime', ico: 'crown', text: 'Besiege den Schleimkönig (Nacht 5)', reward: 400, unlock: ['tower_s', 'tower_w', 'wall'] },
     // Kapitel 4 — Die grüne Flut
-    { ch: 3, type: 'build', pad: 'wall', tier: 1, ico: 'wall', text: 'Errichte die Stadtmauer', reward: 150 },
+    { ch: 3, type: 'build', pad: 'wall', tier: 1, ico: 'wall', text: 'Errichte die Stadtmauer', reward: 150, unlock: ['gates'] },
+    { ch: 3, type: 'build', pad: 'gates', tier: 1, ico: 'gate', text: 'Setze die Stadttore ein', reward: 200 },
     { ch: 3, type: 'build', pad: 'tower_w', tier: 1, ico: 'cannon', text: 'Errichte den Kanonenturm West', reward: 150 },
     { ch: 3, type: 'kill', cls: 2, n: 60, ico: 'swords', text: 'Besiege 60 Goblins',        reward: 200 },
     { ch: 3, type: 'castle', tier: 2, ico: 'castle', text: 'Baue die Burg auf Stufe 2 aus', reward: 250 },
@@ -368,6 +390,7 @@ Wie lange kann ein König wachen? Zeig es der Ewigkeit.` },
     { ch: 7, type: 'kill', cls: 7, n: 25, ico: 'swords', text: 'Besiege 25 Trolle',         reward: 700 },
     { ch: 7, type: 'weapon', tier: 6, ico: 'sword', text: 'Schmiede den Flammenzahn (Stufe 6)', reward: 900 },
     { ch: 7, type: 'build', pad: 'wall', tier: 5, ico: 'wall', text: 'Stadtmauer auf Stufe 5 ausbauen', reward: 1200 },
+    { ch: 7, type: 'build', pad: 'gates', tier: 5, ico: 'gate', text: 'Stadttore auf Stufe 5 verstärken', reward: 1400 },
     { ch: 7, type: 'boss', boss: 'boss_troll', ico: 'crown', text: 'Besiege den Trollkönig (Nacht 30)', reward: 3000 },
     { ch: 7, type: 'boss', boss: 'boss_golem', ico: 'crown', text: 'Zerschmettere den Golem-Koloss (Nacht 35)', reward: 4000 },
     // Kapitel 9 — Das brennende Firmament
@@ -399,13 +422,22 @@ Wie lange kann ein König wachen? Zeig es der Ewigkeit.` },
     return { ch: 10, type: 'towers_tier', count: Math.min(8, 4 + Math.floor(i / 8)), tier: t, ico: 'shield', text: `${Math.min(8, 4 + Math.floor(i / 8))} Türme auf Stufe ${t}`, reward: 5000 + i * 600 };
   }
 
-  // Quest-Indizes älterer Spielstände (vor Einfügen der Mauer-Quests) übersetzen
-  function migrateQuestIdx(oldIdx) {
-    if (oldIdx <= 10) return oldIdx;
-    if (oldIdx <= 29) return oldIdx + 1;
-    return oldIdx + 2;
+  // Quest-Indizes älterer Spielstände übersetzen, wenn Quests eingefügt wurden.
+  // v1 → v2: Mauer-Quests (nach Index 10 und 29).
+  // v2 → v3: Tor-Quests (nach Index 11 und 32).
+  function migrateQuestIdx(oldIdx, fromVersion) {
+    let i = oldIdx;
+    if ((fromVersion || 1) < 2) {          // v1 → v2
+      if (i > 29) i += 2;
+      else if (i > 10) i += 1;
+    }
+    if ((fromVersion || 1) < 3) {          // v2 → v3
+      if (i > 32) i += 2;
+      else if (i > 11) i += 1;
+    }
+    return i;
   }
-  const QUEST_VERSION = 2;
+  const QUEST_VERSION = 3;
 
   // Morgen-Sprüche
   const DAWN_LINES = [
@@ -453,7 +485,7 @@ Die Wacht geht weiter — die Nächte werden härter, deine Legende größer. Ew
 
   return {
     WORLD, PLAYER, WEAPONS, BUILDINGS, PADS, MONSTERS, BOSSES, bossHp,
-    GATES, WALL, MARKET, migrateQuestIdx, QUEST_VERSION,
+    GATES, WALL, MARKET, migrateQuestIdx, QUEST_VERSION, interactR,
     SCALE, PHASES, CHAPTERS, QUESTS, endlessQuest,
     DAWN_LINES, SURVIVOR_LINES, SURVIVOR_NAMES, VICTORY_TEXT,
     COINS, DEPOSIT, SAVE_KEY, SAVE_KEY_B, SAVE_VERSION,

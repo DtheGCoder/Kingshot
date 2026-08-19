@@ -271,10 +271,14 @@ KS.Input = (() => {
     setBase(e.clientX, e.clientY);
     state.active = true;
     state.mx = 0; state.my = 0;
+    // Für die Tipp-Erkennung mitschreiben (kurz + ohne Wandern = Klick)
+    tapStart = performance.now();
+    tapX = e.clientX; tapY = e.clientY; tapMoved = 0;
     try { e.target.setPointerCapture(e.pointerId); } catch (_) {}
   }
   function onMove(e) {
     if (e.pointerId !== joyId) return;
+    tapMoved = Math.max(tapMoved, Math.hypot(e.clientX - tapX, e.clientY - tapY));
     let dx = e.clientX - baseX, dy = e.clientY - baseY;
     const d = Math.hypot(dx, dy);
     // Joystick "zieht nach", wenn der Finger weiter wandert → fühlt sich direkt an
@@ -303,7 +307,13 @@ KS.Input = (() => {
     state.active = false;
     state.mx = 0; state.my = 0;
     elJoy.classList.add('hidden');
+    // Kurzer Tipp ohne Wandern → als Klick aufs Spielfeld melden
+    const dur = performance.now() - tapStart;
+    if (dur < 300 && tapMoved < 12 && tapHandler) tapHandler(tapX, tapY);
   }
+
+  let tapStart = 0, tapX = 0, tapY = 0, tapMoved = 0, tapHandler = null;
+  function onTap(fn) { tapHandler = fn; }
 
   const KEYMAP = {
     KeyW: [0, -1], KeyS: [0, 1], KeyA: [-1, 0], KeyD: [1, 0],
@@ -327,7 +337,18 @@ KS.Input = (() => {
     canvas.addEventListener('lostpointercapture', onUp);
     window.addEventListener('keydown', e => {
       if (KEYMAP[e.code]) { state.keys.add(e.code); e.preventDefault(); KS.Audio.unlock(); }
-      if (e.code === 'Escape' && KS.UI) KS.UI.toggleMenu();
+      // Bauen bestätigen / Markt öffnen (Desktop-Kürzel)
+      if ((e.code === 'Space' || e.code === 'KeyE' || e.code === 'Enter') && KS.Game && KS.Game.G) {
+        const G = KS.Game.G;
+        if (!G.paused && G.nearPad) {
+          e.preventDefault();
+          const b = G.state.buildings[G.nearPad.id];
+          if (G.nearPad.type === 'markt' && b && b.tier >= 1) KS.UI.openMarket(G);
+          else KS.Systems.toggleBuild(G);
+          KS.UI.refreshActBtn(G);
+        }
+      }
+      if (e.code === 'Escape' && KS.UI && !KS.UI.isMarketOpen()) KS.UI.toggleMenu();
     });
     window.addEventListener('keyup', e => state.keys.delete(e.code));
     window.addEventListener('blur', () => state.keys.clear());
@@ -338,7 +359,7 @@ KS.Input = (() => {
     return keyVec();
   }
 
-  return { init, vector, state };
+  return { init, vector, state, onTap };
 })();
 
 // ---------- Speicher-I/O (doppelt gepuffert, ausfallsicher) ----------
