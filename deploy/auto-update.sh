@@ -44,8 +44,10 @@ REMOTE=$(timeout 25 git ls-remote --heads origin "$BRANCH" 2>/dev/null | awk '{p
 [[ -z "$REMOTE" ]] && exit 0            # Netz nicht erreichbar → leise nächstes Mal
 [[ "$REMOTE" == "$LOCAL" ]] && exit 0   # nichts Neues → fertig (häufigster Fall)
 
-# Diese Remote-Version ist schon einmal gescheitert? Dann nicht erneut spammen.
-if [[ -f "$FAIL_MARKER" ]] && [[ "$(cat "$FAIL_MARKER" 2>/dev/null)" == "$REMOTE" ]]; then
+# Schon einmal gescheitert — und seither hat sich NICHTS geändert (weder auf
+# GitHub noch lokal)? Dann still bleiben. Sobald der Admin das Repo aufräumt
+# (lokaler Hash ändert sich) oder ein neuer Commit kommt, wird wieder versucht.
+if [[ -f "$FAIL_MARKER" ]] && [[ "$(cat "$FAIL_MARKER" 2>/dev/null)" == "$REMOTE $LOCAL" ]]; then
   exit 0
 fi
 
@@ -58,7 +60,7 @@ fi
 if ! git merge --ff-only "origin/$BRANCH" >> "$LOG" 2>&1; then
   log "FEHLER: Kein Fast-Forward möglich — lokale Änderungen im Repo blockieren das Update."
   mkdir -p "$(dirname "$FAIL_MARKER")"
-  echo "$REMOTE" > "$FAIL_MARKER"
+  echo "$REMOTE $LOCAL" > "$FAIL_MARKER"
   exit 1
 fi
 
@@ -68,7 +70,7 @@ if "$SCRIPT_DIR/update.sh" --deploy-only >> "$LOG" 2>&1; then
 else
   log "FEHLER: Deploy fehlgeschlagen — Details oben."
   mkdir -p "$(dirname "$FAIL_MARKER")"
-  echo "$REMOTE" > "$FAIL_MARKER"
+  echo "$REMOTE $LOCAL" > "$FAIL_MARKER"
 fi
 
 # Log klein halten
