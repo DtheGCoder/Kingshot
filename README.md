@@ -12,7 +12,7 @@ Läuft auf jedem Handy und Desktop-Browser, direkt von deinem eigenen nginx-Serv
 |---|---|---|
 | ![Titel](docs/screenshots/titel.jpg) | ![Start](docs/screenshots/start.jpg) | ![Nachtkampf](docs/screenshots/nacht-kampf.jpg) |
 | ![Königreich](docs/screenshots/koenigreich.jpg) | ![Belagerung](docs/screenshots/belagerung.jpg) | ![Markt](docs/screenshots/markt.jpg) |
-| ![Bauen bestätigen](docs/screenshots/bauen.jpg) | ![Stadttore](docs/screenshots/tore.jpg) | |
+| ![Bauen bestätigen](docs/screenshots/bauen.jpg) | ![Stadttore](docs/screenshots/tore.jpg) | ![Quest eingeklappt](docs/screenshots/quest-eingeklappt.jpg) |
 
 ![Desktop](docs/screenshots/desktop.jpg)
 
@@ -142,6 +142,12 @@ tail -f /var/log/kingshot-update.log     # was ist passiert?
   Weggehen bricht ab. Reicht das Gold nicht, bleibt der Fortschritt gespeichert
   und die Platte zeigt, **wie viel noch fehlt**. Am Desktop geht auch **Leertaste**;
   alternativ tippst du direkt auf das Gebäude.
+- **Immer nur eine Stufe:** Nach jedem fertigen Ausbau ist der Platz gesperrt —
+  für die nächste Stufe musst du erst weggehen und wiederkommen. So wandert nie
+  unbemerkt dein ganzes Gold in Folgestufen.
+- **Quest-Karte einklappen:** Der Knopf oben rechts an der Karte klappt sie zu
+  einem kleinen Reiter zusammen, damit der Daumenbereich für den Joystick frei
+  bleibt. Der Zustand wird gespeichert.
 - **Tag & Nacht:** Tagsüber bauen, sammeln und produzieren — nachts kommt die Flut.
   Alle 5 Nächte wartet ein **Boss**.
 - **Niederlage?** Halb so wild: Der König steht wieder auf, die Burg wird notdürftig
