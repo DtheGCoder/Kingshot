@@ -39,6 +39,7 @@ KS.UI = (() => {
       marketGold: $('market-gold-txt'),
       actBtn: $('act-btn'), actIco: $('act-ico'), actTitle: $('act-title'),
       actSub: $('act-sub'), actHint: $('act-hint'),
+      questToggle: $('quest-toggle'), questTab: $('quest-tab'), questTabProg: $('quest-tab-prog'),
       sndOn: $('snd-on'), sndOff: $('snd-off'),
     };
 
@@ -114,10 +115,23 @@ KS.UI = (() => {
         KS.Game.hardReset();
       }
     });
-    // Quest-Karte → Ping auf Ziel
-    els.questCard.addEventListener('click', () => {
+    // Quest-Symbol antippen → Ziel auf der Karte hervorheben
+    // (die Karte selbst lässt Wischgesten durch, damit der Joystick überall geht)
+    els.questIco.addEventListener('click', e => {
+      e.stopPropagation();
       KS.Audio.SFX.click();
       KS.Game.pingQuestTarget();
+    });
+    // Quest-Karte ein-/ausklappen (gibt den Daumenbereich für den Joystick frei)
+    els.questToggle.addEventListener('click', e => {
+      e.stopPropagation();
+      KS.Audio.SFX.click();
+      setQuestCollapsed(true);
+    });
+    els.questTab.addEventListener('click', e => {
+      e.stopPropagation();
+      KS.Audio.SFX.click();
+      setQuestCollapsed(false);
     });
     // Markt: Kauf-Klicks (delegiert)
     els.marketRows.addEventListener('click', e => {
@@ -209,6 +223,10 @@ KS.UI = (() => {
       }
       els.questFill.style.width = (max > 0 ? cur / max * 100 : 0) + '%';
       els.questProgTxt.textContent = max > 1 ? `${U.fmt(cur)} / ${U.fmt(max)}` : (cur >= max ? '✓' : '…');
+      // Eingeklappt: Fortschritt kompakt am Reiter zeigen
+      if (questCollapsed) {
+        els.questTabProg.textContent = max > 1 ? `${U.fmt(cur)}/${U.fmt(max)}` : 'Quest';
+      }
     }
     // Markt-Preise regelmäßig auffrischen (Kaufkraft-Anzeige)
     if (marketVisible) {
@@ -223,6 +241,22 @@ KS.UI = (() => {
     refreshActBtn(G);
   }
 
+  // ---------- Quest-Karte ein-/ausklappen ----------
+  let questCollapsed = false;
+
+  function setQuestCollapsed(v) {
+    questCollapsed = v;
+    els.questCard.classList.toggle('collapsed', v);
+    els.questTab.classList.toggle('hidden', !v);
+    const st = KS.Game.G && KS.Game.G.state;
+    if (st) { st.settings.questCollapsed = v; KS.Game.requestSave(); }
+    lastQuestKey = '';   // Anzeige beim Aufklappen neu füllen
+  }
+
+  function applyQuestCollapsed(st) {
+    setQuestCollapsed(!!(st.settings && st.settings.questCollapsed));
+  }
+
   // ---------- Aktionsknopf ----------
   // Erscheint nur, wenn der König an einem Bauplatz steht. Ohne Druck auf
   // diesen Knopf fließt kein einziges Goldstück — Vorbeilaufen tut nichts.
@@ -234,6 +268,7 @@ KS.UI = (() => {
       if (!els.actBtn.classList.contains('hidden')) {
         els.actBtn.classList.add('hidden');
         els.questCard.classList.remove('raised');
+        els.questTab.classList.remove('raised');
         lastActKey = '';
       }
       return;
@@ -258,13 +293,19 @@ KS.UI = (() => {
       sub = 'Maximalstufe erreicht';
       hint = '';
       ico = 'check';
+    } else if (G.buildLock === pad.id) {
+      // Eine Stufe pro Besuch — erst weggehen, dann geht die nächste
+      title = `${pad.label} · Stufe ${b.tier}`;
+      sub = 'Weggehen und wiederkommen für die nächste Stufe';
+      hint = '';
+      ico = 'check';
     } else {
       title = b.tier === 0 ? `${pad.label} bauen` : `${pad.label} → Stufe ${b.tier + 1}`;
       sub = `<span class="coin-ico"></span>${U.fmt(rest)}${b.prog > 0 ? ` von ${U.fmt(cost)}` : ''}`;
       hint = running ? 'Stop' : 'Tippen';
       ico = running ? 'hammer' : def.ico;
     }
-    const key = `${pad.id}|${b.tier}|${running}|${maxed}|${rest}|${isMarket}`;
+    const key = `${pad.id}|${b.tier}|${running}|${maxed}|${rest}|${isMarket}|${G.buildLock === pad.id}`;
     if (key !== lastActKey) {
       lastActKey = key;
       els.actIco.innerHTML = icon(ico);
@@ -272,11 +313,14 @@ KS.UI = (() => {
       els.actSub.innerHTML = sub;
       els.actHint.textContent = hint;
     }
+    const locked = G.buildLock === pad.id || maxed;
     els.actBtn.classList.toggle('running', running);
-    els.actBtn.classList.toggle('broke', !isMarket && !maxed && st.gold <= 0 && !running);
+    els.actBtn.classList.toggle('done', locked);
+    els.actBtn.classList.toggle('broke', !locked && !isMarket && st.gold <= 0 && !running);
     if (els.actBtn.classList.contains('hidden')) {
       els.actBtn.classList.remove('hidden');
       els.questCard.classList.add('raised');
+      els.questTab.classList.add('raised');
     }
   }
 
@@ -289,6 +333,7 @@ KS.UI = (() => {
     els.market.classList.remove('hidden');
     els.actBtn.classList.add('hidden');
     els.questCard.classList.remove('raised');
+    els.questTab.classList.remove('raised');
     lastActKey = '';
     KS.Game.setPaused(true);      // Welt ruht — niemand greift an
   }
@@ -491,6 +536,7 @@ KS.UI = (() => {
     KS.Audio.setSfx(st.settings.sfx !== false);
     KS.Audio.setMusic(st.settings.music !== false);
     updateSoundBtn();
+    applyQuestCollapsed(st);
   }
 
   return {
@@ -499,5 +545,6 @@ KS.UI = (() => {
     toggleMenu, showTitle, hideTitle, applySettings,
     renderMarketRows, icon, refreshActBtn,
     openMarket, closeMarket, isMarketOpen,
+    setQuestCollapsed,
   };
 })();

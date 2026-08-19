@@ -27,7 +27,7 @@ KS.Game = (() => {
       gold: 0, goldCollected: 0,
       day: 1, phase: 'day', phaseT: 0,
       baseHp: CFG.BUILDINGS.castle.hp(1),
-      player: { x: CFG.WORLD.cx, y: CFG.WORLD.cy + 170, hp: CFG.PLAYER.hpMax },
+      player: { x: CFG.WORLD.cx, y: CFG.WORLD.cy + 265, hp: CFG.PLAYER.hpMax },
       buildings: { castle: { tier: 1, prog: 0 } },
       unlockedPads: ['castle', 'tower_n'],
       survivors: 0,
@@ -40,7 +40,7 @@ KS.Game = (() => {
       stats: { kills: 0, bossKills: 0, goldEarned: 0, coins: 0, days: 0, playTime: 0, defeats: 0 },
       log: [],
       night: null,
-      settings: { sfx: true, music: true, shake: true },
+      settings: { sfx: true, music: true, shake: true, questCollapsed: false },
       victoryShown: false,
     };
   }
@@ -64,7 +64,7 @@ KS.Game = (() => {
     G.pingT = 0; G.dayTrickleT = 0;
     G.wallFlash = new Array(CFG.WALL.segs).fill(0);
     G.gateFlash = new Array(CFG.GATES.length).fill(0);
-    G.nearPad = null; G.buildArmed = null;
+    G.nearPad = null; G.buildArmed = null; G.buildLock = null;
     G.wallBreachT = 0;
     G.paused = true;
     G.cam = { x: state.player.x, y: state.player.y };
@@ -218,8 +218,13 @@ KS.Game = (() => {
     st.gold = Math.floor(st.gold * 0.7);          // 30 % des getragenen Goldes verloren
     st.baseHp = Math.round(G.baseHpMax * 0.5);
     st.player.hp = G.playerHpMax;
-    st.player.x = CFG.WORLD.cx; st.player.y = CFG.WORLD.cy + 170;
+    // Abseits jedes Bauplatzes einsteigen, sonst fließt sofort wieder Gold
+    const sp = Sys.safeSpawnPoint();
+    st.player.x = sp.x; st.player.y = sp.y;
     G.playerDown = false; G.playerInvuln = 3;
+    // Angefangene Bauaufträge verfallen mit der Niederlage
+    G.buildArmed = null; G.buildLock = null; G.nearPad = null;
+    G.depositT = 0; G.depositAcc = 0;
     st.phase = 'day'; st.phaseT = 0;
     st.night = null; G.night = null;
     KS.Audio.setNight(false);

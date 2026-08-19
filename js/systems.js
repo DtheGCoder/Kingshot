@@ -270,6 +270,26 @@ KS.Systems = (() => {
     return !!b && b.tier >= CFG.BUILDINGS[pad.type].tiers;
   }
 
+  // Punkt zum (Wieder-)Einsteigen, der sicher außerhalb JEDER Bauplatz-Zone
+  // liegt — sonst steht der König nach dem Tod sofort wieder „an der Kasse“.
+  function safeSpawnPoint() {
+    const { cx, cy } = CFG.WORLD;
+    // Kandidaten auf dem Dorfplatz durchgehen und den ersten freien nehmen
+    for (const r of [150, 175, 200, 235, 265]) {
+      for (let i = 0; i < 24; i++) {
+        const a = (i / 24) * Math.PI * 2;
+        const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+        let free = true;
+        for (const pad of CFG.PADS) {
+          const need = CFG.interactR(pad.type) + 26;   // Sicherheitsabstand
+          if (U.dist2(x, y, pad.x, pad.y) < need * need) { free = false; break; }
+        }
+        if (free) return { x, y };
+      }
+    }
+    return { x: cx, y: cy + 265 };   // Notfall
+  }
+
   // Bauen bestätigen / abbrechen (vom Knopf oder der Tastatur)
   function toggleBuild(G) {
     const pad = G.nearPad;
@@ -277,6 +297,12 @@ KS.Systems = (() => {
     if (G.buildArmed === pad.id) {          // schon aktiv → anhalten
       G.buildArmed = null;
       G.depositT = 0; G.depositAcc = 0;
+      return false;
+    }
+    // Pro Besuch nur EINE Stufe: nach einem fertigen Ausbau ist der Platz
+    // gesperrt, bis der König weggegangen und wiedergekommen ist.
+    if (G.buildLock === pad.id) {
+      KS.UI.toast('Erst weggehen und wiederkommen — dann geht die nächste Stufe.', 2600, 'hammer');
       return false;
     }
     if (padMaxed(G, pad)) {
@@ -305,6 +331,8 @@ KS.Systems = (() => {
         G.buildArmed = null;
         G.depositT = 0; G.depositAcc = 0;
       }
+      // Weggegangen → Sperre des zuletzt ausgebauten Platzes fällt
+      if (G.buildLock && (!near || near.id !== G.buildLock)) G.buildLock = null;
       G.nearPad = near;
     }
 
@@ -348,9 +376,10 @@ KS.Systems = (() => {
     const def = CFG.BUILDINGS[pad.type];
     b.tier += 1;
     b.prog = 0;
-    // Bestätigung verfällt: die nächste Stufe startet erst auf erneuten Wunsch,
-    // damit nicht unbemerkt das ganze Gold in Folge-Stufen wandert.
+    // Nur eine Stufe pro Besuch: Bestätigung verfällt und der Platz wird
+    // gesperrt, bis der König weggegangen und wiedergekommen ist.
     G.buildArmed = null;
+    G.buildLock = pad.id;
     G.depositT = 0; G.depositAcc = 0;
     G.buildBounce[pad.id] = 1;
     const first = b.tier === 1;
@@ -935,7 +964,7 @@ KS.Systems = (() => {
     activeQuest, questProgress, questBaseline, questTargetPad, updateQuests,
     wallSegAt, wallSegArc, wallSegCenter, damageWall, repairWallAtDawn,
     gateAt, gateCenter, gateBlocks, damageGate,
-    nearestPad, padMaxed, toggleBuild,
+    nearestPad, padMaxed, toggleBuild, safeSpawnPoint,
     marketLvl, marketCost, buyMarket,
   };
 })();

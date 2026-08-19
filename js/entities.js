@@ -346,7 +346,10 @@ KS.Ent = (() => {
       if (G.playerDownT >= CFG.PLAYER.reviveTime) {
         G.playerDown = false;
         pl.hp = G.playerHpMax;
-        pl.x = CFG.WORLD.cx; pl.y = CFG.WORLD.cy + 150;
+        // Abseits jedes Bauplatzes aufstehen (sonst zahlt man sofort weiter ein)
+        const sp = KS.Systems.safeSpawnPoint();
+        pl.x = sp.x; pl.y = sp.y;
+        G.buildArmed = null; G.buildLock = null; G.nearPad = null;
         G.playerInvuln = 2.5;
         ring(G, pl.x, pl.y, { r0: 10, r1: 70, color: 'rgba(140,220,255,0.9)' });
         burst(G, pl.x, pl.y - 20, 14, { colors: ['#9adcf2', '#fff'], speed: 80, up: 90 });
