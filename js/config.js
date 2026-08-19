@@ -127,7 +127,7 @@ KS.CFG = (() => {
     mine: {
       name: 'Goldmine', ico: 'pickaxe', kind: 'prod', tiers: 10,
       baseCost: 90, costMul: 1.9,
-      income: t => Math.round(36 * Math.pow(1.55, t - 1)),
+      income: t => Math.round(18 * Math.pow(1.55, t - 1)),
       interval: 6,
       desc: 'Fördert stetig Gold aus der Tiefe.',
     },
