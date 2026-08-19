@@ -1211,6 +1211,521 @@ KS.Art = (() => {
     }
   }
 
+  // ============================================================
+  //  WIRTSCHAFTSGEBÄUDE
+  // ============================================================
+
+  // Lager: Bretterhalle mit offener Front und Rohstoffstapeln
+  function paintLager(g, tier) {
+    const W2 = 78 + tier * 3.4, H = 40 + tier * 2.4;
+    aoShadow(g, W2 * 0.56, 15, 0.3);
+    // Rückwand
+    rr(g, -W2 / 2, -H, W2, H, 3);
+    g.fillStyle = vgrad(g, -H, 0, '#b98f57', '#6d4a22');
+    g.fill();
+    texOver(g, 'wood', -W2 / 2, -H, W2, H, 1);
+    rr(g, -W2 / 2, -H, W2, H, 3);
+    outline(g, 2.4);
+    // Senkrechte Balken
+    g.strokeStyle = 'rgba(52,32,12,0.5)'; g.lineWidth = 2.2;
+    for (let i = 1; i < 5; i++) {
+      const x = -W2 / 2 + (W2 / 5) * i;
+      g.beginPath(); g.moveTo(x, -H + 2); g.lineTo(x, -2); g.stroke();
+    }
+    // Dach mit Überstand
+    g.beginPath();
+    g.moveTo(-W2 / 2 - 10, -H);
+    g.lineTo(0, -H - 26 - tier * 1.4);
+    g.lineTo(W2 / 2 + 10, -H);
+    g.closePath();
+    const roof = tier >= 8 ? '#c9a13a' : tier >= 5 ? '#7a6a58' : '#8a5f34';
+    g.fillStyle = vgrad(g, -H - 28, -H, U.shade(roof, 0.22), U.shade(roof, -0.14));
+    g.fill(); outline(g, 2.6);
+    g.strokeStyle = 'rgba(0,0,0,0.16)'; g.lineWidth = 1.6;
+    for (let i = 1; i < 4; i++) {
+      const t = i / 4, yy = -H - (26 + tier * 1.4) * t, xx = (W2 / 2 + 10) * (1 - t);
+      g.beginPath(); g.moveTo(-xx, yy); g.lineTo(xx, yy); g.stroke();
+    }
+    // Rohstoffstapel davor: Holz, Stein, Getreide
+    // Holzstapel
+    g.save(); g.translate(-W2 * 0.3, -2);
+    for (let r = 0; r < 2; r++) for (let i = 0; i < 3 - r; i++) {
+      const x = -8 + i * 8 + r * 4, y = -4 - r * 7;
+      ell(g, x, y, 4, 3.6);
+      g.fillStyle = r ? '#c9a86a' : '#a8794a'; g.fill(); outline(g, 1.4);
+      ell(g, x, y, 1.6, 1.4); g.fillStyle = '#e8d0a0'; g.fill();
+    }
+    g.restore();
+    // Steinstapel
+    g.save(); g.translate(0, -2);
+    for (const [sx, sy, sw] of [[-6, 0, 9], [4, 0, 8], [-1, -5, 8]]) {
+      rr(g, sx - sw / 2, sy - 5.5, sw, 6, 1.4);
+      g.fillStyle = '#a8a29a'; g.fill();
+      texOver(g, 'stone', sx - sw / 2, sy - 5.5, sw, 6, 1);
+      rr(g, sx - sw / 2, sy - 5.5, sw, 6, 1.4); outline(g, 1.6);
+    }
+    g.restore();
+    // Getreidesäcke
+    g.save(); g.translate(W2 * 0.3, -2);
+    for (const [sx, sy] of [[-5, 0], [5, -1], [0, -8]]) {
+      g.beginPath();
+      g.moveTo(sx - 5, sy);
+      g.bezierCurveTo(sx - 6, sy - 8, sx - 2, sy - 11, sx, sy - 11);
+      g.bezierCurveTo(sx + 2, sy - 11, sx + 6, sy - 8, sx + 5, sy);
+      g.closePath();
+      g.fillStyle = vgrad(g, sy - 11, sy, '#e0cfa4', '#b39c68'); g.fill(); outline(g, 1.6);
+      g.strokeStyle = '#8a7442'; g.lineWidth = 1.2;
+      g.beginPath(); g.moveTo(sx - 2.4, sy - 10.6); g.lineTo(sx + 2.4, sy - 10.6); g.stroke();
+    }
+    g.restore();
+    // Schild mit Kiste
+    if (tier >= 3) {
+      g.save(); g.translate(W2 / 2 + 2, -H - 6);
+      rr(g, -7, -8, 14, 12, 2);
+      g.fillStyle = '#e8dcc2'; g.fill(); outline(g, 1.8);
+      g.strokeStyle = '#7a5418'; g.lineWidth = 1.6;
+      g.strokeRect(-4, -5, 8, 6);
+      g.beginPath(); g.moveTo(-4, -2); g.lineTo(4, -2); g.stroke();
+      g.restore();
+    }
+  }
+
+  // Holzfäller: Hütte mit Sägebock, Stämmen und Axt im Hauklotz
+  function paintHolzfaeller(g, tier) {
+    const W2 = 62 + tier * 2.6, H = 34 + tier * 2;
+    aoShadow(g, W2 * 0.54, 13, 0.3);
+    // Blockhütte (liegende Stämme)
+    const rows = 5;
+    for (let i = 0; i < rows; i++) {
+      const y = -((i + 1) * (H / rows));
+      rr(g, -W2 / 2, y, W2, H / rows + 0.6, 3);
+      g.fillStyle = i % 2 ? '#b3874f' : '#a2794a'; g.fill();
+      texOver(g, 'wood', -W2 / 2, y, W2, H / rows + 0.6, 0.9);
+      rr(g, -W2 / 2, y, W2, H / rows + 0.6, 3);
+      outline(g, 1.7);
+    }
+    // Tür
+    g.beginPath();
+    g.moveTo(-8, 0); g.lineTo(-8, -15); g.arc(0, -15, 8, Math.PI, 0); g.lineTo(8, 0);
+    g.closePath();
+    g.fillStyle = vgrad(g, -24, 0, '#6b4620', '#3f2712'); g.fill(); outline(g, 2.2);
+    // Reetdach
+    g.beginPath();
+    g.moveTo(-W2 / 2 - 9, -H);
+    g.lineTo(0, -H - 24 - tier * 1.5);
+    g.lineTo(W2 / 2 + 9, -H);
+    g.closePath();
+    g.fillStyle = vgrad(g, -H - 26, -H, '#c9b071', '#8a7442'); g.fill(); outline(g, 2.5);
+    g.strokeStyle = 'rgba(90,70,30,0.35)'; g.lineWidth = 1.4;
+    for (let i = 1; i < 5; i++) {
+      const t = i / 5, yy = -H - (24 + tier * 1.5) * t, xx = (W2 / 2 + 9) * (1 - t);
+      g.beginPath(); g.moveTo(-xx, yy); g.lineTo(xx, yy); g.stroke();
+    }
+    // Hauklotz mit Axt
+    g.save(); g.translate(-W2 * 0.62, -1);
+    ell(g, 0, 0, 9, 4.4);
+    g.fillStyle = '#8a6234'; g.fill(); outline(g, 1.8);
+    rr(g, -8, -9, 16, 9, 2);
+    g.fillStyle = '#a8794a'; g.fill();
+    texOver(g, 'wood', -8, -9, 16, 9, 1);
+    rr(g, -8, -9, 16, 9, 2); outline(g, 1.8);
+    // Axt steckt drin
+    g.save(); g.rotate(-0.5);
+    g.strokeStyle = '#6b4620'; g.lineWidth = 2.6;
+    g.beginPath(); g.moveTo(0, -8); g.lineTo(4, -24); g.stroke();
+    g.fillStyle = '#c9ccd4';
+    g.beginPath();
+    g.moveTo(3, -24); g.quadraticCurveTo(12, -27, 11, -19);
+    g.quadraticCurveTo(7, -20, 4.5, -19); g.closePath();
+    g.fill(); outline(g, 1.6);
+    g.restore();
+    g.restore();
+    // Stämme gestapelt
+    g.save(); g.translate(W2 * 0.6, -2);
+    for (let r = 0; r < 2; r++) for (let i = 0; i < 2 - r; i++) {
+      const x = -5 + i * 10 + r * 5, y = -4.5 - r * 8;
+      ell(g, x, y, 5, 4.4);
+      g.fillStyle = r ? '#c9a86a' : '#a8794a'; g.fill(); outline(g, 1.6);
+      ell(g, x, y, 2, 1.8); g.fillStyle = '#e8d0a0'; g.fill();
+    }
+    g.restore();
+    // Rauch aus dem Schornstein (ab Stufe 4 Steinkamin)
+    if (tier >= 4) {
+      rr(g, W2 * 0.2, -H - 20, 9, 20, 2);
+      g.fillStyle = '#9a938a'; g.fill();
+      texOver(g, 'stone', W2 * 0.2, -H - 20, 9, 20, 1);
+      rr(g, W2 * 0.2, -H - 20, 9, 20, 2); outline(g, 2);
+    }
+    if (tier >= 7) flagPole(g, -W2 / 2 - 4, -H - 4, 18 + tier, '#4e9a3e');
+  }
+
+  // Steinbruch: Bruchkante mit Loren, Hammer und Meißel
+  function paintSteinbruch(g, tier) {
+    const W2 = 70 + tier * 3;
+    aoShadow(g, W2 * 0.55, 14, 0.3);
+    // Felswand hinten
+    g.beginPath();
+    g.moveTo(-W2 / 2, 0);
+    g.lineTo(-W2 / 2 + 4, -30 - tier * 2);
+    g.quadraticCurveTo(-W2 * 0.1, -40 - tier * 2.6, W2 * 0.2, -34 - tier * 2.2);
+    g.lineTo(W2 / 2, -6);
+    g.quadraticCurveTo(0, 3, -W2 / 2, 0);
+    g.closePath();
+    g.fillStyle = vgrad(g, -44 - tier * 2.6, 2, '#b6b1a8', '#6f6a61');
+    g.fill();
+    texOver(g, 'stone', -W2 / 2, -46 - tier * 2.6, W2, 50 + tier * 2.6, 1);
+    g.beginPath();
+    g.moveTo(-W2 / 2, 0);
+    g.lineTo(-W2 / 2 + 4, -30 - tier * 2);
+    g.quadraticCurveTo(-W2 * 0.1, -40 - tier * 2.6, W2 * 0.2, -34 - tier * 2.2);
+    g.lineTo(W2 / 2, -6);
+    g.quadraticCurveTo(0, 3, -W2 / 2, 0);
+    g.closePath();
+    outline(g, 2.6);
+    // Abbaustufen (Terrassen)
+    g.strokeStyle = 'rgba(255,255,255,0.24)'; g.lineWidth = 2;
+    for (let i = 1; i <= 3; i++) {
+      const y = -8 - i * 8;
+      g.beginPath(); g.moveTo(-W2 * 0.42, y); g.lineTo(W2 * 0.1, y - 3); g.stroke();
+    }
+    // Holzgerüst
+    g.strokeStyle = '#8a6234'; g.lineWidth = 3;
+    g.beginPath(); g.moveTo(-W2 * 0.3, 0); g.lineTo(-W2 * 0.3, -26); g.stroke();
+    g.beginPath(); g.moveTo(W2 * 0.05, 0); g.lineTo(W2 * 0.05, -26); g.stroke();
+    g.beginPath(); g.moveTo(-W2 * 0.34, -26); g.lineTo(W2 * 0.09, -26); g.stroke();
+    // Quader gestapelt
+    for (const [sx, sy, sw, sh] of [[W2 * 0.34, 0, 14, 8], [W2 * 0.34, -8, 12, 7], [W2 * 0.2, 0, 11, 7]]) {
+      rr(g, sx - sw / 2, sy - sh, sw, sh, 1.6);
+      g.fillStyle = '#c2bdb3'; g.fill();
+      texOver(g, 'stone', sx - sw / 2, sy - sh, sw, sh, 1);
+      rr(g, sx - sw / 2, sy - sh, sw, sh, 1.6); outline(g, 1.8);
+    }
+    // Hammer & Meißel
+    g.save(); g.translate(-W2 * 0.52, -3); g.rotate(-0.35);
+    g.strokeStyle = '#6b4620'; g.lineWidth = 2.6;
+    g.beginPath(); g.moveTo(0, 0); g.lineTo(2, -16); g.stroke();
+    g.fillStyle = '#5a6070';
+    rr(g, -4, -22, 12, 7, 1.6); g.fill();
+    texOver(g, 'metal', -4, -22, 12, 7, 1);
+    rr(g, -4, -22, 12, 7, 1.6); outline(g, 1.8);
+    g.restore();
+    // Lore auf Schienen (ab Stufe 5)
+    if (tier >= 5) {
+      g.save(); g.translate(W2 * 0.02, -1);
+      g.strokeStyle = '#6e727e'; g.lineWidth = 1.8;
+      g.beginPath(); g.moveTo(-16, 1); g.lineTo(18, 1); g.stroke();
+      g.beginPath(); g.moveTo(-16, 4); g.lineTo(18, 4); g.stroke();
+      rr(g, -9, -11, 18, 10, 2);
+      g.fillStyle = '#7a5a34'; g.fill();
+      texOver(g, 'wood', -9, -11, 18, 10, 1);
+      rr(g, -9, -11, 18, 10, 2); outline(g, 1.8);
+      for (let i = 0; i < 3; i++) { ell(g, -5 + i * 5, -12, 3.4, 3); g.fillStyle = '#b6b1a8'; g.fill(); outline(g, 1.3); }
+      ell(g, -5, -0.5, 2.6, 2.6); g.fillStyle = '#3a3428'; g.fill();
+      ell(g, 5, -0.5, 2.6, 2.6); g.fill();
+      g.restore();
+    }
+  }
+
+  // Bauernhof: Scheune mit Feldern und Vogelscheuche
+  function paintBauernhof(g, tier) {
+    const W2 = 68 + tier * 3, H = 38 + tier * 2.2;
+    aoShadow(g, W2 * 0.56, 14, 0.3);
+    // Felder davor (Furchen)
+    g.save();
+    g.globalAlpha = 0.9;
+    for (let i = 0; i < 3; i++) {
+      const y = 2 + i * 4;
+      g.strokeStyle = i % 2 ? '#8a6a3a' : '#7a5c30';
+      g.lineWidth = 3;
+      g.beginPath(); g.moveTo(-W2 * 0.5 - 10, y); g.lineTo(W2 * 0.5 + 10, y - 1); g.stroke();
+    }
+    g.restore();
+    // Scheune (rot)
+    rr(g, -W2 / 2, -H, W2, H, 3);
+    const barn = tier >= 8 ? '#c9a13a' : '#b5462e';
+    g.fillStyle = vgrad(g, -H, 0, U.shade(barn, 0.16), U.shade(barn, -0.2));
+    g.fill();
+    texOver(g, 'wood', -W2 / 2, -H, W2, H, 0.8);
+    rr(g, -W2 / 2, -H, W2, H, 3);
+    outline(g, 2.5);
+    // Weißes Kreuz-Tor
+    g.beginPath();
+    g.moveTo(-11, 0); g.lineTo(-11, -18); g.arc(0, -18, 11, Math.PI, 0); g.lineTo(11, 0);
+    g.closePath();
+    g.fillStyle = vgrad(g, -30, 0, '#f0e8d2', '#c9bfa4'); g.fill(); outline(g, 2.2);
+    g.strokeStyle = '#8a6234'; g.lineWidth = 2.4;
+    g.beginPath(); g.moveTo(-9, -2); g.lineTo(9, -22); g.stroke();
+    g.beginPath(); g.moveTo(9, -2); g.lineTo(-9, -22); g.stroke();
+    // Giebeldach
+    g.beginPath();
+    g.moveTo(-W2 / 2 - 8, -H);
+    g.lineTo(0, -H - 28 - tier * 1.5);
+    g.lineTo(W2 / 2 + 8, -H);
+    g.closePath();
+    g.fillStyle = vgrad(g, -H - 30, -H, '#8a8f9a', '#4e5460'); g.fill(); outline(g, 2.6);
+    g.strokeStyle = 'rgba(255,255,255,0.16)'; g.lineWidth = 1.6;
+    for (let i = 1; i < 4; i++) {
+      const t = i / 4, yy = -H - (28 + tier * 1.5) * t, xx = (W2 / 2 + 8) * (1 - t);
+      g.beginPath(); g.moveTo(-xx, yy); g.lineTo(xx, yy); g.stroke();
+    }
+    // Heuluke
+    rr(g, -6, -H - 14, 12, 10, 2);
+    g.fillStyle = '#3a2a18'; g.fill(); outline(g, 1.8);
+    g.fillStyle = '#e8c15a';
+    g.beginPath(); g.moveTo(-4, -H - 5); g.lineTo(4, -H - 5); g.lineTo(0, -H - 11); g.closePath(); g.fill();
+    // Vogelscheuche
+    g.save(); g.translate(W2 * 0.62, -1);
+    g.strokeStyle = '#8a6234'; g.lineWidth = 2.4;
+    g.beginPath(); g.moveTo(0, 0); g.lineTo(0, -26); g.stroke();
+    g.beginPath(); g.moveTo(-8, -18); g.lineTo(8, -18); g.stroke();
+    ell(g, 0, -30, 5, 5);
+    g.fillStyle = '#e0cfa4'; g.fill(); outline(g, 1.8);
+    g.beginPath();
+    g.moveTo(-6, -33); g.lineTo(6, -33); g.lineTo(0, -39); g.closePath();
+    g.fillStyle = '#c9a13a'; g.fill(); outline(g, 1.6);
+    g.fillStyle = '#3a2a18';
+    ell(g, -1.8, -30.5, 0.9, 0.9); g.fill();
+    ell(g, 1.8, -30.5, 0.9, 0.9); g.fill();
+    g.restore();
+    // Windrad ab Stufe 6
+    if (tier >= 6) {
+      g.save(); g.translate(-W2 * 0.58, -22);
+      g.strokeStyle = '#8a8f9a'; g.lineWidth = 2.2;
+      g.beginPath(); g.moveTo(0, 22); g.lineTo(0, 0); g.stroke();
+      for (let i = 0; i < 4; i++) {
+        g.save(); g.rotate(i * Math.PI / 2 + 0.4);
+        g.fillStyle = '#c9ccd4';
+        g.beginPath(); g.moveTo(0, 0); g.lineTo(9, -2.4); g.lineTo(9, 2.4); g.closePath(); g.fill();
+        g.restore();
+      }
+      ell(g, 0, 0, 2, 2); g.fillStyle = '#5a6070'; g.fill();
+      g.restore();
+    }
+  }
+
+  // Sägewerk: Wasserrad, Sägeblatt und Bretterstapel
+  function paintSaegewerk(g, tier) {
+    const W2 = 74 + tier * 3, H = 38 + tier * 2;
+    aoShadow(g, W2 * 0.56, 14, 0.3);
+    // Werkhalle
+    rr(g, -W2 / 2, -H, W2, H, 3);
+    g.fillStyle = vgrad(g, -H, 0, '#c1aa82', '#8a6f47');
+    g.fill();
+    texOver(g, 'wood', -W2 / 2, -H, W2, H, 1);
+    rr(g, -W2 / 2, -H, W2, H, 3);
+    outline(g, 2.5);
+    // Offene Front mit Sägetisch
+    rr(g, -W2 * 0.3, -H * 0.72, W2 * 0.6, H * 0.5, 2);
+    g.fillStyle = '#2a1d10'; g.fill(); outline(g, 2);
+    // Sägeblatt (Kreissäge)
+    const bx = 0, by = -H * 0.46;
+    ell(g, bx, by, 11, 11);
+    g.fillStyle = '#d7dde8'; g.fill();
+    texOver(g, 'metal', bx - 11, by - 11, 22, 22, 1);
+    ell(g, bx, by, 11, 11); outline(g, 2);
+    g.strokeStyle = '#8a94a8'; g.lineWidth = 1.4;
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * TAU;
+      g.beginPath();
+      g.moveTo(bx + Math.cos(a) * 8, by + Math.sin(a) * 8);
+      g.lineTo(bx + Math.cos(a) * 11.5, by + Math.sin(a) * 11.5);
+      g.stroke();
+    }
+    ell(g, bx, by, 2.4, 2.4); g.fillStyle = '#5a6070'; g.fill();
+    // Dach
+    g.beginPath();
+    g.moveTo(-W2 / 2 - 9, -H);
+    g.lineTo(0, -H - 24 - tier * 1.4);
+    g.lineTo(W2 / 2 + 9, -H);
+    g.closePath();
+    const roof = tier >= 8 ? '#c9a13a' : '#6a5a48';
+    g.fillStyle = vgrad(g, -H - 26, -H, U.shade(roof, 0.2), U.shade(roof, -0.15));
+    g.fill(); outline(g, 2.6);
+    // Wasserrad seitlich
+    g.save(); g.translate(-W2 / 2 - 6, -14);
+    ell(g, 0, 0, 15, 15);
+    g.fillStyle = 'rgba(120,90,50,0.25)'; g.fill();
+    g.strokeStyle = '#8a6234'; g.lineWidth = 2.6;
+    ell(g, 0, 0, 15, 15); g.stroke();
+    ell(g, 0, 0, 7, 7); g.stroke();
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * TAU;
+      g.strokeStyle = '#a8794a'; g.lineWidth = 2.2;
+      g.beginPath();
+      g.moveTo(Math.cos(a) * 7, Math.sin(a) * 7);
+      g.lineTo(Math.cos(a) * 15, Math.sin(a) * 15);
+      g.stroke();
+      // Schaufeln
+      g.fillStyle = '#b98f57';
+      g.save(); g.rotate(a); rr(g, 12, -3, 4, 6, 1); g.fill(); outline(g, 1.2); g.restore();
+    }
+    // Wasser
+    g.fillStyle = 'rgba(110,180,220,0.5)';
+    g.beginPath();
+    g.moveTo(-16, 13); g.quadraticCurveTo(-4, 18, 12, 14);
+    g.lineTo(12, 18); g.quadraticCurveTo(-4, 22, -16, 17);
+    g.closePath(); g.fill();
+    g.restore();
+    // Bretterstapel
+    g.save(); g.translate(W2 * 0.42, -2);
+    for (let i = 0; i < 4; i++) {
+      rr(g, -11, -3.5 - i * 4, 22, 3.6, 1);
+      g.fillStyle = i % 2 ? '#e0cfa4' : '#cbb894'; g.fill(); outline(g, 1.4);
+    }
+    g.restore();
+    // Sägespäne
+    g.fillStyle = 'rgba(230,205,150,0.7)';
+    for (const [sx, sy] of [[-W2 * 0.12, -1], [W2 * 0.08, -2], [-W2 * 0.02, -3]]) {
+      ell(g, sx, sy, 5, 2); g.fill();
+    }
+  }
+
+  // Steinmetz: Werkstatt mit Statue in Arbeit
+  function paintSteinmetz(g, tier) {
+    const W2 = 70 + tier * 3, H = 40 + tier * 2.2;
+    aoShadow(g, W2 * 0.55, 14, 0.3);
+    // Steinwerkstatt
+    g.save();
+    rr(g, -W2 / 2, -H, W2, H, 3);
+    g.clip();
+    brickWall(g, -W2 / 2, -H, W2, H,
+      tier >= 8 ? '#efe6d2' : '#c8c9d2', tier >= 8 ? '#b9ac90' : '#8f9099', tier * 11, 13, 7);
+    g.restore();
+    rr(g, -W2 / 2, -H, W2, H, 3);
+    outline(g, 2.5);
+    // Offene Werkstatt-Front
+    g.beginPath();
+    g.moveTo(-14, 0); g.lineTo(-14, -20); g.arc(0, -20, 14, Math.PI, 0); g.lineTo(14, 0);
+    g.closePath();
+    g.fillStyle = '#241d16'; g.fill(); outline(g, 2.2);
+    // Statue in Arbeit (halbfertige Figur)
+    g.save(); g.translate(0, -2);
+    rr(g, -7, -8, 14, 8, 1.6);
+    g.fillStyle = '#b6b1a8'; g.fill(); outline(g, 1.8);   // Sockel
+    g.beginPath();
+    g.moveTo(-5, -8); g.lineTo(-4, -22); g.lineTo(4, -22); g.lineTo(5, -8);
+    g.closePath();
+    g.fillStyle = vgrad(g, -24, -8, '#e2ddd2', '#a8a29a'); g.fill();
+    texOver(g, 'stone', -5, -24, 10, 16, 1);
+    g.beginPath();
+    g.moveTo(-5, -8); g.lineTo(-4, -22); g.lineTo(4, -22); g.lineTo(5, -8);
+    g.closePath(); outline(g, 1.8);
+    ell(g, 0, -25, 4, 4);
+    g.fillStyle = '#e2ddd2'; g.fill(); outline(g, 1.8);
+    g.restore();
+    // Flachdach mit Zinnen
+    rr(g, -W2 / 2 - 4, -H - 8, W2 + 8, 9, 2);
+    g.fillStyle = tier >= 8 ? '#e2d7bd' : '#aeafb9'; g.fill(); outline(g, 2.3);
+    for (let i = 0; i < 4; i++) {
+      rr(g, -W2 / 2 + 2 + i * (W2 / 4), -H - 14, W2 / 8, 7, 1.4);
+      g.fillStyle = tier >= 8 ? '#d8ccb0' : '#a0a1ab'; g.fill(); outline(g, 1.7);
+    }
+    // Werkzeugbank
+    g.save(); g.translate(-W2 * 0.56, -2);
+    rr(g, -9, -9, 18, 9, 2);
+    g.fillStyle = '#8a6234'; g.fill();
+    texOver(g, 'wood', -9, -9, 18, 9, 1);
+    rr(g, -9, -9, 18, 9, 2); outline(g, 1.8);
+    // Meißel & Hammer
+    g.strokeStyle = '#5a6070'; g.lineWidth = 2.2;
+    g.beginPath(); g.moveTo(-4, -10); g.lineTo(-4, -17); g.stroke();
+    g.fillStyle = '#c9ccd4'; rr(g, -6.6, -21, 5.4, 4.4, 1); g.fill(); outline(g, 1.4);
+    g.strokeStyle = '#6b4620'; g.lineWidth = 2.2;
+    g.beginPath(); g.moveTo(4, -10); g.lineTo(6, -18); g.stroke();
+    g.restore();
+    // Steinstaub
+    g.fillStyle = 'rgba(235,232,225,0.6)';
+    for (const [sx, sy] of [[-6, -1], [7, -2], [1, -3]]) { ell(g, sx, sy, 5, 2); g.fill(); }
+  }
+
+  // Mühle & Backhaus: Windmühle mit Ofen
+  function paintMuehle(g, tier) {
+    const W2 = 52 + tier * 2.2, H = 56 + tier * 3.4;
+    aoShadow(g, W2 * 0.62, 15, 0.3);
+    // Turmkörper (konisch)
+    g.beginPath();
+    g.moveTo(-W2 / 2, 0);
+    g.lineTo(-W2 / 2 + 7, -H);
+    g.lineTo(W2 / 2 - 7, -H);
+    g.lineTo(W2 / 2, 0);
+    g.closePath();
+    g.fillStyle = vgrad(g, -H, 0, '#efe6d2', '#b9ac90');
+    g.fill();
+    texOver(g, 'plaster', -W2 / 2, -H, W2, H, 1);
+    g.beginPath();
+    g.moveTo(-W2 / 2, 0);
+    g.lineTo(-W2 / 2 + 7, -H);
+    g.lineTo(W2 / 2 - 7, -H);
+    g.lineTo(W2 / 2, 0);
+    g.closePath();
+    outline(g, 2.6);
+    // Fachwerk-Streben
+    g.strokeStyle = 'rgba(110,74,38,0.55)'; g.lineWidth = 2.2;
+    g.beginPath(); g.moveTo(-W2 / 2 + 3, -H * 0.45); g.lineTo(W2 / 2 - 3, -H * 0.45); g.stroke();
+    g.beginPath(); g.moveTo(-W2 / 2 + 5, -H * 0.75); g.lineTo(W2 / 2 - 5, -H * 0.75); g.stroke();
+    // Tür & Fenster
+    g.beginPath();
+    g.moveTo(-8, 0); g.lineTo(-8, -14); g.arc(0, -14, 8, Math.PI, 0); g.lineTo(8, 0);
+    g.closePath();
+    g.fillStyle = vgrad(g, -24, 0, '#6b4620', '#3f2712'); g.fill(); outline(g, 2.2);
+    windowGlow(g, 0, -H * 0.62, 7, 10);
+    // Kegeldach
+    g.beginPath();
+    g.moveTo(-W2 / 2 + 4, -H);
+    g.lineTo(0, -H - 22 - tier);
+    g.lineTo(W2 / 2 - 4, -H);
+    g.closePath();
+    g.fillStyle = vgrad(g, -H - 24, -H, '#8a5f34', '#5c3f1c'); g.fill(); outline(g, 2.5);
+    // Flügelkreuz
+    g.save(); g.translate(0, -H * 0.72);
+    g.rotate(0.35);
+    for (let i = 0; i < 4; i++) {
+      g.save(); g.rotate(i * Math.PI / 2);
+      // Rahmen
+      g.strokeStyle = '#8a6234'; g.lineWidth = 2.6;
+      g.beginPath(); g.moveTo(0, 0); g.lineTo(0, -30 - tier); g.stroke();
+      // Segeltuch
+      g.fillStyle = 'rgba(245,240,225,0.9)';
+      g.beginPath();
+      g.moveTo(1.4, -8); g.lineTo(8, -10); g.lineTo(8, -28 - tier); g.lineTo(1.4, -26 - tier);
+      g.closePath(); g.fill(); outline(g, 1.5);
+      g.strokeStyle = 'rgba(110,74,38,0.4)'; g.lineWidth = 1;
+      for (let k = 1; k < 4; k++) {
+        const yy = -10 - k * ((18 + tier) / 4);
+        g.beginPath(); g.moveTo(1.6, yy); g.lineTo(7.8, yy - 1); g.stroke();
+      }
+      g.restore();
+    }
+    ell(g, 0, 0, 3.4, 3.4); g.fillStyle = '#5a4632'; g.fill(); outline(g, 1.6);
+    g.restore();
+    // Backhaus-Anbau mit Ofen
+    g.save(); g.translate(W2 * 0.72, 0);
+    rr(g, -14, -24, 28, 24, 3);
+    g.fillStyle = '#c2bdb3'; g.fill();
+    texOver(g, 'stone', -14, -24, 28, 24, 1);
+    rr(g, -14, -24, 28, 24, 3); outline(g, 2.3);
+    // Ofenöffnung mit Glut
+    g.beginPath();
+    g.moveTo(-8, 0); g.lineTo(-8, -10); g.arc(0, -10, 8, Math.PI, 0); g.lineTo(8, 0);
+    g.closePath();
+    g.fillStyle = '#1c1008'; g.fill(); outline(g, 2);
+    const fg = g.createRadialGradient(0, -6, 1, 0, -6, 10);
+    fg.addColorStop(0, '#ffe084'); fg.addColorStop(0.5, '#ff8a2e'); fg.addColorStop(1, 'rgba(160,40,10,0)');
+    g.fillStyle = fg;
+    g.beginPath(); g.moveTo(-7, 0); g.arc(0, -9, 7, Math.PI, 0); g.lineTo(7, 0); g.closePath(); g.fill();
+    // Schräges Dach
+    g.beginPath();
+    g.moveTo(-16, -24); g.lineTo(2, -34); g.lineTo(16, -24);
+    g.closePath();
+    g.fillStyle = vgrad(g, -36, -24, '#8a5f34', '#5c3f1c'); g.fill(); outline(g, 2.2);
+    // Brote auf dem Brett
+    for (let i = 0; i < 3; i++) {
+      ell(g, -7 + i * 7, -27, 3.4, 2.2);
+      g.fillStyle = '#d9a95e'; g.fill(); outline(g, 1.3);
+    }
+    g.restore();
+  }
+
   function paintBuilding(g, type, tier) {
     if (type === 'castle') return paintCastle(g, tier);
     if (type === 'mine') return paintMine(g, tier);
@@ -1220,6 +1735,13 @@ KS.Art = (() => {
     if (type === 'markt') return paintMarkt(g, tier);
     if (type === 'wall') return paintWallLodge(g, tier);
     if (type === 'gates') return paintGateLodge(g, tier);
+    if (type === 'lager') return paintLager(g, tier);
+    if (type === 'holzfaeller') return paintHolzfaeller(g, tier);
+    if (type === 'steinbruch') return paintSteinbruch(g, tier);
+    if (type === 'bauernhof') return paintBauernhof(g, tier);
+    if (type === 'saegewerk') return paintSaegewerk(g, tier);
+    if (type === 'steinmetz') return paintSteinmetz(g, tier);
+    if (type === 'muehle') return paintMuehle(g, tier);
     return paintTower(g, type, tier);
   }
 
@@ -2299,6 +2821,116 @@ KS.Art = (() => {
     }, 6);
   }
 
+  // ---------- Arbeiter (Holz / Stein / Getreide) ----------
+  // act: 'walk' | 'work' | 'carry'  — Werkzeug bzw. Last sichtbar
+  function worker(res, idx, f, act) {
+    const outfit = { wood: '#7a5a34', stone: '#6a6f7a', grain: '#a8913a' }[res] || '#7a9e5a';
+    return make(`wrk:${res}:${idx % 3}:${f}:${act}`, 42, 50, g => {
+      const sw = f ? 1.7 : -1.7;
+      const swing = act === 'work' ? (f ? -0.9 : 0.2) : 0;
+      // Beine
+      limb(g, -2.2, -5, -2.2 - (act === 'work' ? 1.5 : sw), 0, 3.6, '#4a3a28');
+      limb(g, 2.2, -5, 2.2 + (act === 'work' ? 1.5 : sw), 0, 3.6, '#4a3a28');
+      // Kittel mit Schürze
+      g.beginPath();
+      g.moveTo(-6, -4);
+      g.quadraticCurveTo(-5.4, -14.5, 0, -15.5);
+      g.quadraticCurveTo(5.4, -14.5, 6, -4);
+      g.closePath();
+      g.fillStyle = vgrad(g, -16, -3, U.shade(outfit, 0.2), U.shade(outfit, -0.16));
+      g.fill(); outline(g, 1.8);
+      // Lederschürze
+      g.fillStyle = 'rgba(90,58,26,0.75)';
+      g.beginPath();
+      g.moveTo(-3.6, -12); g.lineTo(3.6, -12); g.lineTo(4.2, -4); g.lineTo(-4.2, -4);
+      g.closePath(); g.fill();
+      g.strokeStyle = 'rgba(40,26,12,0.5)'; g.lineWidth = 1.2;
+      g.beginPath(); g.moveTo(-4, -8.5); g.lineTo(4, -8.5); g.stroke();
+      // Kopf
+      ell(g, 0, -19.5, 4.8, 4.6);
+      g.fillStyle = '#f5d5ae'; g.fill(); outline(g, 1.8);
+      ell(g, 1.5, -20, 0.75, 0.95); g.fillStyle = '#2c2620'; g.fill();
+      ell(g, 3.5, -20, 0.75, 0.95); g.fill();
+      // Mütze / Strohhut je Beruf
+      if (res === 'grain') {
+        g.beginPath(); g.ellipse(0, -22.6, 8.4, 2.6, 0, 0, TAU);
+        g.fillStyle = '#dcc069'; g.fill(); outline(g, 1.6);
+        ell(g, 0, -24.6, 4.4, 3);
+        g.fillStyle = '#e8cf7e'; g.fill(); outline(g, 1.5);
+      } else {
+        g.beginPath(); g.arc(0, -20.6, 5, Math.PI * 0.85, Math.PI * 2.12); g.closePath();
+        g.fillStyle = res === 'stone' ? '#8a94a8' : '#8a5f34'; g.fill(); outline(g, 1.6);
+      }
+      // Arm + Werkzeug / Last
+      if (act === 'carry') {
+        // Last auf der Schulter
+        if (res === 'wood') {
+          g.save(); g.translate(0, -15); g.rotate(-0.22);
+          rr(g, -11, -4.4, 22, 5.4, 2.4);
+          g.fillStyle = '#a8794a'; g.fill();
+          texOver(g, 'wood', -11, -4.4, 22, 5.4, 1);
+          rr(g, -11, -4.4, 22, 5.4, 2.4); outline(g, 1.7);
+          ell(g, -11, -1.7, 1.6, 2.4); g.fillStyle = '#e8d0a0'; g.fill();
+          ell(g, 11, -1.7, 1.6, 2.4); g.fill();
+          g.restore();
+        } else if (res === 'stone') {
+          g.save(); g.translate(0, -19);
+          rr(g, -6.5, -6, 13, 7, 1.6);
+          g.fillStyle = '#b6b1a8'; g.fill();
+          texOver(g, 'stone', -6.5, -6, 13, 7, 1);
+          rr(g, -6.5, -6, 13, 7, 1.6); outline(g, 1.8);
+          g.restore();
+        } else {
+          g.save(); g.translate(0, -18);
+          g.beginPath();
+          g.moveTo(-5, 0);
+          g.bezierCurveTo(-6, -7, -2, -10, 0, -10);
+          g.bezierCurveTo(2, -10, 6, -7, 5, 0);
+          g.closePath();
+          g.fillStyle = vgrad(g, -10, 0, '#e0cfa4', '#b39c68'); g.fill(); outline(g, 1.7);
+          g.strokeStyle = '#8a7442'; g.lineWidth = 1.2;
+          g.beginPath(); g.moveTo(-2.4, -9.6); g.lineTo(2.4, -9.6); g.stroke();
+          g.restore();
+        }
+        // Stützender Arm
+        limb(g, 3, -13.5, 5.6, -17.5, 3.2, '#f0c8a0');
+      } else {
+        const ax = 5.4, ay = -12 + swing * 2;
+        limb(g, 3.4, -13, ax, ay, 3.2, '#f0c8a0');
+        g.save();
+        g.translate(ax, ay);
+        g.rotate(act === 'work' ? (f ? -1.15 : -0.15) : -0.5);
+        if (res === 'wood') {
+          // Axt
+          g.strokeStyle = '#6b4620'; g.lineWidth = 2.4;
+          g.beginPath(); g.moveTo(0, 2); g.lineTo(1, -13); g.stroke();
+          g.fillStyle = '#c9ccd4';
+          g.beginPath();
+          g.moveTo(0.6, -13); g.quadraticCurveTo(8, -15.5, 7, -8.5);
+          g.quadraticCurveTo(3.6, -9.6, 1.4, -8.8); g.closePath();
+          g.fill(); outline(g, 1.5);
+        } else if (res === 'stone') {
+          // Spitzhacke
+          g.strokeStyle = '#6b4620'; g.lineWidth = 2.4;
+          g.beginPath(); g.moveTo(0, 2); g.lineTo(1, -13); g.stroke();
+          g.strokeStyle = '#8a94a8'; g.lineWidth = 2.6;
+          g.beginPath();
+          g.moveTo(-5, -11); g.quadraticCurveTo(1, -16, 7, -11);
+          g.stroke();
+        } else {
+          // Sense
+          g.strokeStyle = '#6b4620'; g.lineWidth = 2.4;
+          g.beginPath(); g.moveTo(0, 2); g.lineTo(0.6, -14); g.stroke();
+          g.strokeStyle = '#d7dde8'; g.lineWidth = 2.2;
+          g.beginPath();
+          g.moveTo(0.6, -13.5); g.quadraticCurveTo(9, -12, 10, -4);
+          g.stroke();
+        }
+        g.restore();
+      }
+    }, 6);
+  }
+
   // ============================================================
   //  MÜNZEN & LOOT
   // ============================================================
@@ -2860,7 +3492,7 @@ KS.Art = (() => {
   }
 
   return {
-    make, draw, building, padPlate, monster, king, sword, villager, coin,
+    make, draw, building, padPlate, monster, king, sword, villager, worker, coin,
     prop, paintGround, generateProps,
     wallPost, wallRubble, gatePost, gateDoor, gateBroken, drawStar,
     matFor, MATS, TOWER_ACCENT,

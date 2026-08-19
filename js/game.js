@@ -34,7 +34,11 @@ KS.Game = (() => {
       questIdx: 0, endlessIdx: 0, questBase: 0, chapterShown: -1,
       questVersion: CFG.QUEST_VERSION,
       market: {},
+      tech: {},                                  // erforschte Knoten
+      res: { wood: 0, stone: 0, grain: 0 },      // Lagerbestand
+      placed: [], placedSeq: 0,                  // frei platzierte Bauplätze
       wall: null,
+      gates: null,
       bossesKilled: {},
       killsByClass: {},
       stats: { kills: 0, bossKills: 0, goldEarned: 0, coins: 0, days: 0, playTime: 0, defeats: 0 },
@@ -65,6 +69,10 @@ KS.Game = (() => {
     G.wallFlash = new Array(CFG.WALL.segs).fill(0);
     G.gateFlash = new Array(CFG.GATES.length).fill(0);
     G.nearPad = null; G.buildArmed = null; G.buildLock = null;
+    // Wirtschaft
+    G.workers = []; G.craftT = {}; G.storeFullT = 0; G.workerSyncT = 0;
+    // Baumodus (freies Platzieren)
+    G.placeMode = null;      // { type, def, x, y, ok, problem }
     G.wallBreachT = 0;
     G.paused = true;
     G.cam = { x: state.player.x, y: state.player.y };
@@ -163,6 +171,7 @@ KS.Game = (() => {
     for (const c of coins) Ent.spawnCoin(G, c[0], c[1], c[2], { speed: 0, z: 0 });
     for (const c of G.coins) { c.state = 'idle'; c.z = 0; }
     Sys.syncVillagers(G);
+    Sys.syncWorkers(G);       // Arbeiter der Sammelstätten aufstellen
   }
 
   function save() {
@@ -255,6 +264,9 @@ KS.Game = (() => {
     Ent.updatePlayer(G, dt);
     Ent.updateMonsters(G, dt);
     Sys.updateBuildings(G, dt);
+    Sys.updateWorkers(G, dt);
+    Sys.updateCrafters(G, dt);
+    updatePlaceMode();
     Sys.updateDeposit(G, dt);
     Sys.updateDepositFx(G, dt);
     Ent.updateProjectiles(G, dt);
@@ -401,6 +413,7 @@ KS.Game = (() => {
     }
     for (const m of G.monsters) if (!m.dead && inView(m.x, m.y, 160)) items.push({ y: m.y, kind: 'mon', m });
     for (const v of G.villagers) if (inView(v.x, v.y, 60)) items.push({ y: v.y, kind: 'vil', v });
+    for (const w of G.workers) if (inView(w.x, w.y, 70)) items.push({ y: w.y, kind: 'worker', w });
     // Stadtmauer (Pfosten & Torpfeiler, einzeln y-sortiert)
     if (G.wallMax > 0 && st.wall) {
       const wTier = st.buildings.wall.tier;
@@ -438,6 +451,8 @@ KS.Game = (() => {
         ctx.globalAlpha = 1;
       } else if (it.kind === 'mon') {
         Ent.drawMonster(G, ctx, it.m);
+      } else if (it.kind === 'worker') {
+        drawWorker(it.w);
       } else if (it.kind === 'vil') {
         Ent.drawVillager(G, ctx, it.v);
       } else if (it.kind === 'wall') {
@@ -524,6 +539,7 @@ KS.Game = (() => {
 
     // Pad-Overlays (Fortschritt, Kosten, Pfeile)
     drawPadOverlays();
+    drawPlaceGhost();
 
     // Spieler-HP-Balken
     drawPlayerHp();
@@ -628,6 +644,127 @@ KS.Game = (() => {
   function isActivePadNear(pad) {
     const pl = G.state.player;
     return U.dist2(pl.x, pl.y, pad.x, pad.y) < 190 * 190;
+  }
+
+  // ---- Baumodus: der Geist folgt dem König (mobil am angenehmsten) ----
+  function startPlaceMode(type) {
+    const def = CFG.BUILDINGS[type];
+    if (!def || !def.placeable) return false;
+    G.placeMode = { type, def, x: G.state.player.x, y: G.state.player.y, ok: false, problem: null };
+    updatePlaceMode();
+    KS.UI.showPlaceBar(G);
+    return true;
+  }
+
+  function cancelPlaceMode() {
+    G.placeMode = null;
+    KS.UI.hidePlaceBar();
+  }
+
+  function confirmPlaceMode() {
+    const pm = G.placeMode;
+    if (!pm) return;
+    if (!pm.ok) { KS.UI.toast(pm.problem || 'Hier geht es nicht.', 2200, 'x'); return; }
+    const pad = Sys.placeBuilding(G, pm.type, pm.x, pm.y);
+    if (pad) cancelPlaceMode();
+  }
+
+  function updatePlaceMode() {
+    const pm = G.placeMode;
+    if (!pm) return;
+    const Z = CFG.BUILD_ZONE;
+    const pl = G.state.player;
+    // Der Geist steht ein Stück vor dem König, gerastert
+    pm.x = Math.round(pl.x / Z.gridSnap) * Z.gridSnap;
+    pm.y = Math.round((pl.y - 6) / Z.gridSnap) * Z.gridSnap;
+    pm.problem = Sys.placeProblem(G, pm.type, pm.x, pm.y);
+    pm.ok = !pm.problem;
+    KS.UI.updatePlaceBar(G);
+  }
+
+  function drawWorker(w) {
+    // Schatten
+    ctx.globalAlpha = 0.25;
+    ctx.fillStyle = '#1c2814';
+    ctx.beginPath(); ctx.ellipse(w.x, w.y, 8, 3.4, 0, 0, TAU); ctx.fill();
+    ctx.globalAlpha = 1;
+    const act = w.state === 'harvest' ? 'work' : (w.carry > 0 ? 'carry' : 'walk');
+    const moving = w.state === 'toNode' || w.state === 'toStore' || w.state === 'home';
+    const frame = act === 'work'
+      ? (Math.floor(w.animT * 4) % 2)                  // Hackbewegung
+      : (moving ? Math.floor(w.animT * 6) % 2 : 0);
+    const bob = act === 'work' ? Math.abs(Math.sin(w.animT * 8)) * 1.6 : 0;
+    KS.Art.draw(ctx, KS.Art.worker(w.res, w.idx, frame, act), w.x, w.y + bob, 1, 1, w.face === -1);
+    // Schlafend nachts: kleines Z
+    if (w.state === 'sleep') {
+      ctx.globalAlpha = 0.5 + Math.sin(G.time * 2) * 0.2;
+      ctx.fillStyle = '#cfe0ff';
+      ctx.font = '900 11px Nunito, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('z', w.x + 8, w.y - 34 + Math.sin(G.time * 2) * 2);
+      ctx.globalAlpha = 1;
+    }
+    // Hinweis, wenn kein Lager steht
+    if (w.state === 'nostore' || w.state === 'nonode') {
+      ctx.globalAlpha = 0.8;
+      ctx.fillStyle = '#ffd34e';
+      ctx.font = '900 14px Nunito, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.strokeStyle = 'rgba(30,20,15,0.8)'; ctx.lineWidth = 3;
+      const msg = '!';
+      ctx.strokeText(msg, w.x, w.y - 36);
+      ctx.fillText(msg, w.x, w.y - 36);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // Bau-Geist: zeigt, wo das Gebäude landen würde
+  function drawPlaceGhost() {
+    const pm = G.placeMode;
+    if (!pm) return;
+    const Z = CFG.BUILD_ZONE;
+    // Bauzone andeuten
+    ctx.save();
+    ctx.globalAlpha = 0.16 + Math.sin(G.time * 2) * 0.04;
+    ctx.strokeStyle = '#ffe9a8';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([16, 14]);
+    ctx.beginPath(); ctx.arc(CFG.WORLD.cx, CFG.WORLD.cy, Z.rMin, 0, TAU); ctx.stroke();
+    ctx.beginPath(); ctx.arc(CFG.WORLD.cx, CFG.WORLD.cy, Z.rMax, 0, TAU); ctx.stroke();
+    ctx.restore();
+    // Geist
+    const spr = KS.Art.building(pm.type, 1);
+    ctx.save();
+    ctx.globalAlpha = 0.55 + Math.sin(G.time * 4) * 0.08;
+    if (!pm.ok) {
+      // rot einfärben
+      ctx.filter = 'grayscale(1)';
+    }
+    KS.Art.draw(ctx, spr, pm.x, pm.y, 1);
+    ctx.filter = 'none';
+    ctx.restore();
+    // Grundfläche
+    const gap = Z.minGap * G.tech.gapShrink * 0.5;
+    ctx.save();
+    ctx.globalAlpha = 0.85;
+    ctx.strokeStyle = pm.ok ? '#7ecb5a' : '#e5484d';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.ellipse(pm.x, pm.y + 8, gap, gap * 0.48, 0, 0, TAU);
+    ctx.stroke();
+    ctx.globalAlpha = 0.18;
+    ctx.fillStyle = pm.ok ? '#7ecb5a' : '#e5484d';
+    ctx.fill();
+    ctx.restore();
+    // Fehlergrund als Text
+    if (!pm.ok && pm.problem) {
+      ctx.font = '900 14px Nunito, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.strokeStyle = 'rgba(30,20,15,0.85)'; ctx.lineWidth = 3.4;
+      ctx.strokeText(pm.problem, pm.x, pm.y + 40);
+      ctx.fillStyle = '#ff9d9d';
+      ctx.fillText(pm.problem, pm.x, pm.y + 40);
+    }
   }
 
   function drawPadOverlays() {
@@ -1227,6 +1364,7 @@ KS.Game = (() => {
   return {
     G, boot, save, requestSave, serialize, hardReset, loadImported,
     setPaused, onDefeat, reviveAfterDefeat, log, pingQuestTarget,
+    startPlaceMode, cancelPlaceMode, confirmPlaceMode,
   };
 })();
 

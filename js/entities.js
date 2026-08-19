@@ -406,6 +406,7 @@ KS.Ent = (() => {
       if (G.swing.t >= G.swing.dur) G.swing = null;
     }
     const w = CFG.WEAPONS[G.weaponTier - 1];
+    const kdmg = w.dmg * (G.tech ? G.tech.kingDmg : 1);   // „Königsschliff“
     if (G.attackCd <= 0) {
       // Nächstes Monster in Reichweite suchen
       let best = null, bestD = Infinity;
@@ -435,7 +436,7 @@ KS.Ent = (() => {
           if (da > Math.PI) da = TAU - da;
           if (da > arc) continue;
           const crit = Math.random() < (G.critCh || 0.12);
-          damageMonster(G, m, w.dmg * (crit ? 2 : 1), { kb: 130, kbx: m.x - pl.x, kby: m.y - pl.y, crit });
+          damageMonster(G, m, kdmg * (crit ? 2 : 1), { kb: 130, kbx: m.x - pl.x, kby: m.y - pl.y, crit });
           hits++;
         }
         if (hits) KS.Audio.SFX.hit();
@@ -444,7 +445,7 @@ KS.Ent = (() => {
           G.projectiles.push({
             kind: 'beam', x: pl.x, y: pl.y - 16,
             vx: Math.cos(dir) * 420, vy: Math.sin(dir) * 420,
-            t: 0, ttl: 0.55, dmg: w.dmg * w.beam, side: 'ally',
+            t: 0, ttl: 0.55, dmg: kdmg * w.beam, side: 'ally',
             pierce: true, hitSet: new Set(), dir, color: w.glow || '#cfe0ff',
           });
         }

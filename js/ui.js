@@ -40,6 +40,12 @@ KS.UI = (() => {
       actBtn: $('act-btn'), actIco: $('act-ico'), actTitle: $('act-title'),
       actSub: $('act-sub'), actHint: $('act-hint'),
       questToggle: $('quest-toggle'), questTab: $('quest-tab'), questTabProg: $('quest-tab-prog'),
+      demoBtn: $('demo-btn'), demoTxt: $('demo-txt'),
+      resBar: $('res-bar'), sideBtns: $('side-btns'),
+      buildPanel: $('build-panel'), buildRows: $('build-rows'), buildPurse: $('build-purse'),
+      techPanel: $('tech-panel'), techRows: $('tech-rows'), techTabs: $('tech-tabs'), techPurse: $('tech-purse'),
+      placeBar: $('place-bar'), placeIco: $('place-ico'), placeName: $('place-name'),
+      placeHint: $('place-hint'), placeOk: $('place-ok'),
       sndOn: $('snd-on'), sndOff: $('snd-off'),
     };
 
@@ -77,6 +83,56 @@ KS.UI = (() => {
       else KS.Systems.toggleBuild(G);
       refreshActBtn(G);
     });
+    // Abreißen — zwei Tipper, damit es nie versehentlich passiert
+    els.demoBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      KS.Audio.unlock(); KS.Audio.SFX.click();
+      const G = KS.Game.G, pad = G.nearPad;
+      if (!pad || !pad.placed) return;
+      if (demoArmed === pad.id) {
+        demoArmed = null; demoArmT = 0;
+        KS.Systems.demolish(G, pad.id);
+      } else {
+        demoArmed = pad.id; demoArmT = 4;
+        const back = KS.Systems.refundOf(G, pad.id);
+        toast(`${pad.label} abreißen? Du bekommst ${U.fmt(back)} Gold zurück — noch einmal tippen.`, 3800, 'trash');
+      }
+      lastDemoKey = '';
+    });
+    // Bauen & Forschung
+    $('btn-build').addEventListener('click', () => { KS.Audio.unlock(); KS.Audio.SFX.click(); openBuild(KS.Game.G); });
+    $('btn-tech').addEventListener('click', () => { KS.Audio.unlock(); KS.Audio.SFX.click(); openTech(KS.Game.G); });
+    $('build-close').addEventListener('click', () => { KS.Audio.SFX.click(); closeBuild(); });
+    $('tech-close').addEventListener('click', () => { KS.Audio.SFX.click(); closeTech(); });
+    els.buildPanel.addEventListener('click', e => { if (e.target === els.buildPanel) closeBuild(); });
+    els.techPanel.addEventListener('click', e => { if (e.target === els.techPanel) closeTech(); });
+    // Gebäude wählen → Baumodus
+    els.buildRows.addEventListener('click', e => {
+      const btn = e.target.closest('.bd-pick');
+      if (!btn) return;
+      KS.Audio.SFX.click();
+      const type = btn.dataset.type;
+      closeBuild();
+      KS.Game.startPlaceMode(type);
+    });
+    // Forschung kaufen
+    els.techRows.addEventListener('click', e => {
+      const btn = e.target.closest('.tt-buy');
+      if (!btn || btn.classList.contains('max')) return;
+      if (KS.Systems.buyTech(KS.Game.G, btn.dataset.id)) renderTech(KS.Game.G);
+      else renderTech(KS.Game.G);
+    });
+    els.techTabs.addEventListener('click', e => {
+      const tab = e.target.closest('.tt-tab');
+      if (!tab) return;
+      KS.Audio.SFX.click();
+      techBranch = tab.dataset.br;
+      renderTech(KS.Game.G);
+    });
+    // Platzierungsleiste
+    $('place-cancel').addEventListener('click', () => { KS.Audio.SFX.click(); KS.Game.cancelPlaceMode(); });
+    els.placeOk.addEventListener('click', () => { KS.Game.confirmPlaceMode(); });
+
     // Markt schließen
     const closeM = () => { KS.Audio.SFX.click(); closeMarket(); };
     $('market-close').addEventListener('click', closeM);
@@ -141,9 +197,13 @@ KS.UI = (() => {
       renderMarketRows(KS.Game.G);
       els.marketGold.textContent = U.fmt(KS.Game.G.state.gold);
     });
-    // Escape schließt den Markt
+    // Escape schließt Vollbildfenster bzw. bricht das Platzieren ab
     window.addEventListener('keydown', e => {
-      if (e.code === 'Escape' && marketVisible) { e.preventDefault(); closeMarket(); }
+      if (e.code !== 'Escape') return;
+      if (marketVisible) { e.preventDefault(); closeMarket(); }
+      else if (buildVisible) { e.preventDefault(); closeBuild(); }
+      else if (techVisible) { e.preventDefault(); closeTech(); }
+      else if (KS.Game.G && KS.Game.G.placeMode) { e.preventDefault(); KS.Game.cancelPlaceMode(); }
     });
   }
 
@@ -228,6 +288,10 @@ KS.UI = (() => {
         els.questTabProg.textContent = max > 1 ? `${U.fmt(cur)}/${U.fmt(max)}` : 'Quest';
       }
     }
+    // Rohstoffe
+    updateResBar(G);
+    // Abriss-Knopf
+    refreshDemoBtn(G, dt);
     // Markt-Preise regelmäßig auffrischen (Kaufkraft-Anzeige)
     if (marketVisible) {
       marketRefreshT -= dt;
@@ -237,6 +301,8 @@ KS.UI = (() => {
         els.marketGold.textContent = U.fmt(st.gold);
       }
     }
+    // Bau-/Forschungsknöpfe verstecken, solange ein Bauplatz-Knopf im Weg wäre
+    els.sideBtns.classList.toggle('hidden-soft', !!G.placeMode || !!G.nearPad || G.playerDown);
     // Aktionsknopf am Bauplatz
     refreshActBtn(G);
   }
@@ -264,7 +330,7 @@ KS.UI = (() => {
 
   function refreshActBtn(G) {
     const pad = G.nearPad;
-    if (!pad || G.playerDown || marketVisible) {
+    if (!pad || G.playerDown || anyPanelOpen() || G.placeMode) {
       if (!els.actBtn.classList.contains('hidden')) {
         els.actBtn.classList.add('hidden');
         els.questCard.classList.remove('raised');
@@ -324,6 +390,37 @@ KS.UI = (() => {
     }
   }
 
+  // ---------- Abreißen ----------
+  // Nur an selbst gesetzten Gebäuden. Der erste Tipper fragt nach, der
+  // zweite reißt ab — so kostet ein Fehlgriff nichts.
+  let demoArmed = null, demoArmT = 0, lastDemoKey = '';
+
+  function refreshDemoBtn(G, dt) {
+    const pad = G.nearPad;
+    const show = pad && pad.placed && !G.playerDown && !anyPanelOpen() && !G.placeMode;
+    if (!show) {
+      if (!els.demoBtn.classList.contains('hidden')) {
+        els.demoBtn.classList.add('hidden');
+        els.demoBtn.classList.remove('armed');
+      }
+      if (demoArmed) { demoArmed = null; demoArmT = 0; lastDemoKey = ''; }
+      return;
+    }
+    if (demoArmed && demoArmed !== pad.id) { demoArmed = null; demoArmT = 0; }
+    if (demoArmT > 0) {
+      demoArmT -= dt;
+      if (demoArmT <= 0) { demoArmed = null; lastDemoKey = ''; }
+    }
+    const armed = demoArmed === pad.id;
+    const key = pad.id + '|' + armed;
+    if (key !== lastDemoKey) {
+      lastDemoKey = key;
+      els.demoTxt.textContent = armed ? 'Wirklich?' : 'Abreißen';
+      els.demoBtn.classList.toggle('armed', armed);
+    }
+    els.demoBtn.classList.remove('hidden');
+  }
+
   // ---------- Markt (Vollbild, pausiert das Spiel) ----------
   function openMarket(G) {
     if (marketVisible) return;
@@ -342,11 +439,7 @@ KS.UI = (() => {
     if (!marketVisible) return;
     marketVisible = false;
     els.market.classList.add('hidden');
-    if (els.story.classList.contains('hidden') &&
-        els.defeat.classList.contains('hidden') &&
-        els.menu.classList.contains('hidden')) {
-      KS.Game.setPaused(false);
-    }
+    resumeIfClear();
   }
 
   function isMarketOpen() { return marketVisible; }
@@ -385,6 +478,249 @@ KS.UI = (() => {
       if (btn.classList.contains('max')) return;
       btn.classList.toggle('broke', G.state.gold < Number(btn.dataset.cost));
     });
+  }
+
+  // ---------- Rohstoffleiste ----------
+  // Erscheint erst, wenn ein Lager steht — vorher gibt es nichts zu zeigen.
+  let lastResKey = '';
+
+  function updateResBar(G) {
+    if (!G.storeCap) {
+      if (!els.resBar.classList.contains('hidden')) {
+        els.resBar.classList.add('hidden');
+        els.resBar.innerHTML = '';
+        lastResKey = '';
+      }
+      return;
+    }
+    const parts = [], keys = [];
+    for (const r of CFG.RES_ORDER) {
+      const have = KS.Systems.storeTotal(G, r);
+      const full = have >= G.storeCap;
+      keys.push(have + (full ? 'f' : ''));
+      parts.push(
+        `<span class="res-pill res-${r}${full ? ' full' : ''}">` +
+        `${icon(CFG.RESOURCES[r].ico)}${U.fmt(have)}` +
+        `<span class="cap">/${U.fmt(G.storeCap)}</span></span>`
+      );
+    }
+    const key = G.storeCap + '|' + keys.join(',');
+    if (key !== lastResKey) {
+      lastResKey = key;
+      els.resBar.innerHTML = parts.join('');
+    }
+    els.resBar.classList.remove('hidden');
+  }
+
+  // Gold + Rohstoffe als Kopfzeile eines Menüs
+  function purseHtml(G) {
+    let html = `<span class="purse-pill"><span class="coin-ico"></span>${U.fmt(G.state.gold)}</span>`;
+    if (G.storeCap) {
+      for (const r of CFG.RES_ORDER) {
+        html += `<span class="purse-pill res-${r}">` +
+                `${icon(CFG.RESOURCES[r].ico)}${U.fmt(KS.Systems.storeTotal(G, r))}</span>`;
+      }
+    }
+    return html;
+  }
+
+  // ---------- Bau-Menü (Vollbild, pausiert das Spiel) ----------
+  let buildVisible = false;
+
+  // Was das Gebäude auf Stufe 1 leistet — konkrete Zahlen sagen mehr als Worte
+  function buildStats(def) {
+    const rn = def.res ? CFG.RESOURCES[def.res].name : '';
+    const cls = def.res ? ` class="res-${def.res}"` : '';
+    if (def.kind === 'store') return `Platz für <b>${U.fmt(def.cap(1))}</b> je Rohstoff`;
+    if (def.kind === 'gather') {
+      return `<b${cls}>${rn}</b> · ${def.workers(1)} Arbeiter · ${U.fmt(def.load(1))}/Fuhre`;
+    }
+    if (def.kind === 'craft') {
+      const s = def.interval(1).toFixed(1).replace('.', ',');
+      return `<b${cls}>${U.fmt(def.batch(1))} ${rn}</b> → <b>${U.fmt(def.gold(1))} Gold</b> (${s} s)`;
+    }
+    return '';
+  }
+
+  function openBuild(G) {
+    if (buildVisible || G.placeMode) return;
+    buildVisible = true;
+    renderBuild(G);
+    els.buildPanel.classList.remove('hidden');
+    els.actBtn.classList.add('hidden');
+    els.questCard.classList.remove('raised');
+    els.questTab.classList.remove('raised');
+    lastActKey = '';
+    KS.Game.setPaused(true);
+  }
+
+  function closeBuild() {
+    if (!buildVisible) return;
+    buildVisible = false;
+    els.buildPanel.classList.add('hidden');
+    resumeIfClear();
+  }
+
+  function renderBuild(G) {
+    const st = G.state;
+    els.buildPurse.innerHTML = purseHtml(G);
+    const rows = KS.Systems.placeableTypes(G).map(({ type, def }) => {
+      const built = (st.placed || []).filter(p => p.type === type).length;
+      const cost = KS.Systems.placeCost(G, type);
+      const broke = st.gold < cost;
+      const stats = buildStats(def);
+      return `
+        <div class="bd-row">
+          <div class="bd-ico">${icon(def.ico)}</div>
+          <div class="bd-body">
+            <div class="bd-name">${def.name}${built ? ` <span class="mk-lvl">${built}×</span>` : ''}</div>
+            ${stats ? `<div class="bd-stats">${stats}</div>` : ''}
+            <div class="bd-desc">${def.desc}</div>
+          </div>
+          <button class="bd-pick${broke ? ' broke' : ''}" data-type="${type}">
+            <span class="coin-ico"></span>${U.fmt(cost)}
+          </button>
+        </div>`;
+    });
+    if (!G.storeCap) {
+      rows.unshift(`<div class="bd-row"><div class="bd-desc">${icon('crate')} ` +
+        `Baue zuerst ein <b>Lager</b> — erst dann haben Rohstoffe einen Platz.</div></div>`);
+    }
+    els.buildRows.innerHTML = rows.join('');
+  }
+
+  function isBuildOpen() { return buildVisible; }
+
+  // ---------- Techtree (Vollbild, pausiert das Spiel) ----------
+  let techVisible = false;
+  let techBranch = 'eco';
+
+  function openTech(G) {
+    if (techVisible || G.placeMode) return;
+    techVisible = true;
+    renderTech(G);
+    els.techPanel.classList.remove('hidden');
+    els.actBtn.classList.add('hidden');
+    els.questCard.classList.remove('raised');
+    els.questTab.classList.remove('raised');
+    lastActKey = '';
+    KS.Game.setPaused(true);
+  }
+
+  function closeTech() {
+    if (!techVisible) return;
+    techVisible = false;
+    els.techPanel.classList.add('hidden');
+    resumeIfClear();
+  }
+
+  function renderTech(G) {
+    const st = G.state;
+    els.techPurse.innerHTML = purseHtml(G);
+    // Reiter je Zweig, mit Fortschrittszähler
+    els.techTabs.innerHTML = Object.entries(CFG.TECH_BRANCHES).map(([br, b]) => {
+      const nodes = CFG.TECH.filter(t => t.br === br);
+      const done = nodes.filter(t => st.tech && st.tech[t.id]).length;
+      return `<button class="tt-tab${br === techBranch ? ' active' : ''}" data-br="${br}">` +
+             `<span class="tt-tab-name">${icon(b.ico)}${b.name}</span>` +
+             `<span class="tt-tab-cnt">${done}/${nodes.length}</span></button>`;
+    }).join('');
+    // Knoten des aktiven Zweigs, nach Stufe gruppiert
+    const nodes = CFG.TECH.filter(t => t.br === techBranch);
+    const tiers = [...new Set(nodes.map(t => t.tier))].sort((a, b) => a - b);
+    const html = [];
+    for (const tier of tiers) {
+      html.push(`<div class="tt-tier"><div class="tt-tier-label">Stufe ${tier}</div>`);
+      for (const node of nodes.filter(t => t.tier === tier)) {
+        const state = KS.Systems.techState(G, node);
+        const done = state === 'done', locked = state === 'locked';
+        // Fehlende Voraussetzungen als eigene Zeile
+        let needLine = '';
+        if (locked) {
+          const need = node.req.filter(r => !(st.tech && st.tech[r]))
+            .map(r => (KS.Systems.techNode(r) || {}).name).filter(Boolean);
+          needLine = `<div class="tt-need">${icon('lock')}${need.join(' + ')}</div>`;
+        }
+        // Kostenzeile: Gold plus optionale Rohstoffe
+        let resLine = '';
+        if (node.res && !done) {
+          resLine = '<div class="tt-res">' + Object.entries(node.res).map(([r, n]) => {
+            const miss = KS.Systems.storeTotal(G, r) < n;
+            return `<span class="${miss ? 'miss' : ''}">${icon(CFG.RESOURCES[r].ico)}${U.fmt(n)}</span>`;
+          }).join('') + '</div>';
+        }
+        const broke = !done && !locked && !KS.Systems.techAffordable(G, node);
+        const btn = done
+          ? `<button class="tt-buy max">${icon('check')}</button>`
+          : `<button class="tt-buy${broke ? ' broke' : ''}" data-id="${node.id}">` +
+            `<span class="coin-ico"></span>${U.fmt(node.gold)}</button>`;
+        html.push(`
+          <div class="tt-row${done ? ' done' : locked ? ' locked' : ''}">
+            <div class="tt-ico">${icon(done ? 'check' : node.ico)}</div>
+            <div class="tt-body">
+              <div class="tt-name">${node.name}</div>
+              <div class="tt-desc">${node.desc}</div>
+              ${needLine}${resLine}
+            </div>
+            ${btn}
+          </div>`);
+      }
+      html.push('</div>');
+    }
+    els.techRows.innerHTML = html.join('');
+  }
+
+  function isTechOpen() { return techVisible; }
+
+  // Weiterlaufen, sobald kein Vollbildfenster mehr offen ist
+  function resumeIfClear() {
+    if (marketVisible || buildVisible || techVisible) return;
+    if (!els.story.classList.contains('hidden')) return;
+    if (!els.defeat.classList.contains('hidden')) return;
+    if (!els.menu.classList.contains('hidden')) return;
+    KS.Game.setPaused(false);
+  }
+
+  function anyPanelOpen() { return marketVisible || buildVisible || techVisible; }
+
+  // ---------- Platzierungsleiste ----------
+  // Der Geist folgt dem König; die Leiste sagt jederzeit, ob es hier geht.
+  let lastPlaceKey = '';
+
+  function showPlaceBar(G) {
+    const pm = G.placeMode;
+    if (!pm) return;
+    els.placeIco.innerHTML = icon(pm.def.ico);
+    els.placeName.textContent = pm.def.name;
+    els.placeBar.classList.remove('hidden');
+    els.sideBtns.classList.add('hidden-soft');
+    els.actBtn.classList.add('hidden');
+    els.questCard.classList.remove('raised');
+    els.questTab.classList.remove('raised');
+    lastActKey = '';
+    lastPlaceKey = '';
+    updatePlaceBar(G);
+  }
+
+  function hidePlaceBar() {
+    els.placeBar.classList.add('hidden');
+    els.sideBtns.classList.remove('hidden-soft');
+    lastPlaceKey = '';
+  }
+
+  function updatePlaceBar(G) {
+    const pm = G.placeMode;
+    if (!pm) return;
+    const cost = KS.Systems.placeCost(G, pm.type);
+    const key = `${pm.ok}|${pm.problem || ''}`;
+    if (key === lastPlaceKey) return;
+    lastPlaceKey = key;
+    els.placeHint.textContent = pm.ok
+      ? `Platz frei · Baustelle für ${U.fmt(cost)} Gold`
+      : pm.problem;
+    els.placeHint.classList.toggle('good', !!pm.ok);
+    els.placeHint.classList.toggle('bad', !pm.ok);
+    els.placeOk.disabled = !pm.ok;
   }
 
   // ---------- Toasts & Banner ----------
@@ -471,9 +807,7 @@ KS.UI = (() => {
       KS.Game.setPaused(true);
     } else {
       els.menu.classList.add('hidden');
-      if (els.story.classList.contains('hidden') && els.defeat.classList.contains('hidden')) {
-        KS.Game.setPaused(false);
-      }
+      resumeIfClear();
     }
   }
 
@@ -545,6 +879,10 @@ KS.UI = (() => {
     toggleMenu, showTitle, hideTitle, applySettings,
     renderMarketRows, icon, refreshActBtn,
     openMarket, closeMarket, isMarketOpen,
+    openBuild, closeBuild, renderBuild, isBuildOpen,
+    openTech, closeTech, renderTech, isTechOpen,
+    showPlaceBar, hidePlaceBar, updatePlaceBar,
+    updateResBar, anyPanelOpen,
     setQuestCollapsed,
   };
 })();

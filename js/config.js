@@ -54,6 +54,24 @@ KS.CFG = (() => {
     segs: 16,          // 8 Bögen × 2 Abschnitte
   };
 
+  // ---------- Rohstoffe ----------
+  // Jede Kette endet in Gold: Sammler → Lager → Verarbeiter → Münzen.
+  const RESOURCES = {
+    wood:  { name: 'Holz',    ico: 'log',   color: '#a8794a' },
+    stone: { name: 'Stein',   ico: 'rock',  color: '#a5a09a' },
+    grain: { name: 'Getreide', ico: 'wheat', color: '#e8c15a' },
+  };
+  const RES_ORDER = ['wood', 'stone', 'grain'];
+
+  // ---------- Bauzone für freies Platzieren ----------
+  const BUILD_ZONE = {
+    rMin: 150,          // nicht direkt an der Burg
+    rMax: 372,          // innerhalb der Mauer
+    minGap: 74,         // Abstand zwischen Gebäuden
+    pathClear: 26,      // Abstand zu den acht Wegen
+    gridSnap: 12,       // sanftes Raster
+  };
+
   // ---------- Markt: dauerhafte König-Verbesserungen ----------
   const MARKET = [
     { id: 'hp',     ico: 'heart',  name: 'Königliche Vitalität', desc: '+12 % max. Leben',        max: 20, base: 45, mul: 1.42 },
@@ -163,6 +181,67 @@ KS.CFG = (() => {
       gateHp: t => Math.round(340 * Math.pow(1.5, t - 1)),   // etwas zäher als die Mauer
       desc: 'Verschließt alle acht Durchgänge. Ohne Tore läuft die Horde einfach hindurch.',
     },
+    // ---- Wirtschaft: Sammler (schicken Arbeiter ins Feld) ----
+    lager: {
+      name: 'Lager', ico: 'crate', kind: 'store', tiers: 10, placeable: true,
+      baseCost: 130, costMul: 1.8,
+      cap: t => Math.round(90 * Math.pow(1.5, t - 1)),     // je Rohstoff
+      desc: 'Hier landen alle Rohstoffe. Ohne Lager stehen die Arbeiter still.',
+    },
+    holzfaeller: {
+      name: 'Holzfäller', ico: 'axe', kind: 'gather', tiers: 10, placeable: true,
+      baseCost: 110, costMul: 1.75,
+      res: 'wood', node: 'tree', workRange: 620,
+      workers: t => Math.min(5, 1 + Math.floor(t / 2)),     // Arbeiter je Stufe
+      load: t => Math.round(10 * Math.pow(1.42, t - 1)),    // Holz pro Fuhre
+      chopTime: t => Math.max(0.9, 2.2 - t * 0.14),
+      desc: 'Arbeiter fällen Bäume im Umland und tragen das Holz ins Lager.',
+    },
+    steinbruch: {
+      name: 'Steinbruch', ico: 'pick', kind: 'gather', tiers: 10, placeable: true,
+      baseCost: 170, costMul: 1.78,
+      res: 'stone', node: 'rock', workRange: 660,
+      workers: t => Math.min(5, 1 + Math.floor(t / 2)),
+      load: t => Math.round(8 * Math.pow(1.42, t - 1)),
+      chopTime: t => Math.max(1.1, 2.8 - t * 0.16),
+      desc: 'Bricht Stein aus den Felsen ringsum — schwer, aber wertvoll.',
+    },
+    bauernhof: {
+      name: 'Bauernhof', ico: 'wheat', kind: 'gather', tiers: 10, placeable: true,
+      baseCost: 140, costMul: 1.72,
+      res: 'grain', node: 'field', workRange: 210,          // eigene Felder am Hof
+      workers: t => Math.min(5, 1 + Math.floor((t + 1) / 2)),
+      load: t => Math.round(12 * Math.pow(1.40, t - 1)),
+      chopTime: t => Math.max(0.8, 1.9 - t * 0.12),
+      desc: 'Bestellt die Felder ringsum. Getreide füllt Mägen und Kassen.',
+    },
+
+    // ---- Wirtschaft: Verarbeiter (Rohstoff → Gold) ----
+    saegewerk: {
+      name: 'Sägewerk', ico: 'saw', kind: 'craft', tiers: 10, placeable: true,
+      baseCost: 190, costMul: 1.8,
+      res: 'wood', batch: t => Math.max(2, 6 + t),          // Holz pro Durchgang
+      gold: t => Math.round(26 * Math.pow(1.5, t - 1)),     // Gold pro Durchgang
+      interval: t => Math.max(2.6, 6.5 - t * 0.35),
+      desc: 'Sägt Bretter aus Holz und verkauft sie — verwandelt Holz in Gold.',
+    },
+    steinmetz: {
+      name: 'Steinmetz', ico: 'chisel', kind: 'craft', tiers: 10, placeable: true,
+      baseCost: 260, costMul: 1.82,
+      res: 'stone', batch: t => Math.max(2, 5 + t),
+      gold: t => Math.round(44 * Math.pow(1.5, t - 1)),
+      interval: t => Math.max(3.4, 8 - t * 0.42),
+      desc: 'Meißelt Quader und Zierwerk — langsam, aber sehr einträglich.',
+    },
+    muehle: {
+      name: 'Mühle & Backhaus', ico: 'mill', kind: 'craft', tiers: 10, placeable: true,
+      baseCost: 165, costMul: 1.76,
+      res: 'grain', batch: t => Math.max(2, 7 + t),
+      gold: t => Math.round(20 * Math.pow(1.5, t - 1)),
+      interval: t => Math.max(2.2, 5.5 - t * 0.3),
+      bread: t => 0.02 * t,                                 // Bonus: Überlebende-Einkommen
+      desc: 'Mahlt und backt. Brot bringt Geld — und lockt weitere Überlebende an.',
+    },
     shrine: {
       name: 'Schrein des Lichts', ico: 'sparkle', kind: 'shrine', tiers: 10,
       baseCost: 160, costMul: 1.9,
@@ -171,6 +250,70 @@ KS.CFG = (() => {
       baseHeal: t => 0.0022 * t,                // Burg-Anteil/s
       desc: 'Heiliges Licht heilt König und Burg.',
     },
+  };
+
+  // ---------- Techtree ----------
+  // Drei Zweige, je Knoten Voraussetzungen und Kosten (Gold + optional Rohstoffe).
+  // Wirkungen greifen über KS.Systems.tech(id) / techMul(...) im Spiel.
+  const TECH = [
+    // ═══ Wirtschaft ═══
+    { id: 'saw_basics',  br: 'eco', tier: 1, name: 'Sägeblätter',        ico: 'saw',
+      desc: 'Sägewerk & Steinmetz arbeiten 15 % schneller', gold: 300, req: [] },
+    { id: 'carts',       br: 'eco', tier: 1, name: 'Schubkarren',        ico: 'crate',
+      desc: 'Arbeiter tragen 30 % mehr pro Fuhre', gold: 380, req: [] },
+    { id: 'boots_eco',   br: 'eco', tier: 2, name: 'Feste Sohlen',       ico: 'boot',
+      desc: 'Arbeiter laufen 25 % schneller', gold: 620, res: { wood: 40 }, req: ['carts'] },
+    { id: 'sharp_axes',  br: 'eco', tier: 2, name: 'Geschärfte Äxte',    ico: 'axe',
+      desc: 'Ernten geht 25 % schneller', gold: 700, res: { stone: 30 }, req: ['carts'] },
+    { id: 'big_barn',    br: 'eco', tier: 2, name: 'Große Speicher',     ico: 'crate',
+      desc: 'Lagerkapazität +60 %', gold: 800, res: { wood: 60 }, req: ['saw_basics'] },
+    { id: 'guilds',      br: 'eco', tier: 3, name: 'Zünfte',             ico: 'market',
+      desc: 'Verarbeiter geben 30 % mehr Gold', gold: 1600, res: { wood: 90, stone: 60 }, req: ['saw_basics', 'sharp_axes'] },
+    { id: 'crew',        br: 'eco', tier: 3, name: 'Zusätzliche Hände',  ico: 'person',
+      desc: '+1 Arbeiter je Sammelstätte', gold: 1900, res: { grain: 80 }, req: ['boots_eco'] },
+    { id: 'trade_route', br: 'eco', tier: 4, name: 'Handelsstraße',      ico: 'coin',
+      desc: 'Minen, Tavernen und Verarbeiter +25 % Gold', gold: 4200, res: { wood: 150, stone: 120 }, req: ['guilds'] },
+    { id: 'mechanised',  br: 'eco', tier: 4, name: 'Wasserkraft',        ico: 'mill',
+      desc: 'Verarbeiter arbeiten doppelt so schnell', gold: 6500, res: { wood: 220, stone: 180 }, req: ['guilds', 'crew'] },
+
+    // ═══ Militär ═══
+    { id: 'fletching',   br: 'mil', tier: 1, name: 'Federn & Schäfte',   ico: 'bow',
+      desc: 'Türme machen 15 % mehr Schaden', gold: 350, req: [] },
+    { id: 'drill',       br: 'mil', tier: 1, name: 'Drill',              ico: 'swords',
+      desc: 'Türme schießen 12 % schneller', gold: 420, req: [] },
+    { id: 'spyglass',    br: 'mil', tier: 2, name: 'Fernrohr',           ico: 'bow',
+      desc: 'Turm-Reichweite +12 %', gold: 700, res: { wood: 50 }, req: ['fletching'] },
+    { id: 'masonry',     br: 'mil', tier: 2, name: 'Verbundmauerwerk',   ico: 'wall',
+      desc: 'Mauer & Tore +50 % Trefferpunkte', gold: 900, res: { stone: 80 }, req: ['drill'] },
+    { id: 'kings_edge',  br: 'mil', tier: 2, name: 'Königsschliff',      ico: 'sword',
+      desc: 'Der König macht 25 % mehr Schaden', gold: 850, res: { stone: 40 }, req: ['drill'] },
+    { id: 'ballistics',  br: 'mil', tier: 3, name: 'Ballistik',          ico: 'cannon',
+      desc: 'Kanonen & Blitz: +40 % Schaden', gold: 2200, res: { stone: 140 }, req: ['spyglass', 'masonry'] },
+    { id: 'night_watch', br: 'mil', tier: 3, name: 'Nachtwache',         ico: 'moon',
+      desc: 'Mauer & Tore heilen sich nachts langsam', gold: 2400, res: { wood: 120 }, req: ['masonry'] },
+    { id: 'grand_arsenal', br: 'mil', tier: 4, name: 'Großes Arsenal',   ico: 'anvil',
+      desc: 'Alle Türme +50 % Schaden', gold: 7000, res: { stone: 260, wood: 180 }, req: ['ballistics'] },
+
+    // ═══ Reich ═══
+    { id: 'surveying',   br: 'realm', tier: 1, name: 'Landvermessung',   ico: 'hammer',
+      desc: 'Bauplätze dürfen enger stehen (mehr Platz)', gold: 320, req: [] },
+    { id: 'ledger',      br: 'realm', tier: 1, name: 'Rechnungsbuch',    ico: 'book',
+      desc: 'Alle Bauten kosten 10 % weniger', gold: 500, req: [] },
+    { id: 'heralds',     br: 'realm', tier: 2, name: 'Herolde',          ico: 'person',
+      desc: 'Doppelt so viele Überlebende kommen an', gold: 780, res: { grain: 50 }, req: ['ledger'] },
+    { id: 'magnet_tech', br: 'realm', tier: 2, name: 'Münzwitterung',    ico: 'magnet',
+      desc: 'Sammelradius +40 %', gold: 640, req: ['surveying'] },
+    { id: 'architects',  br: 'realm', tier: 3, name: 'Baumeister',       ico: 'hammer',
+      desc: 'Einzahlen läuft doppelt so schnell', gold: 1800, res: { wood: 100 }, req: ['ledger', 'surveying'] },
+    { id: 'granary',     br: 'realm', tier: 3, name: 'Kornkammer',       ico: 'wheat',
+      desc: 'Überlebende zahlen 50 % mehr Steuern', gold: 2100, res: { grain: 140 }, req: ['heralds'] },
+    { id: 'golden_age',  br: 'realm', tier: 4, name: 'Goldenes Zeitalter', ico: 'crown',
+      desc: 'Alles Gold +30 %', gold: 9000, res: { wood: 200, stone: 200, grain: 200 }, req: ['architects', 'granary'] },
+  ];
+  const TECH_BRANCHES = {
+    eco:   { name: 'Wirtschaft', ico: 'crate',  color: '#7ecb5a' },
+    mil:   { name: 'Militär',    ico: 'swords', color: '#e5484d' },
+    realm: { name: 'Reich',      ico: 'crown',  color: '#f7c948' },
   };
 
   // ---------- Bauplätze (Pads) ----------
@@ -486,6 +629,7 @@ Die Wacht geht weiter — die Nächte werden härter, deine Legende größer. Ew
   return {
     WORLD, PLAYER, WEAPONS, BUILDINGS, PADS, MONSTERS, BOSSES, bossHp,
     GATES, WALL, MARKET, migrateQuestIdx, QUEST_VERSION, interactR,
+    RESOURCES, RES_ORDER, BUILD_ZONE, TECH, TECH_BRANCHES,
     SCALE, PHASES, CHAPTERS, QUESTS, endlessQuest,
     DAWN_LINES, SURVIVOR_LINES, SURVIVOR_NAMES, VICTORY_TEXT,
     COINS, DEPOSIT, SAVE_KEY, SAVE_KEY_B, SAVE_VERSION,

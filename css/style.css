@@ -255,7 +255,9 @@ html, body {
 }
 #quest-tab:active { transform: scale(0.94); }
 #quest-tab .ico { width: 17px; height: 17px; color: #7a5418; }
-#quest-tab.raised, #quest-card.raised { bottom: calc(78px + var(--sai-bottom)); }
+#quest-tab.raised, #quest-card.raised { bottom: calc(84px + var(--sai-bottom)); }
+/* Im Baumodus verschwinden die Seitenknöpfe, damit die Leiste Platz hat */
+#side-btns.hidden-soft { opacity: 0; pointer-events: none; transition: opacity 0.15s; }
 /* Neben dem Aktionsknopf schrumpft der Reiter aufs Symbol — kein Gedränge */
 #quest-tab.raised { padding: 7px 9px; }
 #quest-tab.raised #quest-tab-prog { display: none; }
@@ -550,6 +552,244 @@ html, body {
 #defeat-title { font-family: 'Cinzel', serif; font-size: 26px; font-weight: 800; color: #7a1f23; margin: 6px 0 10px; }
 #defeat-text { font-size: 15px; line-height: 1.5; font-weight: 700; color: #4a3820; margin-bottom: 18px; }
 
+/* ============ Rohstoffleiste ============ */
+#res-bar {
+  position: absolute;
+  top: calc(54px + var(--sai-top));
+  left: calc(8px + var(--sai-left));
+  display: flex; flex-direction: column; gap: 4px;
+  align-items: flex-start;
+}
+.res-pill {
+  display: flex; align-items: center; gap: 5px;
+  background: linear-gradient(180deg, rgba(30,22,44,0.9), rgba(18,13,28,0.9));
+  border: 1.5px solid var(--panel-line);
+  border-radius: 999px;
+  padding: 3px 10px 3px 6px;
+  color: #fff; font-size: 13.5px; font-weight: 900;
+  box-shadow: 0 2px 7px rgba(0,0,0,0.4);
+  font-variant-numeric: tabular-nums;
+}
+.res-pill .ico { width: 16px; height: 16px; }
+.res-pill.full { border-color: rgba(229,72,77,0.8); }
+.res-pill .cap { font-size: 10.5px; font-weight: 800; opacity: 0.55; }
+/* Rohstoff-Farben (als Klassen, damit die CSP keine Inline-Styles braucht) */
+.res-wood  { color: #c99a5e; }
+.res-stone { color: #bdb8b1; }
+.res-grain { color: #f0cf6a; }
+/* Auf Pergament (Menüs) braucht es dunklere Töne, sonst verschwindet die Schrift */
+.market-card .res-wood  { color: #8a5a22; }
+.market-card .res-stone { color: #5f5a52; }
+.market-card .res-grain { color: #96700c; }
+
+/* ============ Runde Seitenknöpfe (Bauen / Forschung) ============ */
+#side-btns {
+  position: absolute;
+  right: calc(10px + var(--sai-right));
+  bottom: calc(14px + var(--sai-bottom));
+  display: flex; flex-direction: column; gap: 10px;
+  align-items: center;
+}
+.round-btn {
+  pointer-events: auto;
+  width: 60px; height: 60px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1px;
+  border-radius: 18px;
+  border: 2px solid #8a5f14;
+  background: linear-gradient(180deg, #ffe89a, var(--gold) 55%, #e0a52a);
+  color: #4a2f08;
+  box-shadow: 0 4px 0 #8a5f14, 0 7px 16px rgba(0,0,0,0.4);
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+.round-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #8a5f14; }
+.round-btn .ico { width: 25px; height: 25px; }
+.rb-label { font-family: 'Nunito', sans-serif; font-size: 9.5px; font-weight: 900; letter-spacing: 0.2px; }
+
+/* ============ Platzierungsleiste (Baumodus) ============ */
+#place-bar {
+  position: absolute;
+  left: 50%; transform: translateX(-50%);
+  bottom: calc(14px + var(--sai-bottom));
+  width: min(360px, 94vw);
+  pointer-events: auto;
+  background: linear-gradient(165deg, var(--parch), var(--parch-dark));
+  border: 2.5px solid var(--wood);
+  border-radius: 16px;
+  padding: 9px 11px 10px;
+  box-shadow: 0 7px 20px rgba(0,0,0,0.5);
+  z-index: 46;
+  animation: act-in 0.22s ease;
+}
+#place-info { display: flex; align-items: center; gap: 9px; margin-bottom: 8px; }
+#place-ico {
+  width: 36px; height: 36px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 35% 30%, #fff8e2, #f3ddad);
+  border: 1.5px solid var(--wood); border-radius: 10px;
+  color: #7a5418;
+}
+#place-ico .ico { width: 21px; height: 21px; }
+#place-text { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
+#place-name { font-size: 15px; font-weight: 900; color: var(--ink); }
+#place-hint { font-size: 12px; font-weight: 800; color: #8a6a3a; }
+#place-hint.bad { color: #b3312f; }
+#place-hint.good { color: #2f7a1f; }
+#place-actions { display: flex; gap: 8px; }
+.pb-btn {
+  flex: 1;
+  pointer-events: auto;
+  padding: 11px 10px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 15px; font-weight: 900;
+  color: #4a2f08;
+  background: linear-gradient(180deg, #cdf0b4, #7ecb5a 55%, #4f9e34);
+  border: 2px solid #3d7a26;
+  border-radius: 12px;
+  box-shadow: 0 4px 0 #3d7a26;
+  cursor: pointer;
+}
+.pb-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #3d7a26; }
+.pb-btn:disabled { filter: saturate(0.25) brightness(0.95); }
+.pb-btn.ghost {
+  background: linear-gradient(180deg, #fff3d6, #e0cfa8);
+  border-color: var(--wood); box-shadow: 0 4px 0 rgba(90,61,36,0.6);
+  color: var(--ink); flex: 0 0 40%;
+}
+.pb-btn.ghost:active { box-shadow: 0 1px 0 rgba(90,61,36,0.6); }
+
+/* ============ Bau-Menü & Forschung ============ */
+.market-card.wide { width: min(560px, 96vw); }
+/* Etwas Luft unten, damit die letzte Zeile nicht an der Rundung klebt */
+#build-panel .market-card, #tech-panel .market-card { padding-bottom: 26px; }
+#build-head, #tech-head {
+  display: flex; align-items: center; gap: 8px;
+  font-family: 'Cinzel', serif; font-weight: 800;
+  font-size: 24px; color: var(--ink);
+}
+#build-head .ico, #tech-head .ico { width: 24px; height: 24px; color: #8a6018; }
+#build-sub { font-size: 12.5px; font-weight: 800; color: #8a6a3a; margin-bottom: 8px; }
+#build-purse, #tech-purse {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;
+}
+.purse-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 14px; font-weight: 900; color: #6e4a08;
+  background: rgba(255,255,255,0.45);
+  border: 1.5px solid rgba(90,61,36,0.4);
+  border-radius: 999px; padding: 3px 11px 3px 7px;
+}
+.purse-pill .ico { width: 15px; height: 15px; }
+#build-note {
+  font-size: 11.5px; font-weight: 700; color: #8a6a3a;
+  text-align: center; margin-top: 10px;
+}
+.bd-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 2px;
+  border-top: 1px dashed rgba(90,61,36,0.3);
+}
+.bd-ico {
+  width: 40px; height: 40px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  color: #7a5418;
+  background: radial-gradient(circle at 35% 30%, #fff8e2, #f3ddad);
+  border: 1.5px solid var(--wood);
+  border-radius: 10px;
+}
+.bd-ico .ico { width: 24px; height: 24px; }
+.bd-body { flex: 1; min-width: 0; }
+.bd-name { font-size: 15px; font-weight: 900; color: var(--ink); line-height: 1.2; }
+.bd-stats { font-size: 12px; font-weight: 800; color: #6e5228; line-height: 1.35; margin-top: 1px; }
+.bd-stats b { font-weight: 900; }
+.bd-desc { font-size: 11px; font-weight: 700; color: #8a7350; line-height: 1.3; }
+.bd-have { font-size: 11px; font-weight: 800; color: #8a6a3a; }
+.bd-pick {
+  pointer-events: auto;
+  display: flex; align-items: center; gap: 5px;
+  padding: 10px 14px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 14.5px; font-weight: 900; color: #4a2f08;
+  background: linear-gradient(180deg, #ffe084, var(--gold) 50%, #e2a72e);
+  border: 1.5px solid #8a5f14;
+  border-radius: 10px;
+  box-shadow: 0 3px 0 #8a5f14;
+  cursor: pointer; flex: none;
+}
+.bd-pick:active { transform: translateY(2px); box-shadow: 0 1px 0 #8a5f14; }
+.bd-pick.broke { filter: saturate(0.3) brightness(0.96); }
+.bd-pick .coin-ico { width: 14px; height: 14px; border-width: 1.5px; }
+
+/* Forschung */
+#tech-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+.tt-tab {
+  pointer-events: auto; flex: 1 1 0; min-width: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 7px 4px; border-radius: 11px;
+  font-family: 'Nunito', sans-serif; font-size: 12.5px; font-weight: 900;
+  border: 1.5px solid var(--wood); color: var(--ink);
+  background: rgba(255,255,255,0.35); cursor: pointer;
+}
+.tt-tab-name {
+  display: flex; align-items: center; gap: 4px;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tt-tab-cnt { font-size: 10.5px; font-weight: 800; opacity: 0.6; }
+.tt-tab .ico { width: 15px; height: 15px; flex: none; }
+.tt-tab.active { background: linear-gradient(180deg, #ffe084, var(--gold)); border-color: #8a5f14; }
+.tt-tier { margin-top: 8px; }
+.tt-tier-label {
+  font-family: 'Cinzel', serif; font-size: 11px; font-weight: 800;
+  letter-spacing: 1px; color: #8a6a3a; text-transform: uppercase;
+  margin: 6px 0 2px;
+}
+.tt-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 2px;
+  border-top: 1px dashed rgba(90,61,36,0.3);
+}
+.tt-row.locked { opacity: 0.55; }
+.tt-ico {
+  width: 38px; height: 38px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  color: #7a5418;
+  background: radial-gradient(circle at 35% 30%, #fff8e2, #f3ddad);
+  border: 1.5px solid var(--wood); border-radius: 10px;
+}
+.tt-ico .ico { width: 22px; height: 22px; }
+.tt-row.done .tt-ico { background: linear-gradient(180deg, #cdf0b4, #8fd06a); border-color: #3d7a26; color: #2c5c1a; }
+.tt-body { flex: 1; min-width: 0; }
+.tt-name { font-size: 14.5px; font-weight: 900; color: var(--ink); line-height: 1.2; }
+.tt-desc { font-size: 11.5px; font-weight: 700; color: #7a5e38; }
+.tt-req { font-size: 10.5px; font-weight: 800; color: #a5442e; }
+.tt-cost { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex: none; }
+.tt-buy {
+  pointer-events: auto;
+  display: flex; align-items: center; gap: 4px;
+  padding: 8px 12px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 13.5px; font-weight: 900; color: #4a2f08;
+  background: linear-gradient(180deg, #ffe084, var(--gold) 50%, #e2a72e);
+  border: 1.5px solid #8a5f14; border-radius: 9px;
+  box-shadow: 0 2.5px 0 #8a5f14; cursor: pointer;
+}
+.tt-buy:active { transform: translateY(2px); box-shadow: 0 0.5px 0 #8a5f14; }
+.tt-buy.broke { filter: saturate(0.3) brightness(0.95); }
+.tt-buy.max {
+  background: linear-gradient(180deg, #cdf0b4, #8fd06a);
+  border-color: #3d7a26; box-shadow: 0 2.5px 0 #3d7a26; color: #23520f;
+}
+.tt-buy .coin-ico { width: 13px; height: 13px; border-width: 1.5px; }
+.tt-need {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 800; color: #8a6a3a; margin-top: 2px;
+}
+.tt-need .ico { width: 12px; height: 12px; flex: none; }
+.tt-res { display: flex; gap: 6px; font-size: 11px; font-weight: 800; color: #7a5e38; }
+.tt-res .ico { width: 12px; height: 12px; vertical-align: -0.14em; }
+.tt-res .miss { color: #b3312f; }
+
 /* ============ Aktionsknopf (bauen / Markt öffnen) ============ */
 /* Bewusstes Bestätigen: Gold fließt nur, wenn der König das hier drückt. */
 #act-btn {
@@ -559,8 +799,8 @@ html, body {
   transform: translateX(-50%);
   pointer-events: auto;
   display: flex; align-items: center; gap: 10px;
-  min-width: min(260px, 74vw);
-  max-width: 92vw;
+  min-width: min(238px, 62vw);
+  max-width: calc(100vw - 170px);
   padding: 10px 16px 10px 12px;
   font-family: 'Nunito', sans-serif;
   text-align: left;
@@ -574,6 +814,32 @@ html, body {
   animation: act-in 0.22s cubic-bezier(0.2, 1.5, 0.4, 1);
 }
 @keyframes act-in { from { opacity: 0; transform: translateX(-50%) translateY(14px) scale(0.94); } }
+/* Abreißen — sitzt über dem Aktionsknopf, klein und unaufdringlich */
+#demo-btn {
+  position: absolute;
+  right: calc(12px + var(--sai-right));
+  bottom: calc(86px + var(--sai-bottom));
+  pointer-events: auto;
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 13px 7px 11px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 12.5px; font-weight: 900; color: #fff2ee;
+  background: linear-gradient(180deg, rgba(150,52,50,0.92), rgba(104,32,30,0.94));
+  border: 2px solid rgba(255,190,180,0.45);
+  border-radius: 13px;
+  box-shadow: 0 3px 0 rgba(70,18,16,0.8), 0 6px 16px rgba(0,0,0,0.4);
+  cursor: pointer;
+  z-index: 46;
+  animation: act-in 0.22s cubic-bezier(0.2, 1.5, 0.4, 1);
+}
+#demo-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(70,18,16,0.8); }
+#demo-btn .ico { width: 15px; height: 15px; flex: none; }
+#demo-btn.armed {
+  background: linear-gradient(180deg, #e5484d, #a52a2a);
+  border-color: #ffd9d2;
+  animation: demo-pulse 0.7s ease-in-out infinite alternate;
+}
+@keyframes demo-pulse { to { box-shadow: 0 3px 0 rgba(70,18,16,0.8), 0 0 20px rgba(229,72,77,0.7); } }
 #act-btn:active { transform: translateX(-50%) translateY(4px); box-shadow: 0 1px 0 #8a5f14, 0 4px 10px rgba(0,0,0,0.4); }
 #act-btn.running {
   background: linear-gradient(180deg, #cdf0b4, #7ecb5a 52%, #4f9e34);

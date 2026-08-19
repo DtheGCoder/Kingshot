@@ -12,9 +12,17 @@ KS.Systems = (() => {
   const PAD_R = 54;            // Radius zum Einzahlen
 
   // ---------- Abgeleitete Daten neu aufbauen ----------
+  // ---- Techtree-Abfragen ----
+  function hasTech(G, id) { return !!(G.state.tech && G.state.tech[id]); }
+
   function rebuildDerived(G) {
     const st = G.state;
-    G.padList = CFG.PADS;
+    // Bauplätze = feste Plätze + frei platzierte
+    if (!st.placed) st.placed = [];
+    G.padList = CFG.PADS.concat(st.placed);
+    if (!st.res) st.res = { wood: 0, stone: 0, grain: 0 };
+    if (!st.tech) st.tech = {};
+    const T = id => hasTech(G, id);
     // Waffe = Schmiede-Stufe
     const forge = st.buildings.forge;
     G.weaponTier = Math.max(1, forge ? forge.tier : 0) || 1;
@@ -28,13 +36,69 @@ KS.Systems = (() => {
     G.playerHpMax = Math.round((CFG.PLAYER.hpMax + (castle ? (castle.tier - 1) * 10 : 0)) * (1 + 0.12 * mk('hp')));
     st.player.hp = Math.min(st.player.hp, G.playerHpMax);
     G.playerSpeed = CFG.PLAYER.speed * (1 + 0.03 * mk('speed'));
-    G.magnetMul = 1 + 0.10 * mk('magnet');
+    G.magnetMul = (1 + 0.10 * mk('magnet')) * (T('magnet_tech') ? 1.4 : 1);
     G.critCh = 0.12 + 0.02 * mk('crit');
-    G.goldMul = 1 + 0.04 * mk('gold');
     G.armorMul = Math.max(0.55, 1 - 0.02 * mk('armor'));
+
+    // ---- Techtree-Faktoren ----
+    G.goldMul = (1 + 0.04 * mk('gold')) * (T('golden_age') ? 1.3 : 1);
+    G.tech = {
+      towerDmg: (T('fletching') ? 1.15 : 1) * (T('grand_arsenal') ? 1.5 : 1),
+      towerRate: T('drill') ? 1.12 : 1,
+      towerRange: T('spyglass') ? 1.12 : 1,
+      heavyDmg: T('ballistics') ? 1.4 : 1,          // Kanone & Blitz
+      kingDmg: T('kings_edge') ? 1.25 : 1,
+      wallHp: T('masonry') ? 1.5 : 1,
+      wallRegen: T('night_watch'),
+      workerLoad: T('carts') ? 1.3 : 1,
+      workerSpeed: T('boots_eco') ? 1.25 : 1,
+      harvestSpeed: T('sharp_axes') ? 1.25 : 1,
+      extraWorker: T('crew') ? 1 : 0,
+      storeCap: T('big_barn') ? 1.6 : 1,
+      craftGold: (T('guilds') ? 1.3 : 1) * (T('trade_route') ? 1.25 : 1),
+      craftSpeed: (T('saw_basics') ? 1.15 : 1) * (T('mechanised') ? 2 : 1),
+      prodGold: T('trade_route') ? 1.25 : 1,        // Minen & Tavernen
+      taxes: T('granary') ? 1.5 : 1,
+      arrivals: T('heralds') ? 2 : 1,
+      buildCost: T('ledger') ? 0.9 : 1,
+      depositSpeed: T('architects') ? 2 : 1,
+      gapShrink: T('surveying') ? 0.82 : 1,
+      breadBonus: 0,
+    };
+
+    // ---- Lager & Wirtschaft ----
+    G.storeCap = 0;
+    G.gatherers = [];
+    G.crafters = [];
+    for (const pad of G.padList) {
+      const b = st.buildings[pad.id];
+      if (!b || b.tier < 1) continue;
+      const def = CFG.BUILDINGS[pad.type];
+      if (!def) continue;
+      if (def.kind === 'store') G.storeCap += Math.round(def.cap(b.tier) * G.tech.storeCap);
+      else if (def.kind === 'gather') {
+        G.gatherers.push({
+          pad, def, tier: b.tier,
+          workers: Math.min(6, def.workers(b.tier) + G.tech.extraWorker),
+          load: Math.max(1, Math.round(def.load(b.tier) * G.tech.workerLoad)),
+          harvestTime: def.chopTime(b.tier) / G.tech.harvestSpeed,
+        });
+      } else if (def.kind === 'craft') {
+        G.crafters.push({
+          pad, def, tier: b.tier,
+          batch: def.batch(b.tier),
+          gold: Math.round(def.gold(b.tier) * G.tech.craftGold),
+          interval: def.interval(b.tier) / G.tech.craftSpeed,
+        });
+        if (def.bread) G.tech.breadBonus += def.bread(b.tier);
+      }
+    }
+    // Lagerbestand auf Kapazität begrenzen
+    for (const r of CFG.RES_ORDER) st.res[r] = Math.min(st.res[r] || 0, G.storeCap);
+
     // Stadtmauer
     const wallB = st.buildings.wall;
-    G.wallMax = wallB && wallB.tier >= 1 ? CFG.BUILDINGS.wall.segHp(wallB.tier) : 0;
+    G.wallMax = wallB && wallB.tier >= 1 ? Math.round(CFG.BUILDINGS.wall.segHp(wallB.tier) * G.tech.wallHp) : 0;
     if (G.wallMax > 0) {
       if (!st.wall || !Array.isArray(st.wall.hp) || st.wall.hp.length !== CFG.WALL.segs) {
         st.wall = { hp: Array.from({ length: CFG.WALL.segs }, () => G.wallMax) };
@@ -44,7 +108,7 @@ KS.Systems = (() => {
     }
     // Stadttore (verschließen die acht Durchgänge)
     const gateB = st.buildings.gates;
-    G.gateMax = gateB && gateB.tier >= 1 ? CFG.BUILDINGS.gates.gateHp(gateB.tier) : 0;
+    G.gateMax = gateB && gateB.tier >= 1 ? Math.round(CFG.BUILDINGS.gates.gateHp(gateB.tier) * G.tech.wallHp) : 0;
     if (G.gateMax > 0) {
       if (!st.gates || !Array.isArray(st.gates.hp) || st.gates.hp.length !== CFG.GATES.length) {
         st.gates = { hp: Array.from({ length: CFG.GATES.length }, () => G.gateMax) };
@@ -59,9 +123,15 @@ KS.Systems = (() => {
       if (!b || b.tier < 1) continue;
       const def = CFG.BUILDINGS[pad.type];
       if (def.kind === 'tower') {
+        // Techtree wirkt auf Schaden, Feuerrate und Reichweite
+        const s = CFG.towerStats(pad.type, b.tier);
+        const heavy = pad.type === 'tower_cannon' || pad.type === 'tower_lightning';
+        s.dmg *= G.tech.towerDmg * (heavy ? G.tech.heavyDmg : 1);
+        s.rate *= G.tech.towerRate;
+        s.range *= G.tech.towerRange;
+        if (s.burn) s.burn *= G.tech.towerDmg;
         G.towers.push({
-          pad, type: pad.type, tier: b.tier,
-          stats: CFG.towerStats(pad.type, b.tier),
+          pad, type: pad.type, tier: b.tier, stats: s,
           cd: Math.random() * 0.5, flash: 0, topY: 70 + b.tier * 6,
         });
       }
@@ -348,7 +418,8 @@ KS.Systems = (() => {
 
     G.depositT += dt;
     const D = CFG.DEPOSIT;
-    const rate = U.lerp(D.startRate, D.maxRate, Math.min(1, G.depositT / D.rampTime));
+    // „Baumeister“ lässt die Münzen doppelt so schnell fließen
+    const rate = U.lerp(D.startRate, D.maxRate, Math.min(1, G.depositT / D.rampTime)) * G.tech.depositSpeed;
     G.depositAcc += rate * dt;
     while (G.depositAcc >= 1 && st.gold > 0 && b.prog < cost) {
       G.depositAcc -= 1;
@@ -435,9 +506,416 @@ KS.Systems = (() => {
     }
   }
 
+  // ============ FREIES BAUEN ============
+  // Der König läuft dorthin, wo das Haus stehen soll — ein Geist zeigt an,
+  // ob der Platz taugt. Bestätigen legt eine Baustelle an, die wie jeder
+  // andere Bauplatz mit Münzen gefüllt wird.
+
+  function placeableTypes(G) {
+    return Object.entries(CFG.BUILDINGS)
+      .filter(([, d]) => d.placeable)
+      .map(([id, d]) => ({ type: id, def: d }));
+  }
+
+  // Warum geht es hier nicht? (null = Platz ist gut)
+  function placeProblem(G, type, x, y) {
+    const Z = CFG.BUILD_ZONE;
+    const { cx, cy } = CFG.WORLD;
+    const d = U.dist(x, y, cx, cy);
+    if (d < Z.rMin) return 'Zu nah an der Burg';
+    if (d > Z.rMax) return 'Außerhalb der Stadtmauer';
+    // Abstand zu den acht Wegen (dort laufen Monster und Bewohner)
+    const ang = Math.atan2(y - cy, x - cx);
+    for (const g of CFG.GATES) {
+      let da = Math.abs(((ang - g + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+      if (da * d < Z.pathClear) return 'Blockiert einen Weg';
+    }
+    // Abstand zu bestehenden Bauplätzen
+    const gap = Z.minGap * G.tech.gapShrink;
+    for (const pad of G.padList) {
+      const need = pad.type === 'castle' ? gap + 60 : gap;
+      if (U.dist2(x, y, pad.x, pad.y) < need * need) return 'Zu nah am Nachbargebäude';
+    }
+    return null;
+  }
+
+  function placeCost(G, type) {
+    return Math.round(CFG.costOf(type, 1) * G.tech.buildCost);
+  }
+
+  // Baustelle anlegen (kostet nichts — bezahlt wird beim Einzahlen)
+  function placeBuilding(G, type, x, y) {
+    const problem = placeProblem(G, type, x, y);
+    if (problem) { KS.UI.toast(problem, 2200, 'x'); return null; }
+    const st = G.state;
+    if (!st.placed) st.placed = [];
+    st.placedSeq = (st.placedSeq || 0) + 1;
+    const def = CFG.BUILDINGS[type];
+    const Z = CFG.BUILD_ZONE;
+    const pad = {
+      id: `p${st.placedSeq}`,
+      type,
+      label: def.name,
+      x: Math.round(x / Z.gridSnap) * Z.gridSnap,
+      y: Math.round(y / Z.gridSnap) * Z.gridSnap,
+      placed: true,
+    };
+    st.placed.push(pad);
+    st.buildings[pad.id] = { tier: 0, prog: 0 };
+    if (!st.unlockedPads.includes(pad.id)) st.unlockedPads.push(pad.id);
+    rebuildDerived(G);
+    Ent.ring(G, pad.x, pad.y, { r0: 8, r1: 80, life: 0.6, color: 'rgba(255,230,140,0.9)', lw: 5 });
+    Ent.burst(G, pad.x, pad.y - 10, 14, { colors: ['#e8d8b0', '#ffe084'], speed: 90, up: 110, layer: 'below' });
+    KS.Audio.SFX.click();
+    KS.UI.toast(`${def.name}: Baustelle gesetzt — jetzt Münzen einzahlen!`, 3200, def.ico);
+    KS.Game.requestSave();
+    return pad;
+  }
+
+  // Was ein Abriss zurückgibt: die Hälfte allen eingezahlten Goldes
+  function refundOf(G, padId) {
+    const st = G.state;
+    const pad = (st.placed || []).find(p => p.id === padId);
+    if (!pad) return 0;
+    const b = st.buildings[padId] || { tier: 0, prog: 0 };
+    let back = Math.round(b.prog * 0.5);
+    for (let t = 1; t <= b.tier; t++) back += Math.round(CFG.costOf(pad.type, t) * 0.5);
+    return back;
+  }
+
+  // Baustelle/Gebäude wieder abreißen (gibt die Hälfte des Einsatzes zurück)
+  function demolish(G, padId) {
+    const st = G.state;
+    const i = (st.placed || []).findIndex(p => p.id === padId);
+    if (i < 0) return false;
+    const pad = st.placed[i];
+    const back = refundOf(G, padId);
+    st.placed.splice(i, 1);
+    delete st.buildings[padId];
+    const ui = st.unlockedPads.indexOf(padId);
+    if (ui >= 0) st.unlockedPads.splice(ui, 1);
+    G.workers = G.workers.filter(w => w.padId !== padId);
+    if (G.buildArmed === padId) G.buildArmed = null;
+    if (G.buildLock === padId) G.buildLock = null;
+    G.nearPad = null;
+    st.gold += back;
+    rebuildDerived(G);
+    Ent.burst(G, pad.x, pad.y - 10, 18, { colors: ['#c9b896', '#8a8478'], speed: 110, up: 120 });
+    KS.UI.toast(`${pad.label} abgerissen — ${U.fmt(back)} Gold zurück.`, 2800, 'hammer');
+    KS.Game.requestSave();
+    return true;
+  }
+
+  // ============ TECHTREE ============
+  function techNode(id) { return CFG.TECH.find(t => t.id === id); }
+
+  function techState(G, node) {
+    if (hasTech(G, node.id)) return 'done';
+    for (const r of node.req) if (!hasTech(G, r)) return 'locked';
+    return 'open';
+  }
+
+  function techAffordable(G, node) {
+    const st = G.state;
+    if (st.gold < node.gold) return false;
+    if (node.res) for (const [r, n] of Object.entries(node.res)) {
+      if ((st.res[r] || 0) < n) return false;
+    }
+    return true;
+  }
+
+  function buyTech(G, id) {
+    const node = techNode(id);
+    if (!node) return false;
+    const state = techState(G, node);
+    if (state === 'done') return false;
+    if (state === 'locked') {
+      KS.UI.toast('Erst die Voraussetzungen erforschen.', 2200, 'lock');
+      return false;
+    }
+    if (!techAffordable(G, node)) {
+      const st = G.state;
+      const miss = [];
+      if (st.gold < node.gold) miss.push(`${U.fmt(node.gold - st.gold)} Gold`);
+      if (node.res) for (const [r, n] of Object.entries(node.res)) {
+        const d = n - (st.res[r] || 0);
+        if (d > 0) miss.push(`${d} ${CFG.RESOURCES[r].name}`);
+      }
+      KS.UI.toast('Es fehlt: ' + miss.join(', '), 2800, 'x');
+      return false;
+    }
+    G.state.gold -= node.gold;
+    if (node.res) for (const [r, n] of Object.entries(node.res)) storeTake(G, r, n);
+    G.state.tech[id] = 1;
+    rebuildDerived(G);
+    KS.Audio.SFX.upgrade();
+    KS.UI.toast(`Erforscht: ${node.name} — ${node.desc}`, 3600, node.ico);
+    KS.Game.log(`Erforscht: ${node.name}.`);
+    KS.Game.requestSave();
+    return true;
+  }
+
+  // ============ WIRTSCHAFT: ARBEITER & VERARBEITUNG ============
+  // Kette: Arbeiter erntet an einem Knoten → trägt zum Lager → Verarbeiter
+  // wandelt den Rohstoff in Münzen. Alles endet in Gold.
+
+  function storeTotal(G, res) { return G.state.res[res] || 0; }
+  function storeFree(G, res) { return Math.max(0, G.storeCap - storeTotal(G, res)); }
+
+  function storeAdd(G, res, n) {
+    const free = storeFree(G, res);
+    const put = Math.min(n, free);
+    if (put > 0) G.state.res[res] = (G.state.res[res] || 0) + put;
+    return put;
+  }
+  function storeTake(G, res, n) {
+    const have = storeTotal(G, res);
+    const take = Math.min(n, have);
+    if (take > 0) G.state.res[res] = have - take;
+    return take;
+  }
+
+  // Nächstes Lager (Arbeiter tragen dorthin)
+  function nearestStore(G, x, y) {
+    let best = null, bd = Infinity;
+    for (const pad of G.padList) {
+      if (CFG.BUILDINGS[pad.type] && CFG.BUILDINGS[pad.type].kind === 'store') {
+        const b = G.state.buildings[pad.id];
+        if (!b || b.tier < 1) continue;
+        const d = U.dist2(x, y, pad.x, pad.y);
+        if (d < bd) { bd = d; best = pad; }
+      }
+    }
+    return best;
+  }
+
+  // Erntbare Knoten (Bäume/Felsen aus der Deko, Felder rund um den Hof)
+  function findHarvestNode(G, g, worker) {
+    const kind = g.def.node;
+    const px = g.pad.x, py = g.pad.y;
+    if (kind === 'field') {
+      // Bauernhof: eigene Felder im Kreis um den Hof
+      const n = 6;
+      const i = (worker.nodeIdx = (worker.nodeIdx + 1) % n);
+      const a = (i / n) * Math.PI * 2 + 0.3;
+      const r = g.def.workRange * 0.55;
+      return { x: px + Math.cos(a) * r, y: py + Math.sin(a) * r, kind };
+    }
+    // Holz/Stein: passende Requisite in Reichweite suchen (mit etwas Streuung,
+    // damit nicht alle am selben Baum stehen)
+    const want = kind === 'tree' ? ['tree', 'pine'] : ['rock', 'ruin'];
+    let best = null, bd = Infinity;
+    const R2 = g.def.workRange * g.def.workRange;
+    const skip = worker.lastNode;
+    for (const p of G.props) {
+      if (!want.includes(p.kind)) continue;
+      const d = U.dist2(px, py, p.x, p.y);
+      if (d > R2) continue;
+      if (p === skip) continue;
+      // etwas Zufall über den Index, damit sich Arbeiter verteilen
+      const jitter = ((p.x * 7 + p.y * 13) % 97) * 40;
+      const score = d + jitter;
+      if (score < bd) { bd = score; best = p; }
+    }
+    if (best) return { x: best.x, y: best.y, kind, prop: best };
+    return null;
+  }
+
+  function spawnWorker(G, g, idx) {
+    const a = Math.random() * Math.PI * 2;
+    const w = {
+      id: g.pad.id + ':' + idx,
+      padId: g.pad.id,
+      res: g.def.res,
+      x: g.pad.x + Math.cos(a) * 26, y: g.pad.y + Math.sin(a) * 26 + 10,
+      state: 'idle', t: 0, animT: Math.random() * 10, face: 1,
+      carry: 0, nodeIdx: idx, lastNode: null, target: null,
+      idx: idx % 6,
+      speed: U.rand(70, 82),
+    };
+    G.workers.push(w);
+    return w;
+  }
+
+  // Arbeiterzahl an die Gebäudestufen angleichen
+  function syncWorkers(G) {
+    const want = new Map();
+    for (const g of G.gatherers) want.set(g.pad.id, g);
+    // zu viele oder verwaiste entfernen
+    for (let i = G.workers.length - 1; i >= 0; i--) {
+      const w = G.workers[i];
+      const g = want.get(w.padId);
+      if (!g) { G.workers.splice(i, 1); continue; }
+      const n = G.workers.filter(o => o.padId === w.padId).length;
+      if (n > g.workers) G.workers.splice(i, 1);
+    }
+    // fehlende ergänzen
+    for (const g of G.gatherers) {
+      let have = G.workers.filter(o => o.padId === g.pad.id).length;
+      for (; have < g.workers; have++) spawnWorker(G, g, have);
+    }
+  }
+
+  function updateWorkers(G, dt) {
+    const isNight = G.state.phase === 'night';
+    G.workerSyncT = (G.workerSyncT || 0) + dt;
+    if (G.workerSyncT > 1.5) { G.workerSyncT = 0; syncWorkers(G); }
+
+    for (const w of G.workers) {
+      const g = G.gatherers.find(x => x.pad.id === w.padId);
+      if (!g) continue;
+      w.animT += dt;
+      const speed = w.speed * G.tech.workerSpeed;
+
+      // Nachts sind die Arbeiter in Sicherheit → zurück zur Hütte, dann warten
+      if (isNight) {
+        const d = U.dist(w.x, w.y, g.pad.x, g.pad.y);
+        if (d > 24) {
+          w.x += (g.pad.x - w.x) / d * speed * 1.5 * dt;
+          w.y += (g.pad.y - w.y) / d * speed * 1.5 * dt;
+          w.face = g.pad.x < w.x ? -1 : 1;
+          w.state = 'home';
+        } else {
+          w.state = 'sleep';
+        }
+        continue;
+      }
+
+      switch (w.state) {
+        case 'sleep':
+        case 'home':
+        case 'idle': {
+          const node = findHarvestNode(G, g, w);
+          if (!node) { w.state = 'nonode'; w.t = 2; break; }
+          w.target = node;
+          w.lastNode = node.prop || null;
+          w.state = 'toNode';
+          break;
+        }
+        case 'nonode':
+          w.t -= dt;
+          if (w.t <= 0) w.state = 'idle';
+          break;
+        case 'toNode': {
+          const t = w.target;
+          const d = U.dist(w.x, w.y, t.x, t.y);
+          if (d > 20) {
+            w.x += (t.x - w.x) / d * speed * dt;
+            w.y += (t.y - w.y) / d * speed * dt;
+            w.face = t.x < w.x ? -1 : 1;
+          } else {
+            w.state = 'harvest';
+            w.t = g.harvestTime;
+          }
+          break;
+        }
+        case 'harvest': {
+          w.t -= dt;
+          // Späne / Staub beim Arbeiten
+          if (Math.random() < dt * 7) {
+            const col = w.res === 'wood' ? ['#c9a86a', '#8a6234']
+              : w.res === 'stone' ? ['#c8c2b6', '#8d867b'] : ['#e8c15a', '#c9a13a'];
+            Ent.particle(G, w.x + U.rand(-8, 8), w.y - U.rand(6, 18), {
+              vx: U.rand(-24, 24), vz: U.rand(30, 70), grav: 220,
+              life: 0.45, size: 2.2, color: U.pick(col),
+            });
+          }
+          if (w.t <= 0) {
+            w.carry = g.load;
+            w.state = 'toStore';
+            w.store = nearestStore(G, w.x, w.y);
+            if (!w.store) { w.state = 'nostore'; w.t = 2.5; w.carry = 0; }
+          }
+          break;
+        }
+        case 'nostore':
+          w.t -= dt;
+          if (w.t <= 0) w.state = 'idle';
+          break;
+        case 'toStore': {
+          const s = w.store || nearestStore(G, w.x, w.y);
+          if (!s) { w.state = 'nostore'; w.t = 2.5; break; }
+          const d = U.dist(w.x, w.y, s.x, s.y);
+          if (d > 30) {
+            w.x += (s.x - w.x) / d * speed * 0.92 * dt;   // beladen etwas langsamer
+            w.y += (s.y - w.y) / d * speed * 0.92 * dt;
+            w.face = s.x < w.x ? -1 : 1;
+          } else {
+            const put = storeAdd(G, w.res, w.carry);
+            if (put > 0) {
+              Ent.text(G, s.x, s.y - 40, `+${put}`, {
+                color: CFG.RESOURCES[w.res].color, size: 12, life: 0.7, up: 26,
+              });
+              Ent.particle(G, s.x, s.y - 16, { vz: 40, grav: 120, life: 0.35, size: 3, color: CFG.RESOURCES[w.res].color });
+            } else if (G.storeFullT <= 0) {
+              KS.UI.toast('Das Lager ist voll — baue es aus!', 2600, 'crate');
+              G.storeFullT = 12;
+            }
+            w.carry = 0;
+            w.state = 'idle';
+          }
+          break;
+        }
+      }
+    }
+    if (G.storeFullT > 0) G.storeFullT -= dt;
+  }
+
+  // Verarbeiter: Rohstoff → Münzen
+  function updateCrafters(G, dt) {
+    for (const c of G.crafters) {
+      const key = c.pad.id;
+      G.craftT[key] = (G.craftT[key] || 0) + dt;
+      if (G.craftT[key] < c.interval) continue;
+      const took = storeTake(G, c.def.res, c.batch);
+      if (took <= 0) {
+        G.craftT[key] = c.interval * 0.6;    // wartet auf Material
+        c.idle = true;
+        continue;
+      }
+      c.idle = false;
+      G.craftT[key] = 0;
+      const gold = Math.max(1, Math.round(c.gold * (took / c.batch) * G.goldMul));
+      Ent.spawnCoinBurst(G, c.pad.x + U.rand(-16, 16), c.pad.y + U.rand(12, 28), gold);
+      Ent.text(G, c.pad.x, c.pad.y - 58, `+${U.fmt(gold)}`, { color: '#ffe084', size: 13, life: 0.9 });
+      // Rauch/Funken je Werk
+      for (let i = 0; i < 3; i++) {
+        Ent.particle(G, c.pad.x + U.rand(-10, 10), c.pad.y - U.rand(20, 40), {
+          vx: U.rand(-8, 8), vz: U.rand(18, 34), grav: -14,
+          life: 1.1, size: 3.4, endSize: 8, color: 'rgba(220,215,205,0.3)',
+        });
+      }
+    }
+  }
+
+  // „Nachtwache“: angeschlagene Mauern und Tore flicken sich auch mitten in
+  // der Schlacht. Was schon durchbrochen ist, bleibt offen bis zum Morgen —
+  // sonst wäre eine Bresche wirkungslos.
+  function regenWalls(G, dt) {
+    if (!G.tech.wallRegen || G.state.phase !== 'night') return;
+    const st = G.state, k = 0.014 * dt;    // 1,4 % der Höchst-HP je Sekunde
+    if (st.wall && G.wallMax > 0) {
+      const add = G.wallMax * k;
+      for (let i = 0; i < st.wall.hp.length; i++) {
+        if (st.wall.hp[i] > 0 && st.wall.hp[i] < G.wallMax) {
+          st.wall.hp[i] = Math.min(G.wallMax, st.wall.hp[i] + add);
+        }
+      }
+    }
+    if (st.gates && G.gateMax > 0) {
+      const add = G.gateMax * k;
+      for (let i = 0; i < st.gates.hp.length; i++) {
+        if (st.gates.hp[i] > 0 && st.gates.hp[i] < G.gateMax) {
+          st.gates.hp[i] = Math.min(G.gateMax, st.gates.hp[i] + add);
+        }
+      }
+    }
+  }
+
   // ============ GEBÄUDE-LOGIK ============
   function updateBuildings(G, dt) {
     const st = G.state;
+    regenWalls(G, dt);
     // Türme
     for (const t of G.towers) {
       if (t.flash > 0) t.flash -= dt;
@@ -563,11 +1041,16 @@ KS.Systems = (() => {
       const key = pad.id;
       G.prodTimers[key] = (G.prodTimers[key] || 0) + dt;
       let interval = def.interval, amount = 0;
-      if (pad.type === 'mine') amount = def.income(b.tier);
-      else {
+      if (pad.type === 'mine') {
+        amount = def.income(b.tier) * G.tech.prodGold;
+      } else {
+        // Tavernen: Steuern je Kopf, dazu der Brotbonus aus Mühlen
         const tv = taverns.find(t => t.pad.id === pad.id);
-        amount = tv && tv.housed > 0 ? def.income(b.tier) * tv.housed : 0;
+        amount = tv && tv.housed > 0
+          ? def.income(b.tier) * tv.housed * G.tech.prodGold * G.tech.taxes * (1 + G.tech.breadBonus)
+          : 0;
       }
+      amount = Math.round(amount);
       if (G.prodTimers[key] >= interval) {
         G.prodTimers[key] -= interval;
         if (amount > 0) {
@@ -827,7 +1310,8 @@ KS.Systems = (() => {
     const cap = tavernCapacity(G);
     if (st.survivors >= cap) return;
     const free = cap - st.survivors;
-    const n = U.clamp(1 + Math.floor(free / 5), 1, 3);
+    // „Herolde“ holen doppelt so viele Flüchtlinge herein
+    const n = U.clamp((1 + Math.floor(free / 5)) * G.tech.arrivals, 1, 6);
     const taverns = G.padList.filter(p => p.type === 'tavern' && st.buildings[p.id] && st.buildings[p.id].tier >= 1);
     if (!taverns.length) return;
     for (let i = 0; i < Math.min(n, free); i++) {
@@ -963,6 +1447,13 @@ KS.Systems = (() => {
     tavernCapacity, dawnArrivals, onSurvivorArrived, syncVillagers,
     activeQuest, questProgress, questBaseline, questTargetPad, updateQuests,
     wallSegAt, wallSegArc, wallSegCenter, damageWall, repairWallAtDawn,
+    // Wirtschaft
+    storeTotal, storeFree, storeAdd, storeTake, nearestStore,
+    updateWorkers, updateCrafters, syncWorkers,
+    // Freies Bauen
+    placeableTypes, placeProblem, placeCost, placeBuilding, demolish, refundOf,
+    // Techtree
+    hasTech, techNode, techState, techAffordable, buyTech,
     gateAt, gateCenter, gateBlocks, damageGate,
     nearestPad, padMaxed, toggleBuild, safeSpawnPoint,
     marketLvl, marketCost, buyMarket,
