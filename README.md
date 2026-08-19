@@ -85,6 +85,42 @@ sudo ./deploy/uninstall.sh     # nur die Kingshot-Site entfernen
 sudo ./deploy/uninstall.sh --purge   # zusätzlich das Webroot löschen
 ```
 
+### 🔄 Auto-Update — neue Versionen kommen von selbst
+
+```bash
+sudo ./deploy/install-autoupdate.sh              # prüft alle 5 Minuten
+sudo ./deploy/install-autoupdate.sh --interval 15
+sudo ./deploy/install-autoupdate.sh --uninstall
+```
+
+Danach genügt ein Push auf GitHub — der Rest passiert automatisch:
+
+1. Der Server prüft im Takt, ob es eine neue Version gibt, und holt sie.
+2. Spieldateien werden neu deployt und mit einem Versions-Stempel versehen.
+3. **Laufende Spiele erkennen die neue Version und laden sich selbst neu** —
+   dank Auto-Save geht es exakt an derselben Stelle weiter, sogar mitten
+   in einer Bossnacht.
+
+**Bewusst ressourcenschonend gebaut:**
+
+- Der Check ist ein einziger winziger `git ls-remote`-Abgleich des Commit-Hashs
+  (kein Fetch, kein Clone). Ist nichts Neues da, passiert **exakt gar nichts** —
+  kein Download, kein Schreibzugriff, kein Log-Eintrag. Gemessen: **~30 ms** pro
+  Leerlauf-Prüfung, ein vollständiges Update dauert ~130 ms.
+- Der systemd-Timer läuft mit `Nice=10` und `IOSchedulingClass=idle`, kann deinen
+  Webserver also nie ausbremsen. Ohne systemd wird automatisch ein Cron-Job genutzt.
+- `flock` verhindert überlappende Läufe; das Log wird automatisch gekürzt.
+- Blockieren lokale Änderungen im Repo den Fast-Forward, sagt das Log **einmal**
+  klar, was los ist (kein Retry-Spam) — und sobald du aufgeräumt hast, wird das
+  Update automatisch nachgeholt.
+- Im Browser fragt das Spiel nur alle 5 Minuten eine ~30-Byte-Datei ab, und das
+  nur im Vordergrund. Eine Reload-Bremse schließt Endlos-Neuladen aus.
+
+```bash
+systemctl status kingshot-update.timer   # läuft es?
+tail -f /var/log/kingshot-update.log     # was ist passiert?
+```
+
 ### Schnell lokal testen (ohne nginx)
 
 ```bash
@@ -156,7 +192,12 @@ rotierende, immer stärkere Bosse und generierte Meilenstein-Quests. In der Chro
 
 ## 🛠️ Technik
 
-- Vanilla JS + Canvas 2D, ~60 FPS auch auf Mobilgeräten (Sprite-Caching, Spatial-Hashing, Objekt-Pools)
+- Vanilla JS + Canvas 2D, flüssig auch auf Mobilgeräten (Sprite-Caching, Spatial-Hashing, Objekt-Pools)
+- **Automatische Qualitätsanpassung:** Bricht die Bildrate ein, senkt das Spiel die
+  Renderauflösung stufenweise und hebt sie wieder, sobald es ruhiger wird — schwache
+  Handys bleiben spielbar, starke behalten volle Schärfe
+- Nacht-Beleuchtung über einen Lichtpuffer mit einem Drittel Auflösung
+  (spart ~90 % Füllrate, ohne sichtbaren Unterschied)
 - Sämtliche Grafiken werden **prozedural** gezeichnet (kein einziges Bild-Asset) — mit Ziegel-,
   Holz- und Stein-Texturen, Schindeldächern, weichen Schatten und Glanzlichtern
 - UI komplett mit **eigenen SVG-Icons** (keine Emojis)
@@ -167,16 +208,23 @@ rotierende, immer stärkere Bosse und generierte Meilenstein-Quests. In der Chro
 ## 📂 Projektstruktur
 
 ```
-index.html            Einstieg & HUD
+index.html            Einstieg, HUD & SVG-Icon-Sammlung
 css/style.css         UI-Design (Pergament & Gold)
-js/config.js          Balance & Daten: Gebäude, Waffen, Monster, Bosse, Kapitel, Quests
-js/core.js            Utilities, Audio-Synth, Joystick, Speicher-I/O
+js/config.js          Balance & Daten: Gebäude, Waffen, Monster, Bosse, Kapitel, Quests, Markt, Mauer
+js/core.js            Utilities, Audio-Synth, Joystick, Speicher-I/O, Auto-Update-Erkennung
 js/art.js             Prozedurale Grafik: alle Sprites, Boden, Requisiten
 js/entities.js        Spieler, Monster-KI, Münzen, Projektile, Partikel
-js/systems.js         Bauplatten & Einzahlung, Türme, Produktion, Tag/Nacht-Direktor, Quests
-js/ui.js              HUD, Toasts, Banner, Story-Overlays, Menü
-js/game.js            Game-Loop, Renderer, Kamera, Licht, Auto-Save
-deploy/               install.sh · update.sh · uninstall.sh · serve-lokal.sh
+js/systems.js         Bauplatten & Einzahlung, Türme, Produktion, Mauer, Markt, Tag/Nacht, Quests
+js/ui.js              HUD, Toasts, Banner, Story-Overlays, Menü, Markt-Panel
+js/game.js            Game-Loop, Renderer, Kamera, Licht, Auto-Save, Auto-Qualität
+
+deploy/install.sh             nginx-Site + HTTPS/Certbot + Härtung
+deploy/install-autoupdate.sh  Auto-Update einrichten (systemd-Timer / Cron)
+deploy/auto-update.sh         der eigentliche GitHub-Check (wird vom Timer gerufen)
+deploy/update.sh              Update manuell einspielen
+deploy/stamp-version.sh       Cache-Busting-Stempel + version.json
+deploy/uninstall.sh           alles wieder entfernen
+deploy/serve-lokal.sh         schneller lokaler Test ohne nginx
 ```
 
 Viel Spaß beim Verteidigen, König! ⚔️
