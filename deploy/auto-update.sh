@@ -39,10 +39,34 @@ BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
 
 LOCAL=$(git rev-parse HEAD 2>/dev/null) || exit 0
 
+# Liegt im Webroot eine andere Version als im Repo? (z. B. Admin hat manuell
+# gepullt, oder ein früherer Deploy brach ab) → dann nachziehen.
+webroot_drift() {
+  local w="/var/www/kingshot"
+  [[ -f /etc/kingshot.conf ]] && . /etc/kingshot.conf && w="$WEBROOT"
+  [[ -f "$w/version.json" ]] || return 0                    # nie deployt → Drift
+  local dep
+  dep=$(sed -n 's/.*"v"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$w/version.json")
+  [[ "$dep" != "$(git rev-parse --short HEAD 2>/dev/null)" ]]
+}
+
 # ---- Der billige Check: nur den Remote-Hash holen ----
 REMOTE=$(timeout 25 git ls-remote --heads origin "$BRANCH" 2>/dev/null | awk '{print $1; exit}')
 [[ -z "$REMOTE" ]] && exit 0            # Netz nicht erreichbar → leise nächstes Mal
-[[ "$REMOTE" == "$LOCAL" ]] && exit 0   # nichts Neues → fertig (häufigster Fall)
+
+if [[ "$REMOTE" == "$LOCAL" ]]; then
+  # Nichts Neues auf GitHub (häufigster Fall). Nur wenn das Webroot
+  # hinterherhängt, wird noch einmal deployt.
+  if webroot_drift; then
+    log "Webroot hängt hinter dem Repo — deploye $(git rev-parse --short HEAD) nach…"
+    if "$SCRIPT_DIR/update.sh" --deploy-only >> "$LOG" 2>&1; then
+      log "OK: Webroot synchronisiert."
+    else
+      log "FEHLER: Deploy fehlgeschlagen — Details oben."
+    fi
+  fi
+  exit 0
+fi
 
 # Schon einmal gescheitert — und seither hat sich NICHTS geändert (weder auf
 # GitHub noch lokal)? Dann still bleiben. Sobald der Admin das Repo aufräumt
