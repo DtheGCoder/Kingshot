@@ -12,6 +12,7 @@ Läuft auf jedem Handy und Desktop-Browser, direkt von deinem eigenen nginx-Serv
 |---|---|---|
 | ![Titel](docs/screenshots/titel.jpg) | ![Start](docs/screenshots/start.jpg) | ![Nachtkampf](docs/screenshots/nacht-kampf.jpg) |
 | ![Königreich](docs/screenshots/koenigreich.jpg) | ![Belagerung](docs/screenshots/belagerung.jpg) | ![Markt](docs/screenshots/markt.jpg) |
+| ![Bauen bestätigen](docs/screenshots/bauen.jpg) | ![Stadttore](docs/screenshots/tore.jpg) | |
 
 ![Desktop](docs/screenshots/desktop.jpg)
 
@@ -135,9 +136,12 @@ tail -f /var/log/kingshot-update.log     # was ist passiert?
   genau dort. Am Desktop: **WASD** oder Pfeiltasten. Der König greift automatisch an.
 - **Gold:** Jedes besiegte Monster lässt Münzen fallen — einfach hindurchlaufen,
   der Magnet zieht sie an.
-- **Bauen:** Auf eine leuchtende Bauplatte stellen → die Münzen fließen automatisch
-  hinein (immer schneller!). Reicht das Gold nicht, bleibt der Fortschritt gespeichert
-  und die Platte zeigt an, **wie viel noch fehlt**.
+- **Bauen:** Stell dich auf eine Bauplatte → unten erscheint ein Knopf
+  („Wachturm Nord bauen · 60"). Erst **ein Druck darauf** lässt die Münzen fließen
+  (immer schneller!) — Vorbeilaufen kostet **nie** Gold. Nochmal drücken hält an,
+  Weggehen bricht ab. Reicht das Gold nicht, bleibt der Fortschritt gespeichert
+  und die Platte zeigt, **wie viel noch fehlt**. Am Desktop geht auch **Leertaste**;
+  alternativ tippst du direkt auf das Gebäude.
 - **Tag & Nacht:** Tagsüber bauen, sammeln und produzieren — nachts kommt die Flut.
   Alle 5 Nächte wartet ein **Boss**.
 - **Niederlage?** Halb so wild: Der König steht wieder auf, die Burg wird notdürftig
@@ -156,8 +160,9 @@ tail -f /var/log/kingshot-update.log     # was ist passiert?
 | ⛏️ **Goldminen** (2×) | Produzieren laufend Münzen zum Abholen |
 | 🍺 **Tavernen** (2×) | Beherbergen Überlebende, die Steuern zahlen |
 | ⚒️ **Schmiede** | Schmiedet 10 immer mächtigere Königsklingen (ab Stufe 5 mit Klingenwelle!) |
-| 🛒 **Markt** | Shop mit 6 dauerhaften König-Upgrades: Leben, Tempo, Magnet, Krit, Gold, Rüstung |
-| 🧱 **Stadtmauer** | Ring aus 16 Abschnitten mit eigenen HP — Monster brechen durch, Tore bleiben offen, morgens wird repariert |
+| 🛒 **Markt** | Shop mit 6 dauerhaften König-Upgrades: Leben, Tempo, Magnet, Krit, Gold, Rüstung. Öffnet per Tipp aufs Gebäude — solange er offen ist, **ruht das ganze Spiel** |
+| 🧱 **Stadtmauer** | Ring aus 16 Abschnitten mit eigenen HP — Monster brechen einzelne Abschnitte durch, morgens wird repariert |
+| 🚪 **Stadttore** | Verschließen alle acht Durchgänge, sonst spaziert die Horde einfach hindurch. Eigene HP, werden aufgebrochen und im Morgengrauen wieder eingesetzt |
 | ✨ **Schrein des Lichts** | Heil-Aura für König und Burg |
 
 ## 👹 Monster — 24 Arten in 12 Klassen + 10 Bosse
