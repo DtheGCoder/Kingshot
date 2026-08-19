@@ -402,35 +402,40 @@ KS.SaveIO = (() => {
 // geladen — dank Auto-Save geht es genau an derselben Stelle weiter.
 KS.Updater = (() => {
   const CHECK_MS = 5 * 60 * 1000;      // alle 5 Minuten
-  const MIN_GAP_MS = 60 * 1000;        // nie öfter als 1×/Minute (Tab-Wechsel)
-  let myVersion = null;
-  let lastCheck = 0;
-  let timer = null;
-  let pending = false;                  // Update gefunden → warten auf guten Moment
-  let started = false;
+  const MIN_GAP_MS = 60 * 1000;        // nie öfter als 1×/Minute (z. B. bei Tab-Wechseln)
+  const LOOP_GUARD_MS = 45 * 1000;     // nach einem Reload mind. so lange nicht wieder
+  const RELOAD_KEY = 'ks_upd_reload_at';
 
-  function versionFromDom() {
-    // Der Server stempelt ?v=<hash> an die Skript-URLs (siehe deploy/stamp-version.sh)
-    const s = document.querySelector('script[src*="js/game.js"]');
-    const m = s && s.getAttribute('src').match(/[?&]v=([A-Za-z0-9]+)/);
-    return m ? m[1] : null;
+  // Referenz ist die Version der ERSTEN Antwort nach dem Laden dieser Seite.
+  // Damit ist ein Reload-Kreislauf konstruktiv unmöglich: nach jedem
+  // Neuladen wird die Referenz neu gesetzt.
+  let refVersion = null;
+  let lastCheck = 0, pending = false, started = false;
+
+  function recentlyReloaded() {
+    try {
+      const t = parseInt(sessionStorage.getItem(RELOAD_KEY) || '0', 10);
+      return t > 0 && Date.now() - t < LOOP_GUARD_MS;
+    } catch (e) { return false; }
   }
 
-  async function check() {
+  async function check(force) {
     const now = Date.now();
-    if (now - lastCheck < MIN_GAP_MS || document.hidden || pending) return;
+    if (pending) return;
+    if (!force && (document.hidden || now - lastCheck < MIN_GAP_MS)) return;
     lastCheck = now;
+    let data;
     try {
       const res = await fetch('version.json?_=' + now, { cache: 'no-store' });
       if (!res.ok) return;
-      const data = await res.json();
-      if (!data || !data.v) return;
-      if (myVersion === null) { myVersion = data.v; return; }   // erste Antwort = Referenz
-      if (data.v !== myVersion) {
-        pending = true;
-        applyUpdate();
-      }
-    } catch (e) { /* offline o. ä. — beim nächsten Mal wieder */ }
+      data = await res.json();
+    } catch (e) { return; }             // offline o. ä. — beim nächsten Mal wieder
+    if (!data || !data.v) return;
+    if (refVersion === null) { refVersion = data.v; return; }
+    if (data.v === refVersion) return;
+    if (recentlyReloaded()) { refVersion = data.v; return; }   // Schleifen-Bremse
+    pending = true;
+    applyUpdate();
   }
 
   function applyUpdate() {
@@ -439,6 +444,7 @@ KS.Updater = (() => {
     // Kurz warten, damit Speichern und Hinweis sicher durch sind
     setTimeout(() => {
       try { KS.Game.save(); } catch (e) {}
+      try { sessionStorage.setItem(RELOAD_KEY, String(Date.now())); } catch (e) {}
       location.reload();
     }, 1400);
   }
@@ -446,12 +452,11 @@ KS.Updater = (() => {
   function start() {
     if (started) return;
     started = true;
-    myVersion = versionFromDom();       // null, wenn ungestempelt (z. B. lokaler Test)
-    timer = setInterval(check, CHECK_MS);
-    // Beim Zurückkehren in den Tab gleich prüfen (dort ist ein Reload am unauffälligsten)
+    setInterval(check, CHECK_MS);
+    // Beim Zurückkehren in den Tab prüfen — dort ist ein Reload am unauffälligsten
     document.addEventListener('visibilitychange', () => { if (!document.hidden) check(); });
     check();
   }
 
-  return { start, check, get version() { return myVersion; } };
+  return { start, check, get version() { return refVersion; } };
 })();

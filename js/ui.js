@@ -199,9 +199,11 @@ KS.UI = (() => {
       marketVisible = true;
       renderMarketRows(G);
       els.market.classList.remove('hidden');
+      els.questCard.classList.add('tucked');   // Quest-Karte weicht dem Panel
     } else if (!near && marketVisible) {
       marketVisible = false;
       els.market.classList.add('hidden');
+      els.questCard.classList.remove('tucked');
     }
   }
 

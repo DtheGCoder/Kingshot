@@ -213,6 +213,13 @@ html, body {
   transition: transform 0.15s;
 }
 #quest-card:active { transform: scale(0.97); }
+/* Weicht dem Markt-Panel aus, statt sich zu überlappen */
+#quest-card.tucked {
+  opacity: 0;
+  transform: translateY(18px) scale(0.92);
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+}
 #quest-card.complete { animation: questdone 0.5s ease; }
 @keyframes questdone { 30% { transform: scale(1.06); box-shadow: 0 0 30px rgba(247,201,72,0.9); } }
 

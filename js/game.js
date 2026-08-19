@@ -327,12 +327,6 @@ KS.Game = (() => {
     return c;
   }
 
-  function drawGlow(x, y, r, color, alpha) {
-    ctx.globalAlpha = alpha;
-    ctx.drawImage(glowSprite(color), x - r, y - r, r * 2, r * 2);
-    ctx.globalAlpha = 1;
-  }
-
   function render() {
     const st = G.state;
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -494,19 +488,25 @@ KS.Game = (() => {
     // Schwebende Texte
     Ent.drawTexts(G, ctx);
 
-    // Nacht & Licht
-    if (G.dark > 0.02) {
-      ctx.fillStyle = `rgba(16,20,58,${G.dark})`;
-      ctx.fillRect(vx0, vy0, vx1 - vx0, vy1 - vy0);
-      ctx.globalCompositeOperation = 'lighter';
-      drawLights(vx0, vy0, vx1, vy1);
-      ctx.globalCompositeOperation = 'source-over';
-    }
+    // Nacht: Lichtquellen sammeln (gezeichnet wird im Bildschirmraum, s. u.)
+    const nightLights = G.dark > 0.02 ? collectLights(vx0, vy0, vx1, vy1) : null;
 
     // Quest-Ziel & Alarm-Pfeile (Weltkoordinaten)
     drawGuides();
 
     ctx.restore();
+
+    // Nacht & Licht (Bildschirmraum, reduzierte Auflösung → schnell)
+    if (nightLights) {
+      drawNightLayer(nightLights, shX, shY);
+      // Flämmchen scharf darüber
+      ctx.save();
+      ctx.translate(W / 2, H / 2);
+      ctx.scale(ZOOM, ZOOM);
+      ctx.translate(-G.cam.x + shX, -G.cam.y + shY);
+      drawTorchFlames(vx0, vy0, vx1, vy1);
+      ctx.restore();
+    }
 
     // Vignette & Verletzungs-Blitz (Bildschirmebene)
     if (vignette) ctx.drawImage(vignette, 0, 0, W, H);
@@ -737,47 +737,111 @@ KS.Game = (() => {
     ctx.fillRect(pl.x - w / 2, y, w * pct, h);
   }
 
-  function drawLights(vx0, vy0, vx1, vy1) {
-    const st = G.state;
-    const d = G.dark;
-    const flick = () => 0.85 + Math.sin(G.time * 11 + Math.sin(G.time * 5.3) * 3) * 0.12;
-    // Fackeln
+  // ---- Nacht-Beleuchtung ----
+  // Wird in einen Puffer mit reduzierter Auflösung gezeichnet und einmal
+  // hochskaliert aufgetragen: Licht ist weich, der Unterschied fällt nicht
+  // auf — es spart aber rund 90 % Füllrate (der teuerste Teil der Nacht).
+  const LIGHT_SCALE = 1 / 3;
+  let lightBuf = null, lightCtx = null;
+
+  function ensureLightBuf() {
+    const lw = Math.max(2, Math.round(W * LIGHT_SCALE));
+    const lh = Math.max(2, Math.round(H * LIGHT_SCALE));
+    if (!lightBuf) { lightBuf = document.createElement('canvas'); lightCtx = lightBuf.getContext('2d'); }
+    if (lightBuf.width !== lw || lightBuf.height !== lh) { lightBuf.width = lw; lightBuf.height = lh; }
+    return lightCtx;
+  }
+
+  // Sammelt alle Lichtquellen in Weltkoordinaten
+  function collectLights(vx0, vy0, vx1, vy1) {
+    const st = G.state, d = G.dark, out = G.lightList || (G.lightList = []);
+    out.length = 0;
+    const flick = 0.85 + Math.sin(G.time * 11 + Math.sin(G.time * 5.3) * 3) * 0.12;
+    const add = (x, y, r, color, a) => { if (a > 0.02) out.push(x, y, r, color, a); };
+
     for (const p of G.props) {
       if (!p.light) continue;
       if (p.x < vx0 || p.x > vx1 || p.y < vy0 || p.y > vy1) continue;
-      drawGlow(p.x, p.y - 52, 90, 'rgba(255,166,66,0.85)', d * 0.7 * flick());
-      // Flämmchen
-      ctx.fillStyle = `rgba(255,210,90,${0.9 * flick()})`;
-      ctx.beginPath();
-      ctx.ellipse(p.x, p.y - 55 - Math.sin(G.time * 9) * 1.5, 3.4, 6, Math.sin(G.time * 7) * 0.2, 0, TAU);
-      ctx.fill();
+      add(p.x, p.y - 52, 90, 'rgba(255,166,66,0.85)', d * 0.7 * flick);
     }
-    // Gebäude
     for (const pad of G.padList) {
       const b = st.buildings[pad.id];
       if (!b || b.tier < 1) continue;
-      if (pad.x < vx0 - 100 || pad.x > vx1 + 100 || pad.y < vy0 - 100 || pad.y > vy1 + 100) continue;
-      if (pad.type === 'castle') drawGlow(pad.x, pad.y - 60, 210, 'rgba(255,190,100,0.7)', d * 0.55);
-      else if (pad.type === 'tavern') drawGlow(pad.x, pad.y - 30, 130, 'rgba(255,180,80,0.8)', d * 0.6 * flick());
-      else if (pad.type === 'forge') drawGlow(pad.x, pad.y - 16, 120, 'rgba(255,130,50,0.9)', d * 0.65 * flick());
-      else if (pad.type === 'shrine') drawGlow(pad.x, pad.y - 55, 170, 'rgba(255,244,200,0.8)', d * 0.6);
-      else if (pad.type === 'mine' && b.tier >= 4) drawGlow(pad.x - 26, pad.y - 26, 70, 'rgba(255,210,110,0.8)', d * 0.5 * flick());
-      else if (pad.type === 'tower_flame') drawGlow(pad.x, pad.y - 80 - b.tier * 5, 110, 'rgba(255,150,60,0.9)', d * 0.7 * flick());
-      else if (pad.type === 'tower_lightning') drawGlow(pad.x, pad.y - 90 - b.tier * 5, 85, 'rgba(190,150,255,0.8)', d * 0.55);
-      else if (pad.type === 'tower_frost') drawGlow(pad.x, pad.y - 85 - b.tier * 5, 75, 'rgba(150,220,255,0.7)', d * 0.45);
-      else drawGlow(pad.x, pad.y - 50, 60, 'rgba(255,200,120,0.6)', d * 0.35);
+      if (pad.x < vx0 - 120 || pad.x > vx1 + 120 || pad.y < vy0 - 120 || pad.y > vy1 + 120) continue;
+      if (pad.type === 'castle') add(pad.x, pad.y - 60, 210, 'rgba(255,190,100,0.7)', d * 0.55);
+      else if (pad.type === 'tavern') add(pad.x, pad.y - 30, 130, 'rgba(255,180,80,0.8)', d * 0.6 * flick);
+      else if (pad.type === 'forge') add(pad.x, pad.y - 16, 120, 'rgba(255,130,50,0.9)', d * 0.65 * flick);
+      else if (pad.type === 'shrine') add(pad.x, pad.y - 55, 170, 'rgba(255,244,200,0.8)', d * 0.6);
+      else if (pad.type === 'markt') add(pad.x, pad.y - 40, 120, 'rgba(255,200,120,0.75)', d * 0.55 * flick);
+      else if (pad.type === 'mine' && b.tier >= 4) add(pad.x - 26, pad.y - 26, 70, 'rgba(255,210,110,0.8)', d * 0.5 * flick);
+      else if (pad.type === 'tower_flame') add(pad.x, pad.y - 80 - b.tier * 5, 110, 'rgba(255,150,60,0.9)', d * 0.7 * flick);
+      else if (pad.type === 'tower_lightning') add(pad.x, pad.y - 90 - b.tier * 5, 85, 'rgba(190,150,255,0.8)', d * 0.55);
+      else if (pad.type === 'tower_frost') add(pad.x, pad.y - 85 - b.tier * 5, 75, 'rgba(150,220,255,0.7)', d * 0.45);
+      else if (pad.type !== 'wall') add(pad.x, pad.y - 50, 60, 'rgba(255,200,120,0.6)', d * 0.35);
     }
-    // Spieler-Laterne
     const pl = st.player;
-    drawGlow(pl.x, pl.y - 16, 170, 'rgba(255,214,140,0.75)', d * 0.55);
-    // Boss-Glut
-    if (G.boss && !G.boss.dead) drawGlow(G.boss.x, G.boss.y - G.boss.r, G.boss.r * 4, 'rgba(255,90,80,0.5)', d * 0.5);
-    // Münzen glitzern leicht (begrenzt für Performance)
-    let coinGlows = 0;
+    if (!G.playerDown) add(pl.x, pl.y - 16, 175, 'rgba(255,214,140,0.75)', d * 0.55);
+    if (G.boss && !G.boss.dead) add(G.boss.x, G.boss.y - G.boss.r, G.boss.r * 4, 'rgba(255,90,80,0.5)', d * 0.5);
+    // Nur wenige, große Münzhaufen glitzern — reine Deko
+    let n = 0;
     for (const c of G.coins) {
+      if (c.kind < 1) continue;
       if (c.x < vx0 || c.x > vx1 || c.y < vy0 || c.y > vy1) continue;
-      drawGlow(c.x, c.y - c.z, 18, 'rgba(255,220,120,0.5)', d * 0.4);
-      if (++coinGlows >= 50) break;
+      add(c.x, c.y - c.z, 26, 'rgba(255,220,120,0.5)', d * 0.4);
+      if (++n >= 12) break;
+    }
+    return out;
+  }
+
+  // Zeichnet Dunkelheit + Lichter in Bildschirmkoordinaten (nach ctx.restore())
+  function drawNightLayer(lights, shX, shY) {
+    const lg = ensureLightBuf();
+    const s = LIGHT_SCALE;
+    const lw = lightBuf.width, lh = lightBuf.height;
+    lg.setTransform(1, 0, 0, 1, 0, 0);
+    lg.globalCompositeOperation = 'source-over';
+    lg.clearRect(0, 0, lw, lh);
+    // Dunkelheit
+    lg.fillStyle = `rgba(16,20,58,${G.dark})`;
+    lg.fillRect(0, 0, lw, lh);
+    // Welt → Bildschirm → Puffer
+    const k = ZOOM * s;
+    const ox = (W / 2 - (G.cam.x - shX) * ZOOM) * s;
+    const oy = (H / 2 - (G.cam.y - shY) * ZOOM) * s;
+    // 1) Löcher in die Dunkelheit stanzen
+    lg.globalCompositeOperation = 'destination-out';
+    for (let i = 0; i < lights.length; i += 5) {
+      const x = lights[i] * k + ox, y = lights[i + 1] * k + oy;
+      const r = lights[i + 2] * k, a = lights[i + 4];
+      if (r < 1 || x < -r || y < -r || x > lw + r || y > lh + r) continue;
+      lg.globalAlpha = Math.min(1, a * 1.35);
+      lg.drawImage(glowSprite('rgba(255,255,255,1)'), x - r, y - r, r * 2, r * 2);
+    }
+    // 2) Warmen Schein dazugeben
+    lg.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < lights.length; i += 5) {
+      const x = lights[i] * k + ox, y = lights[i + 1] * k + oy;
+      const r = lights[i + 2] * k, a = lights[i + 4];
+      if (r < 1 || x < -r || y < -r || x > lw + r || y > lh + r) continue;
+      lg.globalAlpha = a * 0.55;
+      lg.drawImage(glowSprite(lights[i + 3]), x - r, y - r, r * 2, r * 2);
+    }
+    lg.globalAlpha = 1;
+    lg.globalCompositeOperation = 'source-over';
+    // Einmal hochskaliert auftragen
+    ctx.drawImage(lightBuf, 0, 0, lw, lh, 0, 0, W, H);
+  }
+
+  // Flämmchen der Fackeln (scharf, in Weltkoordinaten)
+  function drawTorchFlames(vx0, vy0, vx1, vy1) {
+    const flick = 0.85 + Math.sin(G.time * 11 + Math.sin(G.time * 5.3) * 3) * 0.12;
+    ctx.fillStyle = `rgba(255,210,90,${0.9 * flick})`;
+    for (const p of G.props) {
+      if (!p.light) continue;
+      if (p.x < vx0 || p.x > vx1 || p.y < vy0 || p.y > vy1) continue;
+      ctx.beginPath();
+      ctx.ellipse(p.x, p.y - 55 - Math.sin(G.time * 9) * 1.5, 3.4, 6, Math.sin(G.time * 7) * 0.2, 0, TAU);
+      ctx.fill();
     }
   }
 
@@ -873,10 +937,35 @@ KS.Game = (() => {
     G.pingT = 2.1;
   }
 
+  // ================== AUTOMATISCHE QUALITÄT ==================
+  // Auf schwachen Geräten (oder in dichten Bossnächten) wird die
+  // Renderauflösung schrittweise gesenkt, damit das Spiel flüssig bleibt.
+  // Steigt die Bildrate wieder, geht es zurück auf volle Schärfe.
+  const DPR_STEPS = [2, 1.5, 1.25, 1];
+  let dprIdx = 0, dprTarget = 0;
+  let frameAvg = 16.7, qualityCd = 2.5;
+
+  function autoQuality(dtMs) {
+    frameAvg += (dtMs - frameAvg) * 0.06;
+    if (qualityCd > 0) { qualityCd -= dtMs / 1000; return; }
+    if (frameAvg > 30 && dprIdx < DPR_STEPS.length - 1 && dprIdx < dprTarget + 3) {
+      dprIdx++; qualityCd = 4; applyDpr();
+    } else if (frameAvg < 15 && dprIdx > dprTarget) {
+      dprIdx--; qualityCd = 8; applyDpr();
+    }
+  }
+
+  function applyDpr() {
+    DPR = Math.min(DPR_STEPS[dprIdx], window.devicePixelRatio || 1);
+    canvas.width = Math.round(W * DPR);
+    canvas.height = Math.round(H * DPR);
+  }
+
   // ================== LOOP ==================
   function frame(now) {
     rafId = requestAnimationFrame(frame);
-    let dt = (now - last) / 1000;
+    let dtMs = now - last;
+    let dt = dtMs / 1000;
     last = now;
     if (dt > 0.05) dt = 0.05;
     if (dt <= 0) return;
@@ -888,12 +977,16 @@ KS.Game = (() => {
     }
     KS.UI.update(G, dt);
     render();
+    if (dtMs < 400) autoQuality(dtMs);   // große Sprünge (Tab inaktiv) ignorieren
   }
 
   // ================== GRÖSSE ==================
   function resize() {
     W = window.innerWidth; H = window.innerHeight;
-    DPR = Math.min(2, window.devicePixelRatio || 1);
+    // Sehr große Flächen starten eine Stufe niedriger (Füllrate)
+    dprTarget = (W * H > 1100 * 800) ? 1 : 0;
+    if (dprIdx < dprTarget) dprIdx = dprTarget;
+    DPR = Math.min(DPR_STEPS[dprIdx], window.devicePixelRatio || 1);
     canvas.width = Math.round(W * DPR);
     canvas.height = Math.round(H * DPR);
     canvas.style.width = W + 'px';
@@ -1035,7 +1128,8 @@ KS.Game = (() => {
         quest: () => Sys.activeQuest(G),
         save, state: () => G.state,
         version: () => KS.Updater.version,
-        checkUpdate: () => KS.Updater.check(),
+        checkUpdate: () => KS.Updater.check(true),
+        quality: () => ({ dpr: DPR, step: dprIdx, frameAvg: Math.round(frameAvg * 10) / 10, zoom: ZOOM }),
       };
     }
 
