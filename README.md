@@ -4,6 +4,9 @@ Ein komplettes Browser-Spiel im Stil der berühmten „Kingshot“-Werbung: Du s
 direkt mit einem unsichtbaren Joystick, verteidigst deine Burg gegen endlose Monsterwellen,
 sammelst die Goldmünzen deiner besiegten Feinde ein — und lässt sie **extrem satisfying**
 auf Bauplatten regnen, um Türme, Minen, Tavernen und mehr durch viele Stufen auszubauen.
+Dazu baust du eine echte Wirtschaft: Holzfäller, Steinbruch und Bauernhof schicken
+Arbeiter ins Umland, Sägewerk, Steinmetz und Mühle machen aus ihren Fuhren wieder Gold —
+und ein Techtree mit 25 Neuerungen lässt dich entscheiden, wohin dein Reich wächst.
 
 Kein Build-Tool, keine Abhängigkeiten, kein Backend — pures HTML5/Canvas/JavaScript.
 Läuft auf jedem Handy und Desktop-Browser, direkt von deinem eigenen nginx-Server.
@@ -13,6 +16,8 @@ Läuft auf jedem Handy und Desktop-Browser, direkt von deinem eigenen nginx-Serv
 | ![Titel](docs/screenshots/titel.jpg) | ![Start](docs/screenshots/start.jpg) | ![Nachtkampf](docs/screenshots/nacht-kampf.jpg) |
 | ![Königreich](docs/screenshots/koenigreich.jpg) | ![Belagerung](docs/screenshots/belagerung.jpg) | ![Markt](docs/screenshots/markt.jpg) |
 | ![Bauen bestätigen](docs/screenshots/bauen.jpg) | ![Stadttore](docs/screenshots/tore.jpg) | ![Quest eingeklappt](docs/screenshots/quest-eingeklappt.jpg) |
+| ![Bau-Menü](docs/screenshots/bauen-menu.jpg) | ![Gebäude platzieren](docs/screenshots/platzieren.jpg) | ![Techtree](docs/screenshots/forschung.jpg) |
+| ![Wirtschaft](docs/screenshots/wirtschaft.jpg) | | |
 
 ![Desktop](docs/screenshots/desktop.jpg)
 
@@ -148,8 +153,18 @@ tail -f /var/log/kingshot-update.log     # was ist passiert?
 - **Quest-Karte einklappen:** Der Knopf oben rechts an der Karte klappt sie zu
   einem kleinen Reiter zusammen, damit der Daumenbereich für den Joystick frei
   bleibt. Der Zustand wird gespeichert.
+- **Frei bauen:** Der Knopf **Bauen** unten rechts öffnet die Baumappe. Wählst du
+  ein Gebäude, folgt dir ein Geist über den Boden — er zeigt jederzeit, ob der
+  Platz taugt, und sagt sonst genau warum („Blockiert einen Weg“, „Zu nah am
+  Nachbargebäude“). Bestätigen legt eine Baustelle an, die du wie jede andere mit
+  Münzen füllst. Verbaut? Der **Abreißen**-Knopf gibt die Hälfte zurück und fragt
+  vorher nach.
+- **Forschung:** Der Knopf **Forschung** öffnet den Techtree — 25 Neuerungen in den
+  Zweigen Wirtschaft, Militär und Reich, mit Voraussetzungen und Kosten in Gold
+  **und** Rohstoffen.
 - **Tag & Nacht:** Tagsüber bauen, sammeln und produzieren — nachts kommt die Flut.
-  Alle 5 Nächte wartet ein **Boss**.
+  Alle 5 Nächte wartet ein **Boss**. Deine Arbeiter gehen bei Sonnenuntergang von
+  selbst in Deckung und morgens wieder aufs Feld.
 - **Niederlage?** Halb so wild: Der König steht wieder auf, die Burg wird notdürftig
   geflickt, ein Teil des getragenen Goldes geht verloren — weiter geht's am selben Tag.
 
@@ -171,6 +186,34 @@ tail -f /var/log/kingshot-update.log     # was ist passiert?
 | 🚪 **Stadttore** | Verschließen alle acht Durchgänge, sonst spaziert die Horde einfach hindurch. Eigene HP, werden aufgebrochen und im Morgengrauen wieder eingesetzt |
 | ✨ **Schrein des Lichts** | Heil-Aura für König und Burg |
 
+### 🌾 Wirtschaft — alles endet in Gold
+
+Diese sieben Gebäude setzt du **frei im Dorf** (Bauen-Knopf), so viele du willst,
+innerhalb der Mauern und abseits der Wege:
+
+| Gebäude | Rolle |
+|---|---|
+| 📦 **Lager** | Hier landen alle Rohstoffe. Ohne Lager stehen die Arbeiter still — es ist immer das erste, was du baust. Jede Stufe erhöht den Platz je Rohstoff |
+| 🪓 **Holzfäller** | Schickt Arbeiter zu den Bäumen im Umland; sie tragen das Holz ins Lager |
+| ⛏️ **Steinbruch** | Dasselbe an Felsen und Ruinen — langsamer, aber Stein ist wertvoller |
+| 🌾 **Bauernhof** | Bestellt die eigenen Felder rundherum, kurze Wege, viel Getreide |
+| 🪚 **Sägewerk** | Verwandelt Holz in Bretter und die in **Gold** |
+| 🔨 **Steinmetz** | Meißelt Quader — langsam, aber sehr einträglich |
+| 🥖 **Mühle & Backhaus** | Mahlt Getreide zu Brot: Gold *und* mehr Steuern aus den Tavernen |
+
+Die Kette lautet immer **Sammler → Lager → Verarbeiter → Münzen**. Arbeiter wählen
+ihren Baum nach dem kürzesten Rundweg, es lohnt sich also, das Lager klug zwischen
+Hütte und Wald zu setzen. Sammler und Werke wachsen im gleichen Takt: grob ein
+Sammler versorgt zwei Verarbeiter. Rohstoffe zahlen außerdem die Forschung.
+
+### 🧪 Techtree — 25 Neuerungen in drei Zweigen
+
+| Zweig | Beispiele |
+|---|---|
+| 📦 **Wirtschaft** | Schubkarren (+30 % je Fuhre), Große Speicher, Zünfte (+30 % Gold der Werke), Wasserkraft (Werke doppelt so schnell) |
+| ⚔️ **Militär** | Königsschliff (+25 % Königsschaden), Ballistik, Nachtwache (Mauer & Tore heilen nachts), Großes Arsenal (+50 % Turmschaden) |
+| 👑 **Reich** | Landvermessung (engere Bauplätze), Rechnungsbuch (−10 % Baukosten), Herolde (doppelte Zuwanderung), Baumeister (Einzahlen doppelt so schnell), Goldenes Zeitalter (+30 % auf alles Gold) |
+
 ## 👹 Monster — 24 Arten in 12 Klassen + 10 Bosse
 
 Von **Klasse 1** (Grünschleim, ganz harmlos) über Goblins, Spinnen, Untote, Orks,
@@ -182,11 +225,16 @@ Drachenmutter — und in Nacht 50 der **Weltenfresser**.
 
 ## 📖 Der rote Faden
 
-10 Story-Kapitel mit ~40 Quests führen vom ersten Funken („Sammle 50 Münzen“) bis zum
+10 Story-Kapitel mit ~45 Quests führen vom ersten Funken („Sammle 50 Münzen“) bis zum
 neuen Königreich — jedes Kapitel bringt eine kleine Geschichte, neue Bauplätze, neue
 Monsterklassen und einen Boss. Danach beginnt die **Ewige Wacht**: endlose Nächte,
 rotierende, immer stärkere Bosse und generierte Meilenstein-Quests. In der Chronik
 (⚙️-Menü) kannst du deine ganze Legende nachlesen.
+
+Kapitel 4 nimmt dich an die Hand, wenn die Wirtschaft dazukommt: Lager errichten →
+Holzfäller einstellen → 40 Holz liefern lassen → Sägewerk bauen → erste Forschung.
+Verlangt eine Quest ein neues Gebäude oder eine Neuerung, winkt der passende Knopf
+unten rechts von selbst.
 
 ## 💾 Auto-Save — wirklich lückenlos
 
@@ -221,12 +269,15 @@ rotierende, immer stärkere Bosse und generierte Meilenstein-Quests. In der Chro
 ```
 index.html            Einstieg, HUD & SVG-Icon-Sammlung
 css/style.css         UI-Design (Pergament & Gold)
-js/config.js          Balance & Daten: Gebäude, Waffen, Monster, Bosse, Kapitel, Quests, Markt, Mauer
+js/config.js          Balance & Daten: Gebäude, Waffen, Monster, Bosse, Kapitel, Quests,
+                      Markt, Mauer, Rohstoffe, Bauzone, Techtree
 js/core.js            Utilities, Audio-Synth, Joystick, Speicher-I/O, Auto-Update-Erkennung
 js/art.js             Prozedurale Grafik: alle Sprites, Boden, Requisiten
 js/entities.js        Spieler, Monster-KI, Münzen, Projektile, Partikel
-js/systems.js         Bauplatten & Einzahlung, Türme, Produktion, Mauer, Markt, Tag/Nacht, Quests
-js/ui.js              HUD, Toasts, Banner, Story-Overlays, Menü, Markt-Panel
+js/systems.js         Bauplatten & Einzahlung, Türme, Produktion, Mauer, Markt, Tag/Nacht,
+                      Quests, Arbeiter & Rohstoffketten, freies Platzieren, Techtree
+js/ui.js              HUD, Toasts, Banner, Story-Overlays, Menü, Markt-, Bau- und
+                      Forschungspanel, Rohstoffleiste, Platzierungsleiste
 js/game.js            Game-Loop, Renderer, Kamera, Licht, Auto-Save, Auto-Qualität
 
 deploy/install.sh             nginx-Site + HTTPS/Certbot + Härtung
