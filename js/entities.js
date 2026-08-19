@@ -160,33 +160,37 @@ KS.Ent = (() => {
 
   function updateCoins(G, dt) {
     const C = G.coins, pl = G.state.player;
-    const magnet = KS.Input.vector()[0] !== 0 || KS.Input.vector()[1] !== 0 ? CFG.PLAYER.magnetRMoving : CFG.PLAYER.magnetR;
+    const iv = KS.Input.vector();
+    const magnet = (iv[0] !== 0 || iv[1] !== 0 ? CFG.PLAYER.magnetRMoving : CFG.PLAYER.magnetR) * (G.magnetMul || 1);
     const mag2 = magnet * magnet;
     for (let i = C.length - 1; i >= 0; i--) {
       const c = C[i];
       c.t += dt;
+      // Magnet greift SOFORT — auch während die Münze noch fliegt/hüpft
+      if (c.state !== 'magnet' && !G.playerDown && U.dist2(c.x, c.y, pl.x, pl.y) < mag2) {
+        c.state = 'magnet';
+      }
       if (c.state === 'fly') {
         c.x += c.vx * dt; c.y += c.vy * dt;
         c.z += c.vz * dt; c.vz -= 620 * dt;
         if (c.z <= 0) {
           c.z = 0;
-          if (Math.abs(c.vz) > 40) { c.vz = -c.vz * 0.45; KS.Audio.SFX; }
+          if (Math.abs(c.vz) > 40) { c.vz = -c.vz * 0.45; }
           else { c.state = 'idle'; c.vx = c.vy = c.vz = 0; }
           c.vx *= 0.6; c.vy *= 0.6;
         }
       } else if (c.state === 'idle') {
-        if (!G.playerDown && U.dist2(c.x, c.y, pl.x, pl.y) < mag2) c.state = 'magnet';
-        else if (Math.random() < dt * 0.5) {
+        if (Math.random() < dt * 0.5) {
           particle(G, c.x + U.rand(-4, 4), c.y - c.z - U.rand(2, 8), { vz: 10, grav: 0, life: 0.4, size: 1.6, color: '#fff8d0' });
         }
       } else { // magnet
         const dx = pl.x - c.x, dy = (pl.y - 14) - c.y + c.z * 0;
         const d = Math.hypot(dx, dy) || 1;
-        const sp = CFG.COINS.magnetSpeed * (1.25 - Math.min(1, d / magnet) * 0.55);
+        const sp = CFG.COINS.magnetSpeed * (1.35 - Math.min(1, d / magnet) * 0.55);
         c.x += dx / d * sp * dt;
         c.y += dy / d * sp * dt;
-        c.z = Math.max(0, c.z - 60 * dt);
-        if (d < 16) {
+        c.z = Math.max(0, c.z - 120 * dt);
+        if (d < 22) {
           C.splice(i, 1);
           G.state.gold += c.value;
           G.state.goldCollected += c.value;
@@ -270,6 +274,8 @@ KS.Ent = (() => {
     if (!G.playerDown && pl.hp < G.playerHpMax) {
       pl.hp = Math.min(G.playerHpMax, pl.hp + G.playerHpMax * 0.02);
     }
+    // Markt-Bonus: mehr Gold von Monstern
+    m.gold *= (G.goldMul || 1);
     // Gold
     const gold = Math.round(m.gold * (m.elite ? 2.5 : 1));
     if (m.boss) {
@@ -295,6 +301,7 @@ KS.Ent = (() => {
   function damagePlayer(G, dmg, fromX, fromY) {
     const pl = G.state.player;
     if (G.playerDown || G.playerInvuln > 0) return;
+    dmg *= (G.armorMul || 1);
     pl.hp -= dmg;
     G.playerHurtT = 0.25;
     G.regenWait = CFG.PLAYER.regenDelay;
@@ -311,7 +318,7 @@ KS.Ent = (() => {
       G.playerDown = true;
       G.playerDownT = 0;
       burst(G, pl.x, pl.y - 16, 16, { colors: ['#d64545', '#4a6ea8', '#f0c8a0'], speed: 100, up: 120 });
-      KS.UI.toast('👑 Der König ist gestürzt! Er rappelt sich auf…');
+      KS.UI.toast('Der König ist gestürzt! Er rappelt sich auf…', 3400, 'crown');
     }
   }
 
@@ -349,7 +356,8 @@ KS.Ent = (() => {
 
     // Bewegung
     const [ix, iy] = KS.Input.vector();
-    let vx = ix * CFG.PLAYER.speed, vy = iy * CFG.PLAYER.speed;
+    const spd = G.playerSpeed || CFG.PLAYER.speed;
+    let vx = ix * spd, vy = iy * spd;
     // Rückstoß
     vx += G.playerKx; vy += G.playerKy;
     G.playerKx *= Math.pow(0.0001, dt); G.playerKy *= Math.pow(0.0001, dt);
@@ -361,7 +369,7 @@ KS.Ent = (() => {
     for (const pad of G.padList) {
       const b = st.buildings[pad.id];
       if (!b || b.tier < 1) continue;
-      const cr = pad.type === 'castle' ? 95 : 34;
+      const cr = pad.type === 'castle' ? 95 : pad.type === 'wall' ? 24 : 34;
       const dx = pl.x - pad.x, dy = pl.y - (pad.y - 6);
       const d2 = dx * dx + dy * dy;
       if (d2 < cr * cr && d2 > 0.01) {
@@ -423,7 +431,7 @@ KS.Ent = (() => {
           let da = Math.abs(a - dir);
           if (da > Math.PI) da = TAU - da;
           if (da > arc) continue;
-          const crit = Math.random() < 0.12;
+          const crit = Math.random() < (G.critCh || 0.12);
           damageMonster(G, m, w.dmg * (crit ? 2 : 1), { kb: 130, kbx: m.x - pl.x, kby: m.y - pl.y, crit });
           hits++;
         }
@@ -591,8 +599,29 @@ KS.Ent = (() => {
         tx = pl.x; ty = pl.y; stopDist = CFG.PLAYER.r + m.r - 2;
       } else if (m.state === 'chase') m.state = 'march';
 
-      // Fernkampf
-      if (m.sp.ranged) {
+      // Stadtmauer: blockiert Bodenmonster auf dem Weg nach innen
+      let wallSeg = -1;
+      if (G.wallMax > 0 && !m.fly && G.state.wall) {
+        const wR = CFG.WALL.r;
+        const dC = Math.sqrt(U.dist2(m.x, m.y, cx, cy));
+        if (dC > wR - 6) {
+          const targetInside = !targetPlayer || U.dist2(tx, ty, cx, cy) < wR * wR;
+          if (targetInside) {
+            const ang = Math.atan2(m.y - cy, m.x - cx);
+            const seg = KS.Systems.wallSegAt(ang);
+            if (seg >= 0 && G.state.wall.hp[seg] > 0) {
+              wallSeg = seg;
+              tx = cx + Math.cos(ang) * wR;
+              ty = cy + Math.sin(ang) * wR;
+              stopDist = m.r + 10;
+              targetPlayer = false;
+            }
+          }
+        }
+      }
+
+      // Fernkampf (nicht gegen die Mauer — die wird im Nahkampf zerlegt)
+      if (m.sp.ranged && wallSeg < 0) {
         const rr = m.sp.ranged.range;
         const distT = Math.sqrt(targetPlayer ? distPl2 : U.dist2(m.x, m.y, cx, cy)) - (targetPlayer ? 0 : baseRadius);
         m.rangedCd -= dt;
@@ -618,7 +647,8 @@ KS.Ent = (() => {
       }
 
       const a = U.angleTo(m.x, m.y, tx, ty);
-      const distT = Math.sqrt(targetPlayer ? distPl2 : U.dist2(m.x, m.y, cx, cy));
+      const distT = targetPlayer ? Math.sqrt(distPl2)
+        : (wallSeg >= 0 ? U.dist(m.x, m.y, tx, ty) : Math.sqrt(U.dist2(m.x, m.y, cx, cy)));
       if (distT > stopDist + 2) {
         const sp = m.speed * speedF;
         m.x += Math.cos(a) * sp * dt;
@@ -630,7 +660,9 @@ KS.Ent = (() => {
         if (m.attackCd <= 0) {
           m.attackCd = m.boss ? 1.4 : 1.0;
           m.lunge = 1;
-          if (targetPlayer) {
+          if (wallSeg >= 0) {
+            KS.Systems.damageWall(G, wallSeg, m.dmg * (m.boss ? 3 : 1), m);
+          } else if (targetPlayer) {
             damagePlayer(G, m.dmg, m.x, m.y);
             if (m.venom) { G.regenWait = Math.max(G.regenWait, 5); }
           } else {
@@ -734,7 +766,8 @@ KS.Ent = (() => {
         ctx.fillStyle = '#ffd34e';
         ctx.font = '900 9px Nunito, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('★ ELITE', m.x, y - 3);
+        ctx.fillText('ELITE', m.x + 4, y - 3);
+        KS.Art.drawStar(ctx, m.x - 16, y - 6, 3.4, '#ffd34e');
       }
     }
     // Verlangsamungs-Schimmer

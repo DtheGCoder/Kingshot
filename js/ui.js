@@ -1,8 +1,8 @@
 /* ============================================================
    KINGSHOT — ui.js
-   DOM-HUD: Goldanzeige, Tag/Nacht, Burg-HP, Quest-Karte,
+   DOM-HUD: Goldanzeige, Tag/Nacht, Burg-HP, Quest-Karte, Markt,
    Toasts, Banner, Story-/Kapitel-Overlay, Menü, Boss-Leiste,
-   Titelbildschirm, Sieg & Niederlage.
+   Titelbildschirm, Sieg & Niederlage. Alle Symbole sind SVGs.
    ============================================================ */
 'use strict';
 
@@ -10,29 +10,33 @@ KS.UI = (() => {
   const U = KS.U, CFG = KS.CFG;
   const $ = id => document.getElementById(id);
 
+  // SVG-Icon aus der Symbolbibliothek
+  const icon = (name, cls = 'ico') => `<svg class="${cls}"><use href="#i-${name}"/></svg>`;
+
   let els = {};
-  let toastQueue = [];
   let bannerTimer = null;
   let lastGold = -1, lastQuestKey = '', lastDay = -1, lastPhase = '';
   let goldBumpT = 0;
+  let marketVisible = false, marketRefreshT = 0;
 
   function init() {
     els = {
       gold: $('gold-txt'), goldPill: $('gold-pill'),
       day: $('day-txt'), phaseIco: $('phase-ico'), phaseFill: $('phase-fill'),
       baseHp: $('base-hp'), baseFill: $('base-hp-fill'), baseTxt: $('base-hp-txt'),
-      saveInd: $('save-ind'),
       questCard: $('quest-card'), questCh: $('quest-chapter'), questIco: $('quest-ico'),
       questText: $('quest-text'), questFill: $('quest-prog-fill'), questProgTxt: $('quest-prog-txt'),
       questReward: $('quest-reward-txt'),
       toasts: $('toasts'),
       banner: $('banner'), bannerTitle: $('banner-title'), bannerSub: $('banner-sub'),
-      bossBar: $('boss-bar'), bossName: $('boss-name'), bossFill: $('boss-hp-fill'),
+      bossBar: $('boss-bar'), bossName: $('boss-name-txt'), bossFill: $('boss-hp-fill'),
       story: $('story'), storyKap: $('story-kapitel'), storyTitle: $('story-title'),
       storyText: $('story-text'), storyBtn: $('story-btn'),
       menu: $('menu'), menuDay: $('menu-day'), statsGrid: $('stats-grid'), chronik: $('chronik-list'),
       title: $('title-screen'), titleInfo: $('title-info'),
       defeat: $('defeat'), defeatTitle: $('defeat-title'), defeatText: $('defeat-text'),
+      market: $('market-panel'), marketRows: $('market-rows'),
+      sndOn: $('snd-on'), sndOff: $('snd-off'),
     };
 
     // Buttons
@@ -42,7 +46,7 @@ KS.UI = (() => {
       const on = !(KS.Audio.sfxOn || KS.Audio.musicOn);
       KS.Audio.setSfx(on); KS.Audio.setMusic(on);
       $('opt-sfx').checked = on; $('opt-music').checked = on;
-      $('btn-sound').textContent = on ? '🔊' : '🔇';
+      updateSoundBtn();
       KS.Game.G.state.settings.sfx = on;
       KS.Game.G.state.settings.music = on;
       KS.Game.requestSave();
@@ -96,11 +100,19 @@ KS.UI = (() => {
       KS.Audio.SFX.click();
       KS.Game.pingQuestTarget();
     });
+    // Markt: Kauf-Klicks (delegiert)
+    els.marketRows.addEventListener('click', e => {
+      const btn = e.target.closest('.mk-buy');
+      if (!btn || btn.classList.contains('max')) return;
+      KS.Systems.buyMarket(KS.Game.G, btn.dataset.track);
+      renderMarketRows(KS.Game.G);
+    });
   }
 
   function updateSoundBtn() {
     const on = KS.Audio.sfxOn || KS.Audio.musicOn;
-    $('btn-sound').textContent = on ? '🔊' : '🔇';
+    els.sndOn.classList.toggle('hidden', !on);
+    els.sndOff.classList.toggle('hidden', on);
   }
 
   // ---------- Titelbildschirm ----------
@@ -108,15 +120,15 @@ KS.UI = (() => {
     els.title.classList.remove('hidden');
     const btnNew = $('btn-new'), btnCont = $('btn-continue');
     if (hasSave) {
-      const ch = CFG.CHAPTERS[Math.min(state.chapterShown, CFG.CHAPTERS.length - 1)];
+      const ch = CFG.CHAPTERS[Math.min(Math.max(0, state.chapterShown), CFG.CHAPTERS.length - 1)];
       els.titleInfo.innerHTML =
         `Tag ${state.day} · Kapitel ${state.chapterShown + 1} „${ch.title}“<br>` +
-        `🪙 ${U.fmt(state.gold)} &nbsp;·&nbsp; 🧑‍🌾 ${state.survivors} Überlebende &nbsp;·&nbsp; ⚔️ ${U.fmt(state.stats.kills)} Siege`;
-      btnCont.textContent = '▶  Weiterspielen';
+        `${icon('coin')} ${U.fmt(state.gold)} &nbsp;·&nbsp; ${icon('person')} ${state.survivors} &nbsp;·&nbsp; ${icon('swords')} ${U.fmt(state.stats.kills)} Siege`;
+      btnCont.innerHTML = `${icon('play')} Weiterspielen`;
       btnNew.classList.remove('hidden');
     } else {
       els.titleInfo.textContent = 'Das Königreich Alderian braucht dich, König!';
-      btnCont.textContent = '⚔️  Abenteuer beginnen';
+      btnCont.innerHTML = `${icon('swords')} Abenteuer beginnen`;
       btnNew.classList.add('hidden');
     }
   }
@@ -142,7 +154,8 @@ KS.UI = (() => {
     // Tag & Phase
     if (st.day !== lastDay || st.phase !== lastPhase) {
       els.day.textContent = (st.phase === 'night' ? 'Nacht ' : 'Tag ') + st.day;
-      els.phaseIco.textContent = st.phase === 'night' ? '🌙' : '☀️';
+      els.phaseIco.innerHTML = `<use href="#i-${st.phase === 'night' ? 'moon' : 'sun'}"/>`;
+      els.phaseIco.style.color = st.phase === 'night' ? '#9db4ff' : '#ffd34e';
       lastDay = st.day; lastPhase = st.phase;
     }
     const len = st.phase === 'night' ? CFG.PHASES.nightLen(st.day) : CFG.PHASES.dayLen(st.day);
@@ -166,20 +179,75 @@ KS.UI = (() => {
       if (key !== lastQuestKey) {
         lastQuestKey = key;
         els.questCh.textContent = `Kapitel ${q.ch + 1} · ${CFG.CHAPTERS[Math.min(q.ch, CFG.CHAPTERS.length - 1)].title}`;
-        els.questIco.textContent = q.ico;
+        els.questIco.innerHTML = icon(q.ico || 'scroll');
         els.questText.textContent = q.text;
         els.questReward.textContent = U.fmt(q.reward);
       }
       els.questFill.style.width = (max > 0 ? cur / max * 100 : 0) + '%';
       els.questProgTxt.textContent = max > 1 ? `${U.fmt(cur)} / ${U.fmt(max)}` : (cur >= max ? '✓' : '…');
     }
+    // Markt-Preise regelmäßig auffrischen (Kaufkraft-Anzeige)
+    if (marketVisible) {
+      marketRefreshT -= dt;
+      if (marketRefreshT <= 0) { marketRefreshT = 0.4; refreshMarketAfford(G); }
+    }
+  }
+
+  // ---------- Markt ----------
+  function updateMarket(G, near) {
+    if (near && !marketVisible) {
+      marketVisible = true;
+      renderMarketRows(G);
+      els.market.classList.remove('hidden');
+    } else if (!near && marketVisible) {
+      marketVisible = false;
+      els.market.classList.add('hidden');
+    }
+  }
+
+  function renderMarketRows(G) {
+    const st = G.state;
+    const b = st.buildings.markt;
+    const slots = b && b.tier >= 1 ? CFG.BUILDINGS.markt.slots(b.tier) : 0;
+    const rows = [];
+    for (let i = 0; i < Math.min(slots, CFG.MARKET.length); i++) {
+      const t = CFG.MARKET[i];
+      const lvl = KS.Systems.marketLvl(G, t.id);
+      const maxed = lvl >= t.max;
+      const cost = maxed ? 0 : KS.Systems.marketCost(G, t, lvl);
+      rows.push(`
+        <div class="mk-row">
+          <div class="mk-ico">${icon(t.ico)}</div>
+          <div class="mk-body">
+            <div class="mk-name">${t.name} <span class="mk-lvl">${lvl}/${t.max}</span></div>
+            <div class="mk-desc">${t.desc}</div>
+          </div>
+          <button class="mk-buy${maxed ? ' max' : ''}" data-track="${t.id}" data-cost="${cost}">
+            ${maxed ? 'MAX' : `<span class="coin-ico"></span>${U.fmt(cost)}`}
+          </button>
+        </div>`);
+    }
+    if (CFG.MARKET.length > slots) {
+      rows.push(`<div class="mk-row"><div class="mk-desc">${icon('lock')} Markt ausbauen schaltet weitere Waren frei</div></div>`);
+    }
+    els.marketRows.innerHTML = rows.join('');
+    refreshMarketAfford(G);
+  }
+
+  function refreshMarketAfford(G) {
+    els.marketRows.querySelectorAll('.mk-buy').forEach(btn => {
+      if (btn.classList.contains('max')) return;
+      btn.classList.toggle('broke', G.state.gold < Number(btn.dataset.cost));
+    });
   }
 
   // ---------- Toasts & Banner ----------
-  function toast(msg, dur = 3400) {
+  function toast(msg, dur = 3400, ico = null) {
     const div = document.createElement('div');
     div.className = 'toast';
-    div.textContent = msg;
+    if (ico) div.innerHTML = icon(ico) + '<span></span>';
+    else div.innerHTML = '<span></span>';
+    div.querySelector('span').textContent = msg;
     els.toasts.appendChild(div);
     while (els.toasts.children.length > 3) els.toasts.firstChild.remove();
     setTimeout(() => {
@@ -205,12 +273,12 @@ KS.UI = (() => {
     els.questCard.classList.remove('complete');
     void els.questCard.offsetWidth;
     els.questCard.classList.add('complete');
-    toast(`✅ Quest abgeschlossen! +${U.fmt(q.reward)} Gold`);
+    toast(`Quest abgeschlossen! +${U.fmt(q.reward)} Gold`, 3400, 'check');
   }
 
   // ---------- Boss-Leiste ----------
   function showBossBar(name) {
-    els.bossName.textContent = '☠️ ' + name;
+    els.bossName.textContent = name;
     els.bossBar.classList.remove('hidden');
   }
   function hideBossBar() { els.bossBar.classList.add('hidden'); }
@@ -221,17 +289,17 @@ KS.UI = (() => {
     els.storyKap.textContent = `Kapitel ${chIdx + 1}`;
     els.storyTitle.textContent = ch.title;
     els.storyText.textContent = ch.text;
-    $('story-btn').textContent = 'Weiter ⚔️';
+    els.storyBtn.innerHTML = `${icon('swords')} Weiter`;
     els.story.classList.remove('hidden');
     KS.Game.setPaused(true);
     KS.Audio.SFX.chapter();
   }
 
   function showVictory() {
-    els.storyKap.textContent = '👑 SIEG 👑';
+    els.storyKap.textContent = 'SIEG';
     els.storyTitle.textContent = 'Das neue Königreich';
     els.storyText.textContent = CFG.VICTORY_TEXT;
-    $('story-btn').textContent = 'Ewige Wacht beginnen 🌙';
+    els.storyBtn.innerHTML = `${icon('moon')} Ewige Wacht beginnen`;
     els.story.classList.remove('hidden');
     KS.Game.setPaused(true);
     KS.Audio.SFX.victory();
@@ -248,7 +316,7 @@ KS.UI = (() => {
     const show = force !== undefined ? force : els.menu.classList.contains('hidden');
     if (show) {
       const st = KS.Game.G.state;
-      els.menuDay.textContent = `Tag ${st.day} · Kapitel ${st.chapterShown + 1} „${CFG.CHAPTERS[Math.min(st.chapterShown, CFG.CHAPTERS.length - 1)].title}“`;
+      els.menuDay.textContent = `Tag ${st.day} · Kapitel ${st.chapterShown + 1} „${CFG.CHAPTERS[Math.min(Math.max(0, st.chapterShown), CFG.CHAPTERS.length - 1)].title}“`;
       $('opt-sfx').checked = KS.Audio.sfxOn;
       $('opt-music').checked = KS.Audio.musicOn;
       $('opt-shake').checked = st.settings.shake !== false;
@@ -267,49 +335,44 @@ KS.UI = (() => {
     const G = KS.Game.G, st = G.state;
     const mins = Math.floor(st.stats.playTime / 60);
     const rows = [
-      ['⚔️', U.fmt(st.stats.kills), 'Monster besiegt'],
-      ['👑', st.stats.bossKills, 'Bosse bezwungen'],
-      ['🪙', U.fmt(st.stats.goldEarned), 'Gold erbeutet'],
-      ['🧑‍🌾', st.survivors, 'Überlebende'],
-      ['🌙', Math.max(0, st.day - 1), 'Nächte überstanden'],
-      ['⏳', mins >= 60 ? Math.floor(mins / 60) + 'h ' + (mins % 60) + 'm' : mins + ' min', 'Spielzeit'],
-      ['🏰', (st.buildings.castle ? st.buildings.castle.tier : 1), 'Burg-Stufe'],
-      ['🗡️', CFG.WEAPONS[G.weaponTier - 1].name, 'Waffe'],
+      ['swords', U.fmt(st.stats.kills), 'Monster besiegt'],
+      ['crown', st.stats.bossKills, 'Bosse bezwungen'],
+      ['coin', U.fmt(st.stats.goldEarned), 'Gold erbeutet'],
+      ['person', st.survivors, 'Überlebende'],
+      ['moon', Math.max(0, st.day - 1), 'Nächte überstanden'],
+      ['time', mins >= 60 ? Math.floor(mins / 60) + ' h ' + (mins % 60) + ' min' : mins + ' min', 'Spielzeit'],
+      ['castle', 'Stufe ' + (st.buildings.castle ? st.buildings.castle.tier : 1), 'Burg'],
+      ['sword', CFG.WEAPONS[G.weaponTier - 1].name, 'Waffe'],
     ];
     $('stats-grid').innerHTML = rows.map(r =>
-      `<div class="stat-box"><div class="sv">${r[0]} ${r[1]}</div><div class="sl">${r[2]}</div></div>`
+      `<div class="stat-box"><div class="sv">${icon(r[0])} ${r[1]}</div><div class="sl">${r[2]}</div></div>`
     ).join('');
   }
 
   function renderChronik() {
     const log = KS.Game.G.state.log;
     $('chronik-list').innerHTML = log.length
-      ? log.slice().reverse().map(e =>
-          `<div class="chron-row"><span class="chron-day">Tag ${e.d}</span><span>${e.t}</span></div>`
-        ).join('')
+      ? log.slice().reverse().map(e => {
+          const row = document.createElement('div');
+          row.className = 'chron-row';
+          const d = document.createElement('span');
+          d.className = 'chron-day'; d.textContent = `Tag ${e.d}`;
+          const t = document.createElement('span'); t.textContent = e.t;
+          row.append(d, t);
+          return row.outerHTML;
+        }).join('')
       : '<div class="chron-row">Noch keine Einträge — deine Legende beginnt gerade erst.</div>';
-  }
-
-  // ---------- Speicher-Anzeige ----------
-  let saveIndT = null;
-  function flashSave() {
-    els.saveInd.classList.add('show');
-    if (saveIndT) clearTimeout(saveIndT);
-    saveIndT = setTimeout(() => els.saveInd.classList.remove('show'), 900);
   }
 
   // ---------- Export / Import ----------
   function exportSave() {
     const data = btoa(unescape(encodeURIComponent(JSON.stringify(KS.Game.serialize()))));
-    const doCopy = () => {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(data).then(
-          () => toast('📋 Spielstand in Zwischenablage kopiert!'),
-          () => prompt('Spielstand kopieren:', data)
-        );
-      } else prompt('Spielstand kopieren:', data);
-    };
-    doCopy();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(data).then(
+        () => toast('Spielstand in die Zwischenablage kopiert!', 3400, 'check'),
+        () => prompt('Spielstand kopieren:', data)
+      );
+    } else prompt('Spielstand kopieren:', data);
   }
   function importSave() {
     const data = prompt('Spielstand einfügen:');
@@ -318,7 +381,6 @@ KS.UI = (() => {
       const obj = JSON.parse(decodeURIComponent(escape(atob(data.trim()))));
       if (!obj || typeof obj.version !== 'number') throw new Error('ungültig');
       KS.Game.loadImported(obj);
-      toast('✅ Spielstand geladen!');
     } catch (e) {
       alert('Dieser Spielstand ist leider ungültig.');
     }
@@ -333,6 +395,7 @@ KS.UI = (() => {
   return {
     init, update, bumpGold, toast, banner, questComplete,
     showBossBar, hideBossBar, showChapter, showVictory, showDefeat,
-    toggleMenu, showTitle, hideTitle, flashSave, applySettings,
+    toggleMenu, showTitle, hideTitle, applySettings,
+    updateMarket, renderMarketRows, icon,
   };
 })();

@@ -22,8 +22,26 @@ KS.Systems = (() => {
     const castle = st.buildings.castle;
     G.baseHpMax = CFG.BUILDINGS.castle.hp(Math.max(1, castle ? castle.tier : 1));
     st.baseHp = Math.min(st.baseHp, G.baseHpMax);
-    G.playerHpMax = CFG.PLAYER.hpMax + (castle ? (castle.tier - 1) * 10 : 0);
+    // Markt-Verbesserungen des Königs
+    if (!st.market) st.market = {};
+    const mk = id => st.market[id] || 0;
+    G.playerHpMax = Math.round((CFG.PLAYER.hpMax + (castle ? (castle.tier - 1) * 10 : 0)) * (1 + 0.12 * mk('hp')));
     st.player.hp = Math.min(st.player.hp, G.playerHpMax);
+    G.playerSpeed = CFG.PLAYER.speed * (1 + 0.03 * mk('speed'));
+    G.magnetMul = 1 + 0.10 * mk('magnet');
+    G.critCh = 0.12 + 0.02 * mk('crit');
+    G.goldMul = 1 + 0.04 * mk('gold');
+    G.armorMul = Math.max(0.55, 1 - 0.02 * mk('armor'));
+    // Stadtmauer
+    const wallB = st.buildings.wall;
+    G.wallMax = wallB && wallB.tier >= 1 ? CFG.BUILDINGS.wall.segHp(wallB.tier) : 0;
+    if (G.wallMax > 0) {
+      if (!st.wall || !Array.isArray(st.wall.hp) || st.wall.hp.length !== CFG.WALL.segs) {
+        st.wall = { hp: Array.from({ length: CFG.WALL.segs }, () => G.wallMax) };
+      } else {
+        for (let i = 0; i < st.wall.hp.length; i++) st.wall.hp[i] = Math.min(st.wall.hp[i], G.wallMax);
+      }
+    }
     // Türme
     G.towers = [];
     for (const pad of G.padList) {
@@ -49,8 +67,104 @@ KS.Systems = (() => {
     if (pad && !silent) {
       Ent.ring(G, pad.x, pad.y, { r0: 10, r1: 90, life: 0.8, color: 'rgba(255,220,120,0.9)', lw: 5 });
       Ent.burst(G, pad.x, pad.y - 10, 14, { colors: ['#ffe084', '#fff'], speed: 90, up: 110 });
-      KS.UI.toast(`🔓 Neuer Bauplatz: ${pad.label}!`);
+      KS.UI.toast(`Neuer Bauplatz: ${pad.label}!`, 3400, 'hammer');
     }
+  }
+
+  // ============ STADTMAUER ============
+  // Segment-Index für einen Winkel (−1 = Toröffnung)
+  function wallSegAt(ang) {
+    const TAU2 = Math.PI * 2;
+    const span = Math.PI / 4;
+    let rel = (ang - CFG.GATES[0]) % TAU2;
+    if (rel < 0) rel += TAU2;
+    const k = Math.floor(rel / span) % 8;
+    const within = rel - Math.floor(rel / span) * span;
+    const g = CFG.WALL.gateHalf;
+    if (within < g || within > span - g) return -1;   // Tor
+    return k * 2 + (within < span / 2 ? 0 : 1);
+  }
+
+  // Mittelpunkt-Winkel & Position eines Segments
+  function wallSegArc(seg) {
+    const span = Math.PI / 4, g = CFG.WALL.gateHalf;
+    const k = Math.floor(seg / 2), half = seg % 2;
+    const start = CFG.GATES[0] + k * span + g + (half ? (span - 2 * g) / 2 : 0);
+    const len = (span - 2 * g) / 2;
+    return { start, end: start + len, mid: start + len / 2 };
+  }
+  function wallSegCenter(seg) {
+    const { mid } = wallSegArc(seg);
+    return {
+      x: CFG.WORLD.cx + Math.cos(mid) * CFG.WALL.r,
+      y: CFG.WORLD.cy + Math.sin(mid) * CFG.WALL.r,
+    };
+  }
+
+  function damageWall(G, seg, dmg, from) {
+    const st = G.state;
+    if (!st.wall || G.wallMax <= 0 || st.wall.hp[seg] <= 0) return;
+    st.wall.hp[seg] = Math.max(0, st.wall.hp[seg] - dmg);
+    G.wallFlash[seg] = 1;
+    if (G.baseHitSfxT <= 0) { KS.Audio.SFX.baseHit(); G.baseHitSfxT = 0.3; }
+    const c = wallSegCenter(seg);
+    if (Math.random() < 0.5) {
+      Ent.particle(G, c.x + U.rand(-14, 14), c.y - U.rand(10, 30), { vz: U.rand(40, 90), grav: 240, life: 0.5, size: 3, color: U.pick(['#c9c2b4', '#8a8478']) });
+    }
+    if (st.wall.hp[seg] <= 0) {
+      Ent.burst(G, c.x, c.y - 14, 18, { colors: ['#c9c2b4', '#8a8478', '#6a655c'], speed: 120, up: 140, size: 4.4, life: 0.7 });
+      Ent.ring(G, c.x, c.y, { r0: 8, r1: 60, life: 0.5, color: 'rgba(200,190,170,0.8)' });
+      G.shake = Math.max(G.shake, 5);
+      if (G.wallBreachT <= 0) {
+        KS.UI.toast('Mauerdurchbruch! Ein Abschnitt ist gefallen.', 3400, 'wall');
+        G.wallBreachT = 6;
+      }
+    }
+  }
+
+  function repairWallAtDawn(G) {
+    const st = G.state;
+    if (!st.wall || G.wallMax <= 0) return;
+    let broken = 0;
+    for (let i = 0; i < st.wall.hp.length; i++) {
+      if (st.wall.hp[i] < G.wallMax) {
+        if (st.wall.hp[i] <= 0) broken++;
+        st.wall.hp[i] = G.wallMax;
+      }
+    }
+    if (broken > 0) {
+      KS.UI.toast('Die Überlebenden haben die Mauer über Nacht repariert.', 3400, 'hammer');
+    }
+  }
+
+  // ============ MARKT ============
+  function marketLvl(G, id) { return (G.state.market && G.state.market[id]) || 0; }
+
+  function marketCost(G, track, lvl) {
+    const b = G.state.buildings.markt;
+    const disc = b && b.tier >= 1 ? CFG.BUILDINGS.markt.discount(b.tier) : 1;
+    return Math.round(track.base * Math.pow(track.mul, lvl) * disc);
+  }
+
+  function buyMarket(G, trackId) {
+    const track = CFG.MARKET.find(t => t.id === trackId);
+    if (!track) return false;
+    const lvl = marketLvl(G, trackId);
+    if (lvl >= track.max) return false;
+    const cost = marketCost(G, track, lvl);
+    if (G.state.gold < cost) {
+      KS.Audio.SFX.click();
+      return false;
+    }
+    G.state.gold -= cost;
+    G.state.market[trackId] = lvl + 1;
+    rebuildDerived(G);
+    KS.Audio.SFX.upgrade();
+    const pl = G.state.player;
+    Ent.text(G, pl.x, pl.y - 56, track.name + ' ' + (lvl + 1), { color: '#baffc8', size: 15, life: 1.1, up: 50 });
+    Ent.burst(G, pl.x, pl.y - 20, 10, { colors: ['#baffc8', '#fff'], speed: 70, up: 90 });
+    KS.Game.requestSave();
+    return true;
   }
 
   // ============ EINZAHLUNG (satisfying!) ============
@@ -115,26 +229,30 @@ KS.Systems = (() => {
     });
     Ent.text(G, pad.x, pad.y - 70, first ? 'GEBAUT!' : `STUFE ${b.tier}!`, { color: '#ffe084', size: 22, crit: true, life: 1.2, up: 60 });
     if (first) {
-      KS.UI.toast(`${def.ico} ${pad.label} errichtet!`);
-      KS.Game.log(`${def.ico} ${pad.label} errichtet.`);
+      KS.UI.toast(`${pad.label} errichtet!`, 3400, def.ico);
+      KS.Game.log(`${pad.label} errichtet.`);
     } else if (b.tier === def.tiers) {
-      KS.UI.toast(`${def.ico} ${pad.label} auf MAXIMUM (Stufe ${b.tier})! 🌟`);
-      KS.Game.log(`${def.ico} ${pad.label} hat die Maximalstufe erreicht!`);
+      KS.UI.toast(`${pad.label} auf MAXIMUM (Stufe ${b.tier})!`, 3400, 'star');
+      KS.Game.log(`${pad.label} hat die Maximalstufe erreicht!`);
     } else {
-      KS.UI.toast(`${def.ico} ${pad.label} → Stufe ${b.tier}`);
+      KS.UI.toast(`${pad.label} → Stufe ${b.tier}`, 2600, def.ico);
     }
     // Effekte des Gebäudes anwenden
     if (pad.type === 'castle') {
       const before = G.baseHpMax;
       rebuildDerived(G);
       G.state.baseHp = Math.min(G.baseHpMax, G.state.baseHp + (G.baseHpMax - before));
+    } else if (pad.type === 'wall') {
+      rebuildDerived(G);
+      // Neubau/Ausbau: alle Abschnitte auf volle Stärke
+      if (G.state.wall) for (let i = 0; i < G.state.wall.hp.length; i++) G.state.wall.hp[i] = G.wallMax;
     } else {
       rebuildDerived(G);
     }
     if (pad.type === 'forge') {
       const w = CFG.WEAPONS[G.weaponTier - 1];
-      KS.UI.toast(`🗡️ Neue Waffe: ${w.name}!`);
-      KS.Game.log(`🗡️ ${w.name} geschmiedet.`);
+      KS.UI.toast(`Neue Waffe: ${w.name}!`, 3400, 'sword');
+      KS.Game.log(`${w.name} geschmiedet.`);
       Ent.ring(G, G.state.player.x, G.state.player.y, { r0: 8, r1: 60, color: 'rgba(190,230,255,0.9)' });
     }
     if (pad.type === 'tavern') syncVillagers(G);
@@ -429,7 +547,7 @@ KS.Systems = (() => {
     G.shake = Math.max(G.shake, 10);
     KS.UI.banner(def.name, def.sub, 'danger');
     KS.UI.showBossBar(def.name);
-    KS.Game.log(`☠️ ${def.name} ist erschienen!`);
+    KS.Game.log(`${def.name} ist erschienen!`);
     Ent.ring(G, x, y, { r0: 20, r1: 160, life: 0.8, color: 'rgba(229,72,77,0.8)', lw: 6 });
   }
 
@@ -440,7 +558,7 @@ KS.Systems = (() => {
     G.boss = null;
     KS.UI.hideBossBar();
     KS.UI.banner('BESIEGT!', `${m.name} ist gefallen`, 'gold');
-    KS.Game.log(`👑 ${m.name} wurde besiegt!`);
+    KS.Game.log(`${m.name} wurde besiegt!`);
     KS.Game.requestSave();
   }
 
@@ -453,8 +571,8 @@ KS.Systems = (() => {
     KS.Audio.SFX.hornDusk();
     KS.Audio.setNight(true);
     const bossDef = G.night.bossId ? (CFG.bossForDay(st.day) || {}) : null;
-    KS.UI.banner(`Nacht ${st.day}`, bossDef ? `⚠️ ${bossDef.name} naht!` : 'Sie kommen…', 'night');
-    KS.Game.log(`🌙 Nacht ${st.day} bricht herein.`);
+    KS.UI.banner(`Nacht ${st.day}`, bossDef ? `${bossDef.name} naht!` : 'Sie kommen…', 'night');
+    KS.Game.log(`Nacht ${st.day} bricht herein.`);
     KS.Game.requestSave();
   }
 
@@ -472,11 +590,12 @@ KS.Systems = (() => {
       st.stats.days = st.day - 1;
       KS.Audio.SFX.hornDawn();
       KS.UI.banner(`Tag ${st.day}`, U.pick(CFG.DAWN_LINES));
-      KS.Game.log(`☀️ Tag ${st.day} — die Burg steht.`);
+      KS.Game.log(`Tag ${st.day} — die Burg steht.`);
       // Monster fliehen
       for (const m of G.monsters) if (!m.boss) m.state = 'flee';
-      // Überlebende kommen an
+      // Überlebende kommen an, Mauer wird repariert
       dawnArrivals(G);
+      repairWallAtDawn(G);
       // Spieler etwas heilen
       st.player.hp = Math.min(G.playerHpMax, st.player.hp + G.playerHpMax * 0.35);
     }
@@ -558,8 +677,8 @@ KS.Systems = (() => {
   function onSurvivorArrived(G, v) {
     KS.Audio.SFX.survivor();
     const name = v.name || U.pick(CFG.SURVIVOR_NAMES);
-    KS.UI.toast(`🧑‍🌾 ${name} ${U.pick(CFG.SURVIVOR_LINES)} (${G.state.survivors} Überlebende)`);
-    KS.Game.log(`🧑‍🌾 ${name} hat Zuflucht gefunden. (${G.state.survivors})`);
+    KS.UI.toast(`${name} ${U.pick(CFG.SURVIVOR_LINES)} (${G.state.survivors} Überlebende)`, 3400, 'person');
+    KS.Game.log(`${name} hat Zuflucht gefunden. (${G.state.survivors})`);
     Ent.ring(G, v.x, v.y, { r0: 6, r1: 34, color: 'rgba(180,255,190,0.8)' });
   }
 
@@ -645,7 +764,7 @@ KS.Systems = (() => {
     if (q.ch > st.chapterShown) {
       st.chapterShown = q.ch;
       KS.UI.showChapter(q.ch);
-      KS.Game.log(`📖 Kapitel ${q.ch + 1}: ${CFG.CHAPTERS[q.ch].title}`);
+      KS.Game.log(`Kapitel ${q.ch + 1}: ${CFG.CHAPTERS[q.ch].title}`);
       KS.Game.requestSave();
     }
     const [cur, max] = questProgress(G, q);
@@ -656,9 +775,9 @@ KS.Systems = (() => {
       st.goldCollected += q.reward;
       KS.Audio.SFX.quest();
       KS.UI.questComplete(q);
-      Ent.text(G, pl.x, pl.y - 60, `+${U.fmt(q.reward)} 🪙`, { color: '#ffe084', size: 19, crit: true, life: 1.3, up: 66 });
+      Ent.text(G, pl.x, pl.y - 60, `+${U.fmt(q.reward)} Gold`, { color: '#ffe084', size: 19, crit: true, life: 1.3, up: 66 });
       Ent.burst(G, pl.x, pl.y - 20, 12, { colors: ['#ffe084', '#fff'], speed: 90, up: 110 });
-      KS.Game.log(`✅ Quest: ${q.text} (+${U.fmt(q.reward)} Gold)`);
+      KS.Game.log(`Quest geschafft: ${q.text} (+${U.fmt(q.reward)} Gold)`);
       if (q.unlock) for (const pid of q.unlock) unlockPad(G, pid);
       if (q.victory && !st.victoryShown) {
         st.victoryShown = true;
@@ -680,5 +799,7 @@ KS.Systems = (() => {
     startDay, startNight, generateNightPlan, spawnBoss, onBossKilled,
     tavernCapacity, dawnArrivals, onSurvivorArrived, syncVillagers,
     activeQuest, questProgress, questBaseline, questTargetPad, updateQuests,
+    wallSegAt, wallSegArc, wallSegCenter, damageWall, repairWallAtDawn,
+    marketLvl, marketCost, buyMarket,
   };
 })();

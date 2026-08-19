@@ -24,11 +24,31 @@ KS.CFG = (() => {
     hpMax: 100,
     regenDelay: 3.0,
     regenRate: 0.09,          // Anteil pro Sekunde
-    magnetR: 100,
-    magnetRMoving: 120,
+    magnetR: 130,
+    magnetRMoving: 155,
     reviveTime: 3.0,
     aggroR: 150,              // Monster jagen den Spieler in dieser Nähe
   };
+
+  // ---------- Tore & Stadtmauer ----------
+  // 8 Tore — identisch mit den Pfaden auf dem Boden
+  const GATES = Array.from({ length: 8 }, (_, i) => i * Math.PI / 4 + 0.12);
+  const WALL = {
+    r: 402,            // Radius des Mauerrings
+    gateHalf: 0.115,   // halbe Toröffnung (rad)
+    postGap: 30,       // Abstand der Mauersegmente-Pfosten
+    segs: 16,          // 8 Bögen × 2 Abschnitte
+  };
+
+  // ---------- Markt: dauerhafte König-Verbesserungen ----------
+  const MARKET = [
+    { id: 'hp',     ico: 'heart',  name: 'Königliche Vitalität', desc: '+12 % max. Leben',        max: 20, base: 45, mul: 1.42 },
+    { id: 'speed',  ico: 'boot',   name: 'Windläufer-Stiefel',   desc: '+3 % Tempo',              max: 12, base: 60, mul: 1.50 },
+    { id: 'magnet', ico: 'magnet', name: 'Goldmagnet',           desc: '+10 % Sammelradius',      max: 12, base: 50, mul: 1.45 },
+    { id: 'crit',   ico: 'swords', name: 'Königsschlag',         desc: '+2 % kritische Treffer',  max: 15, base: 80, mul: 1.50 },
+    { id: 'gold',   ico: 'clover', name: 'Steuerprivileg',       desc: '+4 % Gold von Monstern',  max: 20, base: 75, mul: 1.50 },
+    { id: 'armor',  ico: 'shield', name: 'Königsplatte',         desc: '2 % weniger Schaden',     max: 15, base: 90, mul: 1.50 },
+  ];
 
   // ---------- Waffe (über Schmiede-Stufe) ----------
   // Stufe 1..10 — Schaden, Angriffe/s, Reichweite, Klingenwelle
@@ -49,56 +69,56 @@ KS.CFG = (() => {
   // costMul: Kosten je Stufe = baseCost * costMul^(stufe-1)
   const BUILDINGS = {
     castle: {
-      name: 'Burg', ico: '🏰', kind: 'castle', tiers: 10,
+      name: 'Burg', ico: 'castle', kind: 'castle', tiers: 10,
       baseCost: 120, costMul: 2.0,
       hp: t => Math.round(450 * Math.pow(1.55, t - 1)),
       regen: 0.0035,          // Anteil der Max-HP pro Sekunde (innere Selbstheilung)
       desc: 'Das Herz des Königreichs. Fällt die Burg, fällt alles.',
     },
     tower_arrow: {
-      name: 'Wachturm', ico: '🏹', kind: 'tower', tiers: 10,
+      name: 'Wachturm', ico: 'bow', kind: 'tower', tiers: 10,
       baseCost: 60, costMul: 1.8,
       proj: 'arrow', dmg: 7, rate: 1.15, range: 235,
       dmgMul: 1.45, rateAdd: 0.05, rangeAdd: 7,
       desc: 'Verlässliche Pfeile in schneller Folge.',
     },
     tower_cannon: {
-      name: 'Kanonenturm', ico: '💣', kind: 'tower', tiers: 10,
+      name: 'Kanonenturm', ico: 'cannon', kind: 'tower', tiers: 10,
       baseCost: 150, costMul: 1.8,
       proj: 'cannon', dmg: 26, rate: 0.42, range: 265, splash: 62,
       dmgMul: 1.45, rateAdd: 0.016, rangeAdd: 6,
       desc: 'Donnernde Kugeln mit Flächenschaden.',
     },
     tower_frost: {
-      name: 'Frostturm', ico: '❄️', kind: 'tower', tiers: 10,
+      name: 'Frostturm', ico: 'snow', kind: 'tower', tiers: 10,
       baseCost: 170, costMul: 1.8,
       proj: 'frost', dmg: 10, rate: 0.85, range: 225, slow: 0.45, slowDur: 1.8,
       dmgMul: 1.42, rateAdd: 0.03, rangeAdd: 6,
       desc: 'Eisige Geschosse, die Feinde verlangsamen.',
     },
     tower_lightning: {
-      name: 'Blitzturm', ico: '⚡', kind: 'tower', tiers: 10,
+      name: 'Blitzturm', ico: 'bolt', kind: 'tower', tiers: 10,
       baseCost: 210, costMul: 1.8,
       proj: 'zap', dmg: 20, rate: 0.75, range: 245, chain: 3, chainR: 130,
       dmgMul: 1.46, rateAdd: 0.03, rangeAdd: 6,
       desc: 'Kettenblitze springen von Feind zu Feind.',
     },
     tower_flame: {
-      name: 'Flammenturm', ico: '🔥', kind: 'tower', tiers: 10,
+      name: 'Flammenturm', ico: 'flame', kind: 'tower', tiers: 10,
       baseCost: 190, costMul: 1.8,
       proj: 'flame', dmg: 6, rate: 5.5, range: 165, burn: 3, burnDur: 2.2,
       dmgMul: 1.42, rateAdd: 0.12, rangeAdd: 5,
       desc: 'Ein Strom aus Feuer, der Feinde verbrennt.',
     },
     mine: {
-      name: 'Goldmine', ico: '⛏️', kind: 'prod', tiers: 10,
+      name: 'Goldmine', ico: 'pickaxe', kind: 'prod', tiers: 10,
       baseCost: 90, costMul: 1.9,
       income: t => Math.round(3 * Math.pow(1.55, t - 1)),
       interval: 6,
       desc: 'Fördert stetig Gold aus der Tiefe.',
     },
     tavern: {
-      name: 'Taverne', ico: '🍺', kind: 'prod', tiers: 10,
+      name: 'Taverne', ico: 'mug', kind: 'prod', tiers: 10,
       baseCost: 110, costMul: 1.9,
       capacity: t => t * 2,
       income: t => Math.round(2 * Math.pow(1.35, t - 1)),   // pro Überlebendem
@@ -106,12 +126,25 @@ KS.CFG = (() => {
       desc: 'Ein warmes Dach für Überlebende — sie zahlen Steuern.',
     },
     forge: {
-      name: 'Schmiede', ico: '⚒️', kind: 'forge', tiers: 10,
+      name: 'Schmiede', ico: 'anvil', kind: 'forge', tiers: 10,
       baseCost: 140, costMul: 1.9,
       desc: 'Schmiedet dem König immer mächtigere Klingen.',
     },
+    markt: {
+      name: 'Markt', ico: 'market', kind: 'market', tiers: 10,
+      baseCost: 120, costMul: 1.9,
+      slots: t => Math.min(6, 3 + Math.floor(t / 2)),         // sichtbare Angebote
+      discount: t => Math.max(0.82, 1 - 0.02 * (t - 1)),      // Rabatt je Stufe
+      desc: 'Dauerhafte Verbesserungen für den König — Ware gegen Gold.',
+    },
+    wall: {
+      name: 'Stadtmauer', ico: 'wall', kind: 'wall', tiers: 10,
+      baseCost: 150, costMul: 1.85,
+      segHp: t => Math.round(260 * Math.pow(1.5, t - 1)),
+      desc: 'Schützt das Dorf. Abschnitte können brechen — im Morgengrauen wird repariert.',
+    },
     shrine: {
-      name: 'Schrein des Lichts', ico: '✨', kind: 'shrine', tiers: 10,
+      name: 'Schrein des Lichts', ico: 'sparkle', kind: 'shrine', tiers: 10,
       baseCost: 160, costMul: 1.9,
       auraR: t => 220 + t * 26,
       heal: t => 2.2 * Math.pow(1.32, t - 1),   // Spieler-HP/s in Aura
@@ -143,6 +176,8 @@ KS.CFG = (() => {
     pad('tavern_2', 'tavern',          155, 196, 'Taverne „Goldener Eber“'),
     pad('forge',    'forge',            90, 192, 'Schmiede'),
     pad('shrine',   'shrine',          270, 192, 'Schrein'),
+    pad('markt',    'markt',           330, 205, 'Markt'),
+    pad('wall',     'wall',            112, 352, 'Stadtmauer'),
     pad('mine_1',   'mine',            205, 470, 'Alte Goldmine'),
     pad('mine_2',   'mine',            335, 470, 'Tiefenstollen'),
   ];
@@ -294,54 +329,56 @@ Wie lange kann ein König wachen? Zeig es der Ewigkeit.` },
   //              weapon, castle, towers_tier {count,tier}
   const QUESTS = [
     // Kapitel 1 — Der letzte Funke
-    { ch: 0, type: 'gold_collect', n: 50,  ico: '🪙', text: 'Sammle 50 Münzen',                 reward: 40,  unlock: ['mine_1'] },
-    { ch: 0, type: 'build', pad: 'tower_n', tier: 1, ico: '🏹', text: 'Errichte den Wachturm Nord', reward: 50 },
-    { ch: 0, type: 'day', n: 2,   ico: '🌙', text: 'Überlebe die erste Nacht',        reward: 80,  unlock: ['tavern_1'] },
+    { ch: 0, type: 'gold_collect', n: 50,  ico: 'coin', text: 'Sammle 50 Münzen',                 reward: 40,  unlock: ['mine_1'] },
+    { ch: 0, type: 'build', pad: 'tower_n', tier: 1, ico: 'bow', text: 'Errichte den Wachturm Nord', reward: 50 },
+    { ch: 0, type: 'day', n: 2,   ico: 'moon', text: 'Überlebe die erste Nacht',        reward: 80,  unlock: ['tavern_1'] },
     // Kapitel 2 — Glut der Hoffnung
-    { ch: 1, type: 'build', pad: 'mine_1', tier: 1, ico: '⛏️', text: 'Baue die alte Goldmine wieder auf', reward: 60 },
-    { ch: 1, type: 'build', pad: 'tavern_1', tier: 1, ico: '🍺', text: 'Eröffne die Taverne „Zum Funken“', reward: 60 },
-    { ch: 1, type: 'survivors', n: 3, ico: '🧑‍🌾', text: 'Nimm 3 Überlebende auf',       reward: 100, unlock: ['forge', 'tower_e'] },
-    { ch: 1, type: 'day', n: 4,   ico: '🌙', text: 'Überlebe Nacht 3',               reward: 120 },
+    { ch: 1, type: 'build', pad: 'mine_1', tier: 1, ico: 'pickaxe', text: 'Baue die alte Goldmine wieder auf', reward: 60 },
+    { ch: 1, type: 'build', pad: 'tavern_1', tier: 1, ico: 'mug', text: 'Eröffne die Taverne „Zum Funken“', reward: 60 },
+    { ch: 1, type: 'survivors', n: 3, ico: 'person', text: 'Nimm 3 Überlebende auf',       reward: 100, unlock: ['forge', 'tower_e', 'markt'] },
+    { ch: 1, type: 'day', n: 4,   ico: 'moon', text: 'Überlebe Nacht 3',               reward: 120 },
     // Kapitel 3 — Stahl und Stein
-    { ch: 2, type: 'build', pad: 'forge', tier: 1, ico: '⚒️', text: 'Entfache die Schmiede',    reward: 100 },
-    { ch: 2, type: 'weapon', tier: 2, ico: '🗡️', text: 'Schmiede das Eisenschwert (Schmiede Stufe 2)', reward: 120 },
-    { ch: 2, type: 'build', pad: 'tower_n', tier: 3, ico: '🏹', text: 'Wachturm Nord auf Stufe 3', reward: 150 },
-    { ch: 2, type: 'boss', boss: 'boss_slime', ico: '👑', text: 'Besiege den Schleimkönig (Nacht 5)', reward: 400, unlock: ['tower_s', 'tower_w'] },
+    { ch: 2, type: 'build', pad: 'forge', tier: 1, ico: 'anvil', text: 'Entfache die Schmiede',    reward: 100 },
+    { ch: 2, type: 'weapon', tier: 2, ico: 'sword', text: 'Schmiede das Eisenschwert (Schmiede Stufe 2)', reward: 120 },
+    { ch: 2, type: 'build', pad: 'tower_n', tier: 3, ico: 'bow', text: 'Wachturm Nord auf Stufe 3', reward: 150 },
+    { ch: 2, type: 'boss', boss: 'boss_slime', ico: 'crown', text: 'Besiege den Schleimkönig (Nacht 5)', reward: 400, unlock: ['tower_s', 'tower_w', 'wall'] },
     // Kapitel 4 — Die grüne Flut
-    { ch: 3, type: 'build', pad: 'tower_w', tier: 1, ico: '💣', text: 'Errichte den Kanonenturm West', reward: 150 },
-    { ch: 3, type: 'kill', cls: 2, n: 60, ico: '⚔️', text: 'Besiege 60 Goblins',        reward: 200 },
-    { ch: 3, type: 'castle', tier: 2, ico: '🏰', text: 'Baue die Burg auf Stufe 2 aus', reward: 250 },
-    { ch: 3, type: 'boss', boss: 'boss_gob', ico: '👑', text: 'Besiege den Goblin-Häuptling (Nacht 10)', reward: 700, unlock: ['shrine', 'mine_2'] },
+    { ch: 3, type: 'build', pad: 'wall', tier: 1, ico: 'wall', text: 'Errichte die Stadtmauer', reward: 150 },
+    { ch: 3, type: 'build', pad: 'tower_w', tier: 1, ico: 'cannon', text: 'Errichte den Kanonenturm West', reward: 150 },
+    { ch: 3, type: 'kill', cls: 2, n: 60, ico: 'swords', text: 'Besiege 60 Goblins',        reward: 200 },
+    { ch: 3, type: 'castle', tier: 2, ico: 'castle', text: 'Baue die Burg auf Stufe 2 aus', reward: 250 },
+    { ch: 3, type: 'boss', boss: 'boss_gob', ico: 'crown', text: 'Besiege den Goblin-Häuptling (Nacht 10)', reward: 700, unlock: ['shrine', 'mine_2'] },
     // Kapitel 5 — Flüstern im Netz
-    { ch: 4, type: 'build', pad: 'shrine', tier: 1, ico: '✨', text: 'Weihe den Schrein des Lichts', reward: 200 },
-    { ch: 4, type: 'build', pad: 'mine_2', tier: 1, ico: '⛏️', text: 'Erschließe den Tiefenstollen', reward: 250 },
-    { ch: 4, type: 'survivors', n: 8, ico: '🧑‍🌾', text: 'Beherberge 8 Überlebende',   reward: 300, unlock: ['tavern_2'] },
-    { ch: 4, type: 'boss', boss: 'boss_spider', ico: '👑', text: 'Besiege die Spinnenkönigin (Nacht 15)', reward: 1000, unlock: ['tower_ne'] },
+    { ch: 4, type: 'build', pad: 'shrine', tier: 1, ico: 'sparkle', text: 'Weihe den Schrein des Lichts', reward: 200 },
+    { ch: 4, type: 'build', pad: 'mine_2', tier: 1, ico: 'pickaxe', text: 'Erschließe den Tiefenstollen', reward: 250 },
+    { ch: 4, type: 'survivors', n: 8, ico: 'person', text: 'Beherberge 8 Überlebende',   reward: 300, unlock: ['tavern_2'] },
+    { ch: 4, type: 'boss', boss: 'boss_spider', ico: 'crown', text: 'Besiege die Spinnenkönigin (Nacht 15)', reward: 1000, unlock: ['tower_ne'] },
     // Kapitel 6 — Die Totenwacht
-    { ch: 5, type: 'build', pad: 'tower_ne', tier: 1, ico: '❄️', text: 'Errichte den Frostturm', reward: 300 },
-    { ch: 5, type: 'weapon', tier: 4, ico: '🗡️', text: 'Schmiede das Ritterschwert (Stufe 4)', reward: 350 },
-    { ch: 5, type: 'towers_tier', count: 4, tier: 3, ico: '🛡️', text: '4 Türme auf Stufe 3 ausbauen', reward: 450 },
-    { ch: 5, type: 'boss', boss: 'boss_bone', ico: '👑', text: 'Besiege den Knochenfürsten (Nacht 20)', reward: 1500, unlock: ['tower_nw'] },
+    { ch: 5, type: 'build', pad: 'tower_ne', tier: 1, ico: 'snow', text: 'Errichte den Frostturm', reward: 300 },
+    { ch: 5, type: 'weapon', tier: 4, ico: 'sword', text: 'Schmiede das Ritterschwert (Stufe 4)', reward: 350 },
+    { ch: 5, type: 'towers_tier', count: 4, tier: 3, ico: 'shield', text: '4 Türme auf Stufe 3 ausbauen', reward: 450 },
+    { ch: 5, type: 'boss', boss: 'boss_bone', ico: 'crown', text: 'Besiege den Knochenfürsten (Nacht 20)', reward: 1500, unlock: ['tower_nw'] },
     // Kapitel 7 — Kriegstrommeln
-    { ch: 6, type: 'build', pad: 'tower_nw', tier: 1, ico: '⚡', text: 'Errichte den Blitzturm', reward: 400 },
-    { ch: 6, type: 'castle', tier: 4, ico: '🏰', text: 'Burg auf Stufe 4 ausbauen',   reward: 500 },
-    { ch: 6, type: 'survivors', n: 12, ico: '🧑‍🌾', text: 'Beherberge 12 Überlebende', reward: 600 },
-    { ch: 6, type: 'boss', boss: 'boss_orc', ico: '👑', text: 'Besiege den Ork-Kriegsherrn (Nacht 25)', reward: 2200, unlock: ['tower_sw', 'tower_se'] },
+    { ch: 6, type: 'build', pad: 'tower_nw', tier: 1, ico: 'bolt', text: 'Errichte den Blitzturm', reward: 400 },
+    { ch: 6, type: 'castle', tier: 4, ico: 'castle', text: 'Burg auf Stufe 4 ausbauen',   reward: 500 },
+    { ch: 6, type: 'survivors', n: 12, ico: 'person', text: 'Beherberge 12 Überlebende', reward: 600 },
+    { ch: 6, type: 'boss', boss: 'boss_orc', ico: 'crown', text: 'Besiege den Ork-Kriegsherrn (Nacht 25)', reward: 2200, unlock: ['tower_sw', 'tower_se'] },
     // Kapitel 8 — Riesen und Schatten
-    { ch: 7, type: 'build', pad: 'tower_sw', tier: 1, ico: '🔥', text: 'Errichte den Flammenturm', reward: 500 },
-    { ch: 7, type: 'kill', cls: 7, n: 25, ico: '⚔️', text: 'Besiege 25 Trolle',         reward: 700 },
-    { ch: 7, type: 'weapon', tier: 6, ico: '🗡️', text: 'Schmiede den Flammenzahn (Stufe 6)', reward: 900 },
-    { ch: 7, type: 'boss', boss: 'boss_troll', ico: '👑', text: 'Besiege den Trollkönig (Nacht 30)', reward: 3000 },
-    { ch: 7, type: 'boss', boss: 'boss_golem', ico: '👑', text: 'Zerschmettere den Golem-Koloss (Nacht 35)', reward: 4000 },
+    { ch: 7, type: 'build', pad: 'tower_sw', tier: 1, ico: 'flame', text: 'Errichte den Flammenturm', reward: 500 },
+    { ch: 7, type: 'kill', cls: 7, n: 25, ico: 'swords', text: 'Besiege 25 Trolle',         reward: 700 },
+    { ch: 7, type: 'weapon', tier: 6, ico: 'sword', text: 'Schmiede den Flammenzahn (Stufe 6)', reward: 900 },
+    { ch: 7, type: 'build', pad: 'wall', tier: 5, ico: 'wall', text: 'Stadtmauer auf Stufe 5 ausbauen', reward: 1200 },
+    { ch: 7, type: 'boss', boss: 'boss_troll', ico: 'crown', text: 'Besiege den Trollkönig (Nacht 30)', reward: 3000 },
+    { ch: 7, type: 'boss', boss: 'boss_golem', ico: 'crown', text: 'Zerschmettere den Golem-Koloss (Nacht 35)', reward: 4000 },
     // Kapitel 9 — Das brennende Firmament
-    { ch: 8, type: 'castle', tier: 6, ico: '🏰', text: 'Burg auf Stufe 6 ausbauen',  reward: 1200 },
-    { ch: 8, type: 'towers_tier', count: 2, tier: 8, ico: '🛡️', text: '2 Türme auf Stufe 8 ausbauen', reward: 1500 },
-    { ch: 8, type: 'boss', boss: 'boss_demon', ico: '👑', text: 'Besiege den Dämonenfürsten (Nacht 40)', reward: 5000 },
-    { ch: 8, type: 'boss', boss: 'boss_dragonm', ico: '👑', text: 'Besiege die Drachenmutter (Nacht 45)', reward: 6500 },
+    { ch: 8, type: 'castle', tier: 6, ico: 'castle', text: 'Burg auf Stufe 6 ausbauen',  reward: 1200 },
+    { ch: 8, type: 'towers_tier', count: 2, tier: 8, ico: 'shield', text: '2 Türme auf Stufe 8 ausbauen', reward: 1500 },
+    { ch: 8, type: 'boss', boss: 'boss_demon', ico: 'crown', text: 'Besiege den Dämonenfürsten (Nacht 40)', reward: 5000 },
+    { ch: 8, type: 'boss', boss: 'boss_dragonm', ico: 'crown', text: 'Besiege die Drachenmutter (Nacht 45)', reward: 6500 },
     // Kapitel 10 — Das neue Königreich
-    { ch: 9, type: 'survivors', n: 20, ico: '🧑‍🌾', text: 'Beherberge 20 Überlebende', reward: 2000 },
-    { ch: 9, type: 'castle', tier: 8, ico: '🏰', text: 'Burg auf Stufe 8 ausbauen',  reward: 3000 },
-    { ch: 9, type: 'boss', boss: 'boss_world', ico: '👑', text: 'Vernichte den Weltenfresser (Nacht 50)', reward: 10000, victory: true },
+    { ch: 9, type: 'survivors', n: 20, ico: 'person', text: 'Beherberge 20 Überlebende', reward: 2000 },
+    { ch: 9, type: 'castle', tier: 8, ico: 'castle', text: 'Burg auf Stufe 8 ausbauen',  reward: 3000 },
+    { ch: 9, type: 'boss', boss: 'boss_world', ico: 'crown', text: 'Vernichte den Weltenfresser (Nacht 50)', reward: 10000, victory: true },
   ];
 
   // Endlose Quests nach der Hauptgeschichte (Kapitel „Ewige Wacht")
@@ -349,18 +386,26 @@ Wie lange kann ein König wachen? Zeig es der Ewigkeit.` },
     const kind = i % 4;
     if (kind === 0) {
       const target = Math.max(55, state.day + 5);
-      return { ch: 10, type: 'day', n: target, ico: '🌙', text: `Überlebe bis Tag ${target}`, reward: 200 * target };
+      return { ch: 10, type: 'day', n: target, ico: 'moon', text: `Überlebe bis Tag ${target}`, reward: 200 * target };
     }
     if (kind === 1) {
       const n = 150 + Math.floor(i / 4) * 100;
-      return { ch: 10, type: 'kill_any', n, ico: '⚔️', text: `Besiege ${n} Monster`, reward: 45 * n };
+      return { ch: 10, type: 'kill_any', n, ico: 'swords', text: `Besiege ${n} Monster`, reward: 45 * n };
     }
     if (kind === 2) {
-      return { ch: 10, type: 'castle', tier: Math.min(10, (state.buildings.castle?.tier || 1) + 1), ico: '🏰', text: 'Baue die Burg weiter aus', reward: 4000 + i * 500 };
+      return { ch: 10, type: 'castle', tier: Math.min(10, (state.buildings.castle?.tier || 1) + 1), ico: 'castle', text: 'Baue die Burg weiter aus', reward: 4000 + i * 500 };
     }
     const t = Math.min(10, 8 + Math.floor(i / 8));
-    return { ch: 10, type: 'towers_tier', count: Math.min(8, 4 + Math.floor(i / 8)), tier: t, ico: '🛡️', text: `${Math.min(8, 4 + Math.floor(i / 8))} Türme auf Stufe ${t}`, reward: 5000 + i * 600 };
+    return { ch: 10, type: 'towers_tier', count: Math.min(8, 4 + Math.floor(i / 8)), tier: t, ico: 'shield', text: `${Math.min(8, 4 + Math.floor(i / 8))} Türme auf Stufe ${t}`, reward: 5000 + i * 600 };
   }
+
+  // Quest-Indizes älterer Spielstände (vor Einfügen der Mauer-Quests) übersetzen
+  function migrateQuestIdx(oldIdx) {
+    if (oldIdx <= 10) return oldIdx;
+    if (oldIdx <= 29) return oldIdx + 1;
+    return oldIdx + 2;
+  }
+  const QUEST_VERSION = 2;
 
   // Morgen-Sprüche
   const DAWN_LINES = [
@@ -408,6 +453,7 @@ Die Wacht geht weiter — die Nächte werden härter, deine Legende größer. Ew
 
   return {
     WORLD, PLAYER, WEAPONS, BUILDINGS, PADS, MONSTERS, BOSSES, bossHp,
+    GATES, WALL, MARKET, migrateQuestIdx, QUEST_VERSION,
     SCALE, PHASES, CHAPTERS, QUESTS, endlessQuest,
     DAWN_LINES, SURVIVOR_LINES, SURVIVOR_NAMES, VICTORY_TEXT,
     COINS, DEPOSIT, SAVE_KEY, SAVE_KEY_B, SAVE_VERSION,

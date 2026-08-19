@@ -32,6 +32,9 @@ KS.Game = (() => {
       unlockedPads: ['castle', 'tower_n'],
       survivors: 0,
       questIdx: 0, endlessIdx: 0, questBase: 0, chapterShown: -1,
+      questVersion: CFG.QUEST_VERSION,
+      market: {},
+      wall: null,
       bossesKilled: {},
       killsByClass: {},
       stats: { kills: 0, bossKills: 0, goldEarned: 0, coins: 0, days: 0, playTime: 0, defeats: 0 },
@@ -59,9 +62,38 @@ KS.Game = (() => {
     G.depositT = 0; G.depositAcc = 0; G.activePad = null;
     G.boss = null; G.night = state.night || null;
     G.pingT = 0; G.dayTrickleT = 0;
+    G.wallFlash = new Array(CFG.WALL.segs).fill(0);
+    G.wallBreachT = 0;
     G.paused = true;
     G.cam = { x: state.player.x, y: state.player.y };
     Sys.rebuildDerived(G);
+    // Mauerpfosten-Positionen (statisch)
+    G.wallPosts = [];
+    for (let seg = 0; seg < CFG.WALL.segs; seg++) {
+      const arc = Sys.wallSegArc(seg);
+      const len = (arc.end - arc.start) * CFG.WALL.r;
+      const n = Math.max(3, Math.round(len / CFG.WALL.postGap));
+      for (let i = 0; i < n; i++) {
+        const a = arc.start + (arc.end - arc.start) * ((i + 0.5) / n);
+        const rJit = CFG.WALL.r + ((seg * 7 + i * 13) % 5) - 2;   // leichte organische Staffelung
+        G.wallPosts.push({
+          seg, v: i % 2,
+          x: CFG.WORLD.cx + Math.cos(a) * rJit,
+          y: CFG.WORLD.cy + Math.sin(a) * rJit,
+        });
+      }
+    }
+    // Torpfosten flankieren jede Öffnung
+    G.gatePosts = [];
+    for (const g of CFG.GATES) {
+      for (const s of [-1, 1]) {
+        const a = g + s * (CFG.WALL.gateHalf + 0.015);
+        G.gatePosts.push({
+          x: CFG.WORLD.cx + Math.cos(a) * CFG.WALL.r,
+          y: CFG.WORLD.cy + Math.sin(a) * CFG.WALL.r,
+        });
+      }
+    }
     // Welt (deterministisch aus Seed)
     G.ground = KS.Art.paintGround(state.seed);
     G.props = KS.Art.generateProps(state.seed);
@@ -95,7 +127,17 @@ KS.Game = (() => {
     const fresh = newState();
     for (const k of Object.keys(fresh)) if (st[k] === undefined) st[k] = fresh[k];
     for (const k of Object.keys(fresh.stats)) if (st.stats[k] === undefined) st.stats[k] = fresh.stats[k];
+    // Quest-Kette wurde erweitert → alte Indizes übersetzen
+    if ((st.questVersion || 1) < CFG.QUEST_VERSION) {
+      if (st.questIdx < 99) st.questIdx = CFG.migrateQuestIdx(st.questIdx);
+      st.questVersion = CFG.QUEST_VERSION;
+    }
     initRuntime(st);
+    // Rückwirkend: Freischaltungen bereits abgeschlossener Quests anwenden
+    for (let i = 0; i < Math.min(st.questIdx, CFG.QUESTS.length); i++) {
+      const q = CFG.QUESTS[i];
+      if (q.unlock) for (const pid of q.unlock) Sys.unlockPad(G, pid, true);
+    }
     // Monster wiederherstellen
     for (const s of monsters) {
       const sp = CFG.MONSTERS[s.key];
@@ -123,8 +165,7 @@ KS.Game = (() => {
 
   function save() {
     if (!booted || !G.state) return;
-    const ok = KS.SaveIO.write(serialize());
-    if (ok) KS.UI.flashSave();
+    KS.SaveIO.write(serialize());
     saveDirty = false;
   }
   function requestSave() { saveDirty = true; }
@@ -155,7 +196,7 @@ KS.Game = (() => {
   function performDefeat() {
     const st = G.state;
     st.stats.defeats += 1;
-    log('🔥 Die Burg ist gefallen…');
+    log('Die Burg ist gefallen…');
     // Monster ziehen ab
     for (const m of G.monsters) {
       Ent.burst(G, m.x, m.y - m.r, 5, { colors: [m.sp.c1, m.sp.c2], speed: 80, up: 90 });
@@ -181,7 +222,7 @@ KS.Game = (() => {
     st.night = null; G.night = null;
     KS.Audio.setNight(false);
     KS.UI.banner(`Tag ${st.day}`, 'Ein König gibt niemals auf.');
-    log('👑 Der Wiederaufbau beginnt — die Hoffnung lebt.');
+    log('Der Wiederaufbau beginnt — die Hoffnung lebt.');
     setPaused(false);
     save();
   }
@@ -229,7 +270,7 @@ KS.Game = (() => {
     if (G.baseFlash > 0.9 && G.baseAlertT <= 0) {
       const d = U.dist(st.player.x, st.player.y, CFG.WORLD.cx, CFG.WORLD.cy);
       if (d > 620) {
-        KS.UI.toast('⚠️ Die Burg wird angegriffen!');
+        KS.UI.toast('Die Burg wird angegriffen!', 3400, 'castle');
         G.baseAlertT = 7;
       }
     }
@@ -237,7 +278,16 @@ KS.Game = (() => {
     if (G.baseFlash > 0) G.baseFlash -= dt * 2.4;
     if (G.playerHurtT > 0) G.playerHurtT -= dt;
     if (G.pingT > 0) G.pingT -= dt;
+    if (G.wallBreachT > 0) G.wallBreachT -= dt;
+    for (let i = 0; i < G.wallFlash.length; i++) if (G.wallFlash[i] > 0) G.wallFlash[i] -= dt * 3;
     G.shake = Math.max(0, G.shake - dt * 26);
+
+    // Markt-Panel bei Nähe anzeigen
+    const marktPad = G.padList.find(p => p.id === 'markt');
+    const marktB = st.buildings.markt;
+    const marktNear = marktB && marktB.tier >= 1 && !G.playerDown &&
+      U.dist2(st.player.x, st.player.y, marktPad.x, marktPad.y) < 150 * 150;
+    KS.UI.updateMarket(G, !!marktNear);
 
     // Dunkelheit angleichen
     const targetDark = st.phase === 'night' ? 0.62 : 0;
@@ -356,6 +406,18 @@ KS.Game = (() => {
     }
     for (const m of G.monsters) if (!m.dead && inView(m.x, m.y, 160)) items.push({ y: m.y, kind: 'mon', m });
     for (const v of G.villagers) if (inView(v.x, v.y, 60)) items.push({ y: v.y, kind: 'vil', v });
+    // Stadtmauer (Pfosten & Torpfeiler, einzeln y-sortiert)
+    if (G.wallMax > 0 && st.wall) {
+      const wTier = st.buildings.wall.tier;
+      for (const p of G.wallPosts) {
+        if (!inView(p.x, p.y, 70)) continue;
+        items.push({ y: p.y, kind: 'wall', p, wTier });
+      }
+      for (const p of G.gatePosts) {
+        if (!inView(p.x, p.y, 70)) continue;
+        items.push({ y: p.y, kind: 'gate', p, wTier });
+      }
+    }
     items.push({ y: st.player.y, kind: 'player' });
     items.sort((a, b2) => a.y - b2.y);
 
@@ -374,8 +436,41 @@ KS.Game = (() => {
         Ent.drawMonster(G, ctx, it.m);
       } else if (it.kind === 'vil') {
         Ent.drawVillager(G, ctx, it.v);
+      } else if (it.kind === 'wall') {
+        const hp = st.wall.hp[it.p.seg];
+        const pct = hp / G.wallMax;
+        let spr;
+        if (hp <= 0) spr = KS.Art.wallRubble(it.p.v);
+        else spr = KS.Art.wallPost(it.wTier, it.p.v, pct < 0.5);
+        const fl = G.wallFlash[it.p.seg];
+        KS.Art.draw(ctx, spr, it.p.x, it.p.y, 1, 1, it.p.v === 1);
+        if (fl > 0 && hp > 0) {
+          ctx.globalAlpha = fl * 0.5;
+          ctx.fillStyle = '#fff';
+          ctx.beginPath();
+          ctx.ellipse(it.p.x, it.p.y - 18, 16, 24, 0, 0, TAU);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+      } else if (it.kind === 'gate') {
+        KS.Art.draw(ctx, KS.Art.gatePost(it.wTier), it.p.x, it.p.y);
       } else {
         Ent.drawPlayer(G, ctx);
+      }
+    }
+    // HP-Balken beschädigter Mauerabschnitte
+    if (G.wallMax > 0 && st.wall) {
+      for (let seg = 0; seg < CFG.WALL.segs; seg++) {
+        const hp = st.wall.hp[seg];
+        if (hp >= G.wallMax || hp <= 0) continue;
+        const c = Sys.wallSegCenter(seg);
+        if (!inView(c.x, c.y, 60)) continue;
+        const w = 44, h = 5;
+        ctx.fillStyle = 'rgba(20,14,10,0.75)';
+        ctx.fillRect(c.x - w / 2 - 1, c.y - 52, w + 2, h + 2);
+        const pct = hp / G.wallMax;
+        ctx.fillStyle = pct > 0.5 ? '#58d162' : pct > 0.25 ? '#ffd34e' : '#e5484d';
+        ctx.fillRect(c.x - w / 2, c.y - 51, w * pct, h);
       }
     }
 
@@ -487,6 +582,11 @@ KS.Game = (() => {
     }
   }
 
+  function isActivePadNear(pad) {
+    const pl = G.state.player;
+    return U.dist2(pl.x, pl.y, pad.x, pad.y) < 190 * 190;
+  }
+
   function drawPadOverlays() {
     const st = G.state;
     const pl = st.player;
@@ -559,6 +659,18 @@ KS.Game = (() => {
         ctx.fillStyle = '#ff9d9d';
         ctx.fillText(`Es fehlen ${U.fmt(miss)} Münzen!`, pad.x, yTx + 19);
         ctx.globalAlpha = 1;
+      }
+      // Mauerring-Vorschau am Stadtmauer-Bauplatz
+      if (pad.id === 'wall' && b.tier === 0 && isActivePadNear(pad)) {
+        ctx.save();
+        ctx.globalAlpha = 0.4 + Math.sin(G.time * 3) * 0.12;
+        ctx.strokeStyle = '#f6e8c8';
+        ctx.lineWidth = 5;
+        ctx.setLineDash([14, 12]);
+        ctx.beginPath();
+        ctx.arc(CFG.WORLD.cx, CFG.WORLD.cy, CFG.WALL.r, 0, TAU);
+        ctx.stroke();
+        ctx.restore();
       }
       // Bau-Pfeil über leeren Plätzen
       if (b.tier === 0) {
@@ -744,11 +856,15 @@ KS.Game = (() => {
     ctx.moveTo(18, 0); ctx.lineTo(-8, -12); ctx.lineTo(-3, 0); ctx.lineTo(-8, 12);
     ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.rotate(-a);
-    ctx.font = '900 15px Nunito, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#fff';
-    ctx.strokeText(q.ico, 0, -18);
-    ctx.fillText(q.ico, 0, -18);
+    // kleiner Quest-Marker (Raute mit Ausrufezeichen)
+    ctx.translate(0, -22);
+    ctx.fillStyle = '#ffd34e';
+    ctx.beginPath();
+    ctx.moveTo(0, -9); ctx.lineTo(7.5, 0); ctx.lineTo(0, 9); ctx.lineTo(-7.5, 0);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#4a2f08';
+    ctx.fillRect(-1.4, -4.4, 2.8, 5.4);
+    ctx.beginPath(); ctx.arc(0, 3.6, 1.5, 0, TAU); ctx.fill();
     ctx.restore();
     ctx.globalAlpha = 1;
   }
@@ -782,8 +898,8 @@ KS.Game = (() => {
     canvas.height = Math.round(H * DPR);
     canvas.style.width = W + 'px';
     canvas.style.height = H + 'px';
-    ZOOM = U.clamp(Math.max(W, H) / 1500, 0.6, 1.05);
-    if (Math.min(W, H) < 420) ZOOM = Math.max(ZOOM, 0.56);
+    // Näher dran — vor allem am Handy soll der König groß und klar sein
+    ZOOM = U.clamp(Math.min(W, H) / 430, 0.9, 1.5);
     // Vignette neu erstellen
     vignette = document.createElement('canvas');
     vignette.width = Math.max(2, Math.round(W / 3)); vignette.height = Math.max(2, Math.round(H / 3));
@@ -845,7 +961,7 @@ KS.Game = (() => {
       KS.UI.hideTitle();
       setPaused(false);
       if (!KS.SaveIO.available) {
-        KS.UI.toast('⚠️ Speicher nicht verfügbar (privater Modus?) — Fortschritt geht beim Schließen verloren!', 6000);
+        KS.UI.toast('Speicher nicht verfügbar (privater Modus?) — Fortschritt geht beim Schließen verloren!', 6000, 'lock');
       }
     });
     document.getElementById('btn-new').addEventListener('click', () => {
@@ -894,6 +1010,17 @@ KS.Game = (() => {
             const a = Math.random() * TAU;
             Ent.makeMonster(G, key, G.state.player.x + Math.cos(a) * 260, G.state.player.y + Math.sin(a) * 260, { elite });
           }
+        },
+        wall: tier => {
+          Sys.unlockPad(G, 'wall', true);
+          G.state.buildings.wall = { tier, prog: 0 };
+          Sys.rebuildDerived(G);
+          if (G.state.wall) for (let i = 0; i < G.state.wall.hp.length; i++) G.state.wall.hp[i] = G.wallMax;
+        },
+        breach: (seg = 0) => Sys.damageWall(G, seg, 1e9),
+        market: lvl => {
+          for (const t of CFG.MARKET) G.state.market[t.id] = Math.min(t.max, lvl);
+          Sys.rebuildDerived(G);
         },
         night: () => Sys.startNight(G),
         dawn: () => Sys.startDay(G, false),

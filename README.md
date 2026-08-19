@@ -10,7 +10,7 @@ Läuft auf jedem Handy und Desktop-Browser, direkt von deinem eigenen nginx-Serv
 
 | | | |
 |---|---|---|
-| ![Titel](docs/screenshots/titel.jpg) | ![Start](docs/screenshots/start.jpg) | ![Nachtkampf](docs/screenshots/nacht-kampf.jpg) |
+| ![Titel](docs/screenshots/titel.jpg) | ![Start](docs/screenshots/start.jpg) | ![Markt](docs/screenshots/markt.jpg) |
 | ![Königreich](docs/screenshots/koenigreich.jpg) | ![Belagerung](docs/screenshots/belagerung.jpg) | |
 
 ![Desktop](docs/screenshots/desktop.jpg)
@@ -120,6 +120,8 @@ sudo ./deploy/uninstall.sh --purge   # zusätzlich das Webroot löschen
 | ⛏️ **Goldminen** (2×) | Produzieren laufend Münzen zum Abholen |
 | 🍺 **Tavernen** (2×) | Beherbergen Überlebende, die Steuern zahlen |
 | ⚒️ **Schmiede** | Schmiedet 10 immer mächtigere Königsklingen (ab Stufe 5 mit Klingenwelle!) |
+| 🛒 **Markt** | Shop mit 6 dauerhaften König-Upgrades: Leben, Tempo, Magnet, Krit, Gold, Rüstung |
+| 🧱 **Stadtmauer** | Ring aus 16 Abschnitten mit eigenen HP — Monster brechen durch, Tore bleiben offen, morgens wird repariert |
 | ✨ **Schrein des Lichts** | Heil-Aura für König und Burg |
 
 ## 👹 Monster — 24 Arten in 12 Klassen + 10 Bosse
@@ -155,7 +157,9 @@ rotierende, immer stärkere Bosse und generierte Meilenstein-Quests. In der Chro
 ## 🛠️ Technik
 
 - Vanilla JS + Canvas 2D, ~60 FPS auch auf Mobilgeräten (Sprite-Caching, Spatial-Hashing, Objekt-Pools)
-- Sämtliche Grafiken werden **prozedural** gezeichnet (kein einziges Bild-Asset)
+- Sämtliche Grafiken werden **prozedural** gezeichnet (kein einziges Bild-Asset) — mit Ziegel-,
+  Holz- und Stein-Texturen, Schindeldächern, weichen Schatten und Glanzlichtern
+- UI komplett mit **eigenen SVG-Icons** (keine Emojis)
 - Sound: WebAudio-Synthesizer (Münzklirren mit steigender Tonhöhe!) + dezente generative Musik
 - Responsive von Smartphone-Hochformat bis Ultrawide, Safe-Area-Unterstützung fürs iPhone
 - Debug-Konsole: Spiel mit `?debug=1` öffnen → `KS.debug.gold(1000)`, `KS.debug.night()`, `KS.debug.buildAll(10)`, …
