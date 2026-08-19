@@ -971,6 +971,9 @@ KS.Game = (() => {
       }
     });
 
+    // Auto-Update: prüft sparsam auf eine neue Server-Version
+    KS.Updater.start();
+
     // Lückenloses Speichern bei jedem Verlassen
     window.addEventListener('pagehide', save);
     window.addEventListener('beforeunload', save);
@@ -1031,6 +1034,8 @@ KS.Game = (() => {
         survivors: n => { G.state.survivors = n; },
         quest: () => Sys.activeQuest(G),
         save, state: () => G.state,
+        version: () => KS.Updater.version,
+        checkUpdate: () => KS.Updater.check(),
       };
     }
 

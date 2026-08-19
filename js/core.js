@@ -395,3 +395,63 @@ KS.SaveIO = (() => {
 
   return { write, read, wipe, get available() { return available; } };
 })();
+
+// ---------- Auto-Update: neue Server-Version erkennen ----------
+// Sehr sparsam: eine winzige JSON-Datei, nur im Vordergrund, mit
+// großem Intervall. Bei neuer Version wird gespeichert und neu
+// geladen — dank Auto-Save geht es genau an derselben Stelle weiter.
+KS.Updater = (() => {
+  const CHECK_MS = 5 * 60 * 1000;      // alle 5 Minuten
+  const MIN_GAP_MS = 60 * 1000;        // nie öfter als 1×/Minute (Tab-Wechsel)
+  let myVersion = null;
+  let lastCheck = 0;
+  let timer = null;
+  let pending = false;                  // Update gefunden → warten auf guten Moment
+  let started = false;
+
+  function versionFromDom() {
+    // Der Server stempelt ?v=<hash> an die Skript-URLs (siehe deploy/stamp-version.sh)
+    const s = document.querySelector('script[src*="js/game.js"]');
+    const m = s && s.getAttribute('src').match(/[?&]v=([A-Za-z0-9]+)/);
+    return m ? m[1] : null;
+  }
+
+  async function check() {
+    const now = Date.now();
+    if (now - lastCheck < MIN_GAP_MS || document.hidden || pending) return;
+    lastCheck = now;
+    try {
+      const res = await fetch('version.json?_=' + now, { cache: 'no-store' });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data || !data.v) return;
+      if (myVersion === null) { myVersion = data.v; return; }   // erste Antwort = Referenz
+      if (data.v !== myVersion) {
+        pending = true;
+        applyUpdate();
+      }
+    } catch (e) { /* offline o. ä. — beim nächsten Mal wieder */ }
+  }
+
+  function applyUpdate() {
+    if (KS.UI && KS.UI.toast) KS.UI.toast('Neue Version verfügbar — wird geladen…', 2600, 'sparkle');
+    try { KS.Game.save(); } catch (e) {}
+    // Kurz warten, damit Speichern und Hinweis sicher durch sind
+    setTimeout(() => {
+      try { KS.Game.save(); } catch (e) {}
+      location.reload();
+    }, 1400);
+  }
+
+  function start() {
+    if (started) return;
+    started = true;
+    myVersion = versionFromDom();       // null, wenn ungestempelt (z. B. lokaler Test)
+    timer = setInterval(check, CHECK_MS);
+    // Beim Zurückkehren in den Tab gleich prüfen (dort ist ein Reload am unauffälligsten)
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) check(); });
+    check();
+  }
+
+  return { start, check, get version() { return myVersion; } };
+})();

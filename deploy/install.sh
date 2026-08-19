@@ -137,6 +137,8 @@ copy() {
   fi
 }
 copy
+# Cache-Busting-Stempel + version.json (für Auto-Update-Erkennung im Spiel)
+"$SRC_DIR/deploy/stamp-version.sh" "$WEBROOT" || true
 # Webroot gehört root, Webserver darf nur LESEN (kein Schreibzugriff für www-data)
 chown -R root:root "$WEBROOT"
 chmod -R a+rX,go-w "$WEBROOT"
@@ -172,6 +174,11 @@ site_locations() {
 
     # index.html nie hart cachen → Updates kommen sofort an
     location = /index.html {
+        expires epoch;
+    }
+
+    # Versionsdatei nie cachen (Auto-Update-Erkennung im Spiel)
+    location = /version.json {
         expires epoch;
     }
 
@@ -454,5 +461,6 @@ else
   echo "   ▶  http://${IP:-<SERVER-IP>}:${PORT}"
 fi
 echo "   Updates einspielen:  sudo ./deploy/update.sh"
+echo "   Auto-Update an:      sudo ./deploy/install-autoupdate.sh"
 echo "   Deinstallieren:      sudo ./deploy/uninstall.sh"
 echo "=============================================="

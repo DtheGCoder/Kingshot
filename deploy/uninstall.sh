@@ -28,6 +28,14 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
+# Auto-Update-Timer/Cron zuerst entfernen
+if [[ -f /etc/systemd/system/kingshot-update.timer || -f /etc/cron.d/kingshot-update ]]; then
+  systemctl disable --now kingshot-update.timer 2>/dev/null || true
+  rm -f /etc/systemd/system/kingshot-update.timer /etc/systemd/system/kingshot-update.service /etc/cron.d/kingshot-update
+  command -v systemctl >/dev/null 2>&1 && systemctl daemon-reload 2>/dev/null || true
+  echo "🗑️  Auto-Update entfernt."
+fi
+
 REMOVED=0
 for f in "/etc/nginx/sites-enabled/${SITE_NAME}.conf" \
          "/etc/nginx/sites-available/${SITE_NAME}.conf" \
