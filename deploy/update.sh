@@ -49,7 +49,8 @@ else
   cp -r "$SRC_DIR/index.html" "$SRC_DIR/manifest.webmanifest" \
         "$SRC_DIR/css" "$SRC_DIR/js" "$SRC_DIR/assets" "$WEBROOT/"
 fi
-chmod -R a+rX "$WEBROOT"
+chown -R root:root "$WEBROOT"
+chmod -R a+rX,go-w "$WEBROOT"
 command -v restorecon >/dev/null 2>&1 && restorecon -R "$WEBROOT" 2>/dev/null || true
 
 echo "✅ KINGSHOT aktualisiert ($WEBROOT). Einfach Seite neu laden — Spielstände bleiben erhalten."

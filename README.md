@@ -17,28 +17,65 @@ Läuft auf jedem Handy und Desktop-Browser, direkt von deinem eigenen nginx-Serv
 
 ---
 
-## 🚀 Installation auf dem Linux-Server (nginx)
+## 🚀 Installation auf dem Linux-Server (nginx, HTTPS)
 
-Das Install-Skript legt eine **eigene** nginx-Site an (eigene Conf-Datei, eigener Port)
-und fasst **keine bestehenden Sites an**. Vor dem Neuladen wird `nginx -t` geprüft;
-schlägt der Test fehl, wird die Änderung automatisch zurückgenommen.
+Das Install-Skript legt eine **eigene** nginx-Site an (eigene Conf-Datei) und fasst
+**keine bestehenden Sites an**. Vor jedem Neuladen wird `nginx -t` geprüft — schlägt
+der Test fehl, wird die Änderung **automatisch zurückgenommen** und der alte Zustand
+wiederhergestellt.
+
+### Empfohlen: HTTPS mit eigener (Sub-)Domain
 
 ```bash
 git clone https://github.com/DtheGCoder/Kingshot.git
 cd Kingshot
-sudo ./deploy/install.sh
+sudo ./deploy/install.sh --domain kingshot.deine-domain.de
 ```
 
-Fertig → **http://SERVER-IP:8090**
+Fertig → **https://kingshot.deine-domain.de**
 
-### Varianten
+Das Skript kümmert sich komplett um HTTPS:
+- **Vorhandene Let's-Encrypt-Zertifikate werden automatisch erkannt** und genutzt —
+  auch Wildcard-Zertifikate (`*.deine-domain.de`)
+- Fehlt ein Zertifikat, holt es eines per `certbot certonly --webroot`
+  (bei allererster Certbot-Nutzung `--email deine@mail.de` mitgeben)
+- HTTP wird per 301 auf HTTPS umgeleitet; der ACME-Pfad für
+  **Zertifikats-Verlängerungen bleibt frei** und nginx lädt nach jeder
+  Verlängerung automatisch neu (Renewal-Hook)
+- Eigenes Zertifikat? `--cert /pfad/fullchain.pem --key /pfad/privkey.pem`
+
+Voraussetzung: Die (Sub-)Domain zeigt per DNS (A-/AAAA-Record) auf den Server.
+
+### Alternative: nur HTTP auf eigenem Port (z. B. zum Testen)
 
 ```bash
-sudo ./deploy/install.sh --port 8181                    # anderer Port
-sudo ./deploy/install.sh --domain kingshot.example.de   # eigene (Sub-)Domain auf Port 80
+sudo ./deploy/install.sh                   # → http://SERVER-IP:8090
+sudo ./deploy/install.sh --port 8181       # anderer Port
+```
+
+### Weitere Optionen
+
+```bash
 sudo ./deploy/install.sh --install-nginx                # nginx automatisch mitinstallieren
 sudo ./deploy/install.sh --root /srv/www/kingshot       # anderes Webroot
+sudo ./deploy/install.sh --domain D --no-https          # Domain, bewusst ohne TLS
 ```
+
+### 🔒 Sicherheit — dein Server bleibt geschützt
+
+- **Rein statische Site**: kein Backend, keine Datenbank, kein PHP, keine Uploads —
+  der Server liefert nur Dateien aus. Spielstände liegen ausschließlich im Browser
+  der Spieler (`localStorage`), auf dem Server wird nichts gespeichert.
+- **TLS 1.2/1.3 only** mit modernen Cipher-Suiten (bzw. deiner Certbot-Standardkonfig)
+  und **HSTS** (Browser erzwingen HTTPS für die Domain).
+- **Strikte Content-Security-Policy** (`default-src 'none'` — nur eigene Skripte/Styles
+  und Google Fonts erlaubt), dazu `nosniff`, `X-Frame-Options`, `Referrer-Policy`
+  und `Permissions-Policy` (Kamera/Mikro/Standort komplett aus).
+- Webroot gehört `root` und ist für den Webserver **nur lesbar** — selbst ein
+  kompromittierter nginx-Worker könnte die Dateien nicht verändern.
+- Versteckte Dateien (`/.…`) werden nie ausgeliefert, `server_tokens off`.
+- Das Skript prüft vorab **Port- und Domain-Konflikte** mit bestehenden Sites und
+  schreibt ausschließlich in seine eigene `kingshot.conf`.
 
 ### Updaten / Entfernen
 

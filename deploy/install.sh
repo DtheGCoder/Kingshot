@@ -1,17 +1,24 @@
 #!/usr/bin/env bash
 # ============================================================
-#  KINGSHOT — nginx-Installation
+#  KINGSHOT — nginx-Installation (mit HTTPS & Härtung)
 #  Richtet das Spiel als EIGENE nginx-Site ein, ohne bestehende
 #  Sites anzufassen (eigene Conf-Datei, eigener Port/Domain).
+#  Vor jedem Neuladen: nginx -t — schlägt der Test fehl, wird
+#  die Änderung automatisch zurückgenommen.
 #
-#  Standard:  eigener Port 8090       → http://SERVER-IP:8090
-#  Optional:  --domain spiel.beispiel.de  → eigener vHost auf Port 80
+#  Empfohlen (HTTPS mit Let's-Encrypt/Certbot):
+#    sudo ./deploy/install.sh --domain kingshot.deine-domain.de
+#      → nutzt ein vorhandenes Zertifikat automatisch (auch Wildcard)
+#      → oder holt eines per  certbot certonly --webroot
+#      → HTTP wird auf HTTPS umgeleitet, TLS 1.2/1.3, HSTS, CSP
 #
-#  Beispiele:
-#    sudo ./deploy/install.sh
-#    sudo ./deploy/install.sh --port 8181
-#    sudo ./deploy/install.sh --domain kingshot.meinserver.de
-#    sudo ./deploy/install.sh --install-nginx        # nginx mitinstallieren
+#  Weitere Varianten:
+#    sudo ./deploy/install.sh                          # nur HTTP, Port 8090
+#    sudo ./deploy/install.sh --port 8181              # nur HTTP, anderer Port
+#    sudo ./deploy/install.sh --domain D --no-https    # Domain, aber nur HTTP
+#    sudo ./deploy/install.sh --domain D --email a@b.de     # E-Mail für erste Certbot-Registrierung
+#    sudo ./deploy/install.sh --domain D --cert PFAD --key PFAD  # eigenes Zertifikat
+#    sudo ./deploy/install.sh --install-nginx          # nginx mitinstallieren
 # ============================================================
 set -euo pipefail
 
@@ -20,6 +27,10 @@ DOMAIN=""
 WEBROOT="/var/www/kingshot"
 SITE_NAME="kingshot"
 INSTALL_NGINX=0
+NO_HTTPS=0
+CERT=""
+KEY=""
+EMAIL=""
 
 # ---------- Argumente ----------
 while [[ $# -gt 0 ]]; do
@@ -27,15 +38,27 @@ while [[ $# -gt 0 ]]; do
     --port)    PORT="$2"; shift 2 ;;
     --domain)  DOMAIN="$2"; shift 2 ;;
     --root)    WEBROOT="$2"; shift 2 ;;
+    --cert)    CERT="$2"; shift 2 ;;
+    --key)     KEY="$2"; shift 2 ;;
+    --email)   EMAIL="$2"; shift 2 ;;
+    --no-https) NO_HTTPS=1; shift ;;
     --install-nginx) INSTALL_NGINX=1; shift ;;
     -h|--help)
-      grep '^#' "$0" | head -18; exit 0 ;;
+      grep '^#' "$0" | head -22; exit 0 ;;
     *) echo "Unbekannte Option: $1 (siehe --help)"; exit 1 ;;
   esac
 done
 
 if [[ $EUID -ne 0 ]]; then
   echo "❌ Bitte als root ausführen:  sudo $0 $*"
+  exit 1
+fi
+if [[ -n "$CERT" && -z "$KEY" ]] || [[ -z "$CERT" && -n "$KEY" ]]; then
+  echo "❌ --cert und --key müssen zusammen angegeben werden."
+  exit 1
+fi
+if [[ -n "$CERT" && -z "$DOMAIN" ]]; then
+  echo "❌ --cert/--key brauchen auch --domain."
   exit 1
 fi
 
@@ -49,7 +72,11 @@ fi
 echo "⚔️  KINGSHOT wird installiert…"
 echo "    Quelle:   $SRC_DIR"
 echo "    Webroot:  $WEBROOT"
-if [[ -n "$DOMAIN" ]]; then echo "    Domain:   $DOMAIN (Port 80)"; else echo "    Port:     $PORT"; fi
+if [[ -n "$DOMAIN" ]]; then
+  echo "    Domain:   $DOMAIN $( [[ $NO_HTTPS -eq 1 ]] && echo '(nur HTTP)' || echo '(HTTPS)')"
+else
+  echo "    Port:     $PORT (nur HTTP — für HTTPS:  --domain deine-domain.de)"
+fi
 echo
 
 # ---------- nginx vorhanden? ----------
@@ -70,9 +97,10 @@ if ! command -v nginx >/dev/null 2>&1; then
   fi
 fi
 
-# ---------- Port-Konflikt prüfen (nur bei Port-Modus) ----------
 CONF_DEB="/etc/nginx/sites-available/${SITE_NAME}.conf"
 CONF_RHEL="/etc/nginx/conf.d/${SITE_NAME}.conf"
+
+# ---------- Konflikte prüfen ----------
 if [[ -z "$DOMAIN" ]]; then
   CONFLICT=$(grep -RslE "listen[^;]*[ :]${PORT}([; ])" /etc/nginx/ 2>/dev/null \
     | grep -v "${SITE_NAME}.conf" || true)
@@ -80,6 +108,16 @@ if [[ -z "$DOMAIN" ]]; then
     echo "❌ Port ${PORT} wird bereits von einer anderen nginx-Site benutzt:"
     echo "$CONFLICT" | sed 's/^/     /'
     echo "   Anderen Port wählen:  sudo $0 --port 8181"
+    exit 1
+  fi
+else
+  # server_name darf nicht schon woanders vergeben sein
+  NAME_CONFLICT=$(grep -RslE "server_name[^;]*(^|[ \t])${DOMAIN//./\\.}([ \t;])" /etc/nginx/ 2>/dev/null \
+    | grep -v "${SITE_NAME}.conf" || true)
+  if [[ -n "$NAME_CONFLICT" ]]; then
+    echo "❌ Die Domain ${DOMAIN} wird bereits in einer anderen nginx-Site benutzt:"
+    echo "$NAME_CONFLICT" | sed 's/^/     /'
+    echo "   Bitte eine eigene (Sub-)Domain für Kingshot verwenden, z. B. kingshot.${DOMAIN#*.}"
     exit 1
   fi
 fi
@@ -99,70 +137,282 @@ copy() {
   fi
 }
 copy
-chmod -R a+rX "$WEBROOT"
-echo "✅ Spieldateien nach $WEBROOT kopiert."
+# Webroot gehört root, Webserver darf nur LESEN (kein Schreibzugriff für www-data)
+chown -R root:root "$WEBROOT"
+chmod -R a+rX,go-w "$WEBROOT"
+echo "✅ Spieldateien nach $WEBROOT kopiert (nur lesbar für den Webserver)."
 
-# ---------- nginx-Konfiguration schreiben (NUR eigene Datei) ----------
-# IPv6 nur einbinden, wenn der Server es unterstützt
-IPV6_LINE=""
-if [[ -f /proc/net/if_inet6 ]] && [[ -s /proc/net/if_inet6 ]]; then
-  if [[ -n "$DOMAIN" ]]; then IPV6_LINE="
-    listen [::]:80;"; else IPV6_LINE="
-    listen [::]:${PORT};"; fi
-fi
-if [[ -n "$DOMAIN" ]]; then
-  LISTEN_BLOCK="    listen 80;${IPV6_LINE}
-    server_name ${DOMAIN};"
-else
-  LISTEN_BLOCK="    listen ${PORT};${IPV6_LINE}
-    server_name _;"
-fi
+# ---------- IPv6 nur einbinden, wenn der Server es unterstützt ----------
+HAS_IPV6=0
+[[ -f /proc/net/if_inet6 && -s /proc/net/if_inet6 ]] && HAS_IPV6=1
 
-NGINX_CONF="server {
-${LISTEN_BLOCK}
+# ---------- Sicherheits-Header (für alle Varianten identisch) ----------
+# Strikte CSP: Das Spiel ist reines Vanilla-JS ohne Inline-Skripte/-Styles.
+# Erlaubt sind nur eigene Dateien + Google Fonts (Schriftart, optional).
+CSP="default-src 'none'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; manifest-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'"
 
-    root ${WEBROOT};
-    index index.html;
+security_headers() {
+  cat <<EOF
+    # --- Sicherheits-Header ---
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options SAMEORIGIN always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()" always;
+    add_header Content-Security-Policy "${CSP}" always;
+EOF
+}
 
-    # Sicherheits-Header (nur für diese Site)
-    add_header X-Content-Type-Options nosniff;
-
-    gzip on;
-    gzip_types text/css application/javascript image/svg+xml application/manifest+json;
-    gzip_min_length 512;
-
+# Gemeinsame Auslieferungs-Regeln (keine add_header in Locations,
+# damit die Server-Header überall erhalten bleiben!)
+site_locations() {
+  cat <<EOF
     location / {
         try_files \$uri \$uri/ =404;
     }
 
     # index.html nie hart cachen → Updates kommen sofort an
     location = /index.html {
-        add_header Cache-Control \"no-cache\";
+        expires epoch;
     }
 
     location ~* \\.(js|css|svg|webmanifest)\$ {
         expires 1h;
-        add_header Cache-Control \"public\";
+    }
+
+    # Versteckte Dateien niemals ausliefern
+    location ~ /\\. {
+        deny all;
+    }
+EOF
+}
+
+# ---------- Zertifikat finden / besorgen (Domain-Modus) ----------
+CERT_DIR=""
+find_le_cert() {
+  # 1) exakt passendes live-Verzeichnis
+  if [[ -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]]; then
+    CERT_DIR="/etc/letsencrypt/live/${DOMAIN}"
+    return 0
+  fi
+  # 2) irgendein Zertifikat, das die Domain abdeckt (auch Wildcard)
+  command -v openssl >/dev/null 2>&1 || return 1
+  local wild="*.${DOMAIN#*.}"
+  local d sans
+  for d in /etc/letsencrypt/live/*/; do
+    [[ -f "${d}fullchain.pem" ]] || continue
+    sans=$(openssl x509 -in "${d}fullchain.pem" -noout -ext subjectAltName 2>/dev/null || true)
+    if grep -qE "DNS:${DOMAIN//./\\.}(,|[[:space:]]|\$)" <<<"$sans" \
+       || grep -qF "DNS:${wild}" <<<"$sans"; then
+      CERT_DIR="${d%/}"
+      return 0
+    fi
+  done
+  return 1
+}
+
+USE_HTTPS=0
+if [[ -n "$DOMAIN" && $NO_HTTPS -eq 0 ]]; then
+  if [[ -n "$CERT" ]]; then
+    [[ -f "$CERT" && -f "$KEY" ]] || { echo "❌ Zertifikat/Key nicht gefunden: $CERT / $KEY"; exit 1; }
+    USE_HTTPS=1
+    echo "🔐 Nutze angegebenes Zertifikat: $CERT"
+  elif find_le_cert; then
+    CERT="${CERT_DIR}/fullchain.pem"
+    KEY="${CERT_DIR}/privkey.pem"
+    USE_HTTPS=1
+    echo "🔐 Vorhandenes Let's-Encrypt-Zertifikat gefunden: $CERT_DIR"
+  fi
+fi
+
+# ---------- Conf-Schreiben mit Test & automatischem Rollback ----------
+TARGET_CONF=""
+detect_layout() {
+  if [[ -d /etc/nginx/sites-available ]] && grep -qs "sites-enabled" /etc/nginx/nginx.conf; then
+    TARGET_CONF="$CONF_DEB"
+  elif [[ -d /etc/nginx/conf.d ]]; then
+    TARGET_CONF="$CONF_RHEL"
+  else
+    echo "❌ Unbekanntes nginx-Layout (weder sites-available noch conf.d gefunden)."
+    exit 1
+  fi
+}
+detect_layout
+
+write_conf_and_reload() {  # $1 = Conf-Inhalt
+  local had_backup=0
+  if [[ -f "$TARGET_CONF" ]]; then cp "$TARGET_CONF" "${TARGET_CONF}.bak"; had_backup=1; fi
+  printf '%s' "$1" > "$TARGET_CONF"
+  if [[ "$TARGET_CONF" == "$CONF_DEB" ]]; then
+    ln -sf "$TARGET_CONF" "/etc/nginx/sites-enabled/${SITE_NAME}.conf"
+  fi
+  if nginx -t 2>&1; then
+    systemctl reload nginx 2>/dev/null || nginx -s reload
+    rm -f "${TARGET_CONF}.bak"
+    return 0
+  fi
+  echo "❌ nginx-Konfigurationstest fehlgeschlagen — mache Änderung rückgängig…"
+  if [[ $had_backup -eq 1 ]]; then mv "${TARGET_CONF}.bak" "$TARGET_CONF"
+  else rm -f "$TARGET_CONF" "/etc/nginx/sites-enabled/${SITE_NAME}.conf"; fi
+  nginx -t >/dev/null 2>&1 && (systemctl reload nginx 2>/dev/null || nginx -s reload) || true
+  return 1
+}
+
+# ---------- HTTP-Konfiguration (Port-Modus oder Vorstufe für HTTPS) ----------
+build_http_conf() {  # $1 = listen-Zeilen  $2 = server_name
+  cat <<EOF
+# KINGSHOT — automatisch erzeugt von deploy/install.sh
+server {
+$1
+    server_name $2;
+
+    root ${WEBROOT};
+    index index.html;
+    server_tokens off;
+
+$(security_headers)
+
+    gzip on;
+    gzip_types text/css application/javascript image/svg+xml application/manifest+json;
+    gzip_min_length 512;
+
+    # Let's-Encrypt-Verlängerungen immer erlauben
+    location ^~ /.well-known/acme-challenge/ {
+        root ${WEBROOT};
+    }
+
+$(site_locations)
+}
+EOF
+}
+
+# ---------- HTTPS-Konfiguration (Redirect + TLS-Server) ----------
+build_https_conf() {
+  local l80="    listen 80;"
+  local l443="    listen 443 ssl;"
+  if [[ $HAS_IPV6 -eq 1 ]]; then
+    l80="$l80
+    listen [::]:80;"
+    l443="$l443
+    listen [::]:443 ssl;"
+  fi
+  # TLS-Basis: Certbot-Optionsdatei nutzen, wenn vorhanden — sonst sichere Defaults
+  local tls_block
+  if [[ -f /etc/letsencrypt/options-ssl-nginx.conf ]]; then
+    tls_block="    include /etc/letsencrypt/options-ssl-nginx.conf;"
+  else
+    tls_block="    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305;
+    ssl_session_timeout 1d;
+    ssl_session_cache shared:KingshotSSL:1m;
+    ssl_session_tickets off;"
+  fi
+  local dhparam=""
+  [[ -f /etc/letsencrypt/ssl-dhparams.pem ]] && dhparam="    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;"
+
+  cat <<EOF
+# KINGSHOT — automatisch erzeugt von deploy/install.sh
+# HTTP: nur ACME-Verlängerung + Umleitung auf HTTPS
+server {
+$l80
+    server_name ${DOMAIN};
+    server_tokens off;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root ${WEBROOT};
+    }
+    location / {
+        return 301 https://\$host\$request_uri;
     }
 }
-"
 
-# Layout erkennen: Debian/Ubuntu (sites-*) oder RHEL/Fedora/Arch (conf.d)
-TARGET_CONF=""
-if [[ -d /etc/nginx/sites-available ]] && grep -qs "sites-enabled" /etc/nginx/nginx.conf; then
-  TARGET_CONF="$CONF_DEB"
-  [[ -f "$TARGET_CONF" ]] && cp "$TARGET_CONF" "${TARGET_CONF}.bak"
-  printf '%s' "$NGINX_CONF" > "$TARGET_CONF"
-  ln -sf "$TARGET_CONF" "/etc/nginx/sites-enabled/${SITE_NAME}.conf"
-elif [[ -d /etc/nginx/conf.d ]]; then
-  TARGET_CONF="$CONF_RHEL"
-  [[ -f "$TARGET_CONF" ]] && cp "$TARGET_CONF" "${TARGET_CONF}.bak"
-  printf '%s' "$NGINX_CONF" > "$TARGET_CONF"
-else
-  echo "❌ Unbekanntes nginx-Layout (weder sites-available noch conf.d gefunden)."
-  exit 1
+server {
+$l443
+    server_name ${DOMAIN};
+
+    ssl_certificate     ${CERT};
+    ssl_certificate_key ${KEY};
+$tls_block
+$dhparam
+
+    root ${WEBROOT};
+    index index.html;
+    server_tokens off;
+
+    # HSTS: Browser erzwingen HTTPS für diese Domain (1 Jahr)
+    add_header Strict-Transport-Security "max-age=31536000" always;
+$(security_headers)
+
+    gzip on;
+    gzip_types text/css application/javascript image/svg+xml application/manifest+json;
+    gzip_min_length 512;
+
+$(site_locations)
+}
+EOF
+}
+
+# ---------- Anwenden ----------
+if [[ -n "$DOMAIN" && $NO_HTTPS -eq 0 && $USE_HTTPS -eq 0 ]]; then
+  # Noch kein Zertifikat: erst HTTP-Site aktivieren (für die ACME-Challenge),
+  # dann Certbot versuchen.
+  L80="    listen 80;"
+  [[ $HAS_IPV6 -eq 1 ]] && L80="$L80
+    listen [::]:80;"
+  write_conf_and_reload "$(build_http_conf "$L80" "$DOMAIN")" || exit 1
+  echo "🌐 HTTP-Site aktiv — versuche Zertifikat über Certbot zu holen…"
+  if command -v certbot >/dev/null 2>&1; then
+    CB_ARGS=(certonly --webroot -w "$WEBROOT" -d "$DOMAIN" --non-interactive)
+    [[ -n "$EMAIL" ]] && CB_ARGS+=(--agree-tos -m "$EMAIL")
+    if certbot "${CB_ARGS[@]}"; then
+      if find_le_cert; then
+        CERT="${CERT_DIR}/fullchain.pem"
+        KEY="${CERT_DIR}/privkey.pem"
+        USE_HTTPS=1
+        echo "🔐 Zertifikat erfolgreich ausgestellt: $CERT_DIR"
+      fi
+    else
+      echo
+      echo "⚠️  Certbot konnte kein Zertifikat ausstellen (DNS zeigt evtl. noch nicht auf diesen Server,"
+      echo "    Port 80 ist von außen nicht erreichbar, oder es fehlt --email für die Erstregistrierung)."
+      echo "    Die Seite läuft vorerst über HTTP. Später einfach ausführen:"
+      echo "      sudo certbot certonly --webroot -w ${WEBROOT} -d ${DOMAIN}"
+      echo "      sudo ./deploy/install.sh --domain ${DOMAIN}"
+    fi
+  else
+    echo "⚠️  certbot ist nicht installiert — Seite läuft vorerst über HTTP."
+    echo "    Installieren (Debian/Ubuntu):  sudo apt install certbot"
+  fi
 fi
-echo "✅ nginx-Site geschrieben: $TARGET_CONF"
+
+if [[ $USE_HTTPS -eq 1 ]]; then
+  write_conf_and_reload "$(build_https_conf)" || exit 1
+  echo "✅ HTTPS-Site aktiv: $TARGET_CONF"
+  # Nach Zertifikats-Verlängerung nginx automatisch neu laden
+  HOOK_DIR="/etc/letsencrypt/renewal-hooks/deploy"
+  if [[ -d /etc/letsencrypt ]] && ! grep -Rqs "nginx" "$HOOK_DIR" 2>/dev/null; then
+    mkdir -p "$HOOK_DIR"
+    cat > "${HOOK_DIR}/reload-nginx.sh" <<'HOOK'
+#!/bin/sh
+# Von Kingshot-Install angelegt: nginx nach Zertifikats-Verlängerung neu laden
+nginx -t && { systemctl reload nginx 2>/dev/null || nginx -s reload; }
+HOOK
+    chmod +x "${HOOK_DIR}/reload-nginx.sh"
+    echo "🔁 Renewal-Hook angelegt: nginx lädt nach Zertifikats-Verlängerung automatisch neu."
+  fi
+elif [[ -n "$DOMAIN" && $NO_HTTPS -eq 1 ]]; then
+  L80="    listen 80;"
+  [[ $HAS_IPV6 -eq 1 ]] && L80="$L80
+    listen [::]:80;"
+  write_conf_and_reload "$(build_http_conf "$L80" "$DOMAIN")" || exit 1
+  echo "✅ HTTP-Site aktiv: $TARGET_CONF"
+elif [[ -z "$DOMAIN" ]]; then
+  LP="    listen ${PORT};"
+  [[ $HAS_IPV6 -eq 1 ]] && LP="$LP
+    listen [::]:${PORT};"
+  write_conf_and_reload "$(build_http_conf "$LP" "_")" || exit 1
+  echo "✅ HTTP-Site aktiv (Port ${PORT}): $TARGET_CONF"
+fi
 
 # ---------- SELinux (RHEL/CentOS/Fedora) ----------
 if command -v getenforce >/dev/null 2>&1 && [[ "$(getenforce)" == "Enforcing" ]]; then
@@ -174,26 +424,20 @@ if command -v getenforce >/dev/null 2>&1 && [[ "$(getenforce)" == "Enforcing" ]]
   fi
 fi
 
-# ---------- Testen & sanft neu laden (bestehende Sites bleiben unberührt) ----------
-if nginx -t; then
-  systemctl reload nginx 2>/dev/null || nginx -s reload
-  echo "✅ nginx neu geladen."
-else
-  echo "❌ nginx-Konfigurationstest fehlgeschlagen — mache Änderung rückgängig…"
-  if [[ -f "${TARGET_CONF}.bak" ]]; then mv "${TARGET_CONF}.bak" "$TARGET_CONF"
-  else rm -f "$TARGET_CONF" "/etc/nginx/sites-enabled/${SITE_NAME}.conf"; fi
-  nginx -t && (systemctl reload nginx 2>/dev/null || nginx -s reload) || true
-  exit 1
-fi
-rm -f "${TARGET_CONF}.bak"
-
 # ---------- Firewall-Hinweise ----------
-if [[ -z "$DOMAIN" ]]; then
-  if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active"; then
-    echo "🧱 ufw ist aktiv — Port freigeben mit:   sudo ufw allow ${PORT}/tcp"
+if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active"; then
+  if [[ -n "$DOMAIN" ]]; then
+    ufw status | grep -qE "(^80|^443|Nginx Full|80/tcp|443/tcp)" \
+      || echo "🧱 ufw aktiv — Ports freigeben:   sudo ufw allow 80/tcp && sudo ufw allow 443/tcp"
+  else
+    echo "🧱 ufw aktiv — Port freigeben:   sudo ufw allow ${PORT}/tcp"
   fi
-  if command -v firewall-cmd >/dev/null 2>&1 && firewall-cmd --state >/dev/null 2>&1; then
-    echo "🧱 firewalld aktiv — Port freigeben mit: sudo firewall-cmd --permanent --add-port=${PORT}/tcp && sudo firewall-cmd --reload"
+fi
+if command -v firewall-cmd >/dev/null 2>&1 && firewall-cmd --state >/dev/null 2>&1; then
+  if [[ -n "$DOMAIN" ]]; then
+    echo "🧱 firewalld: ggf.  sudo firewall-cmd --permanent --add-service=http --add-service=https && sudo firewall-cmd --reload"
+  else
+    echo "🧱 firewalld: ggf.  sudo firewall-cmd --permanent --add-port=${PORT}/tcp && sudo firewall-cmd --reload"
   fi
 fi
 
@@ -202,7 +446,9 @@ IP=$(hostname -I 2>/dev/null | awk '{print $1}')
 echo
 echo "🏰 =============================================="
 echo "   KINGSHOT ist bereit!"
-if [[ -n "$DOMAIN" ]]; then
+if [[ $USE_HTTPS -eq 1 ]]; then
+  echo "   ▶  https://${DOMAIN}"
+elif [[ -n "$DOMAIN" ]]; then
   echo "   ▶  http://${DOMAIN}"
 else
   echo "   ▶  http://${IP:-<SERVER-IP>}:${PORT}"
