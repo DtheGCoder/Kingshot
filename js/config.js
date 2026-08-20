@@ -95,62 +95,76 @@ KS.CFG = (() => {
     { name: 'Drachenklinge',     dmg: 116, rate: 2.00, range: 90,  beam: 0.55, blade: '#ffc4c4', glow: '#ff5a5a' },
     { name: 'Königsklinge',      dmg: 165, rate: 2.10, range: 95,  beam: 0.65, blade: '#ffe9a8', glow: '#f7c948' },
     { name: 'Lichtbringer',      dmg: 240, rate: 2.20, range: 100, beam: 0.80, blade: '#fffbe8', glow: '#fff2a8' },
+    // ---- Ab hier wird die Schmiede zur Legende ----
+    { name: 'Sternensplitter',   dmg: 340,  rate: 2.24, range: 103, beam: 0.85, blade: '#dbe9ff', glow: '#9dc4ff' },
+    { name: 'Obsidianschneide',  dmg: 483,  rate: 2.28, range: 106, beam: 0.90, blade: '#4a3f5e', glow: '#a06ee8' },
+    { name: 'Runenklinge',       dmg: 686,  rate: 2.32, range: 109, beam: 0.95, blade: '#cfeee0', glow: '#5ef0b8' },
+    { name: 'Titanenspalter',    dmg: 974,  rate: 2.36, range: 112, beam: 1.00, blade: '#e8d3ae', glow: '#ffb14e' },
+    { name: 'Seelenschnitter',   dmg: 1383, rate: 2.40, range: 115, beam: 1.05, blade: '#e6d2ff', glow: '#d86bff' },
+    { name: 'Drachenherz',       dmg: 1964, rate: 2.44, range: 118, beam: 1.10, blade: '#ffd0c0', glow: '#ff5a3c' },
+    { name: 'Ewigkeitsklinge',   dmg: 2789, rate: 2.48, range: 121, beam: 1.15, blade: '#fff8d8', glow: '#ffe37a' },
+    { name: 'Weltenschneide',    dmg: 3960, rate: 2.52, range: 124, beam: 1.20, blade: '#d8fbff', glow: '#5fe8ff' },
+    { name: 'Götterzorn',        dmg: 5623, rate: 2.56, range: 127, beam: 1.25, blade: '#ffeec2', glow: '#ffcf4e' },
+    { name: 'Urlicht',           dmg: 7985, rate: 2.60, range: 130, beam: 1.30, blade: '#ffffff', glow: '#ffffff' },
   ];
+
+  // Kostenfaktor je Stufe oberhalb von Stufe 10 (siehe costOf)
+  const LATE_COST_MUL = 1.62;
 
   // ---------- Gebäude-Typen ----------
   // costMul: Kosten je Stufe = baseCost * costMul^(stufe-1)
   const BUILDINGS = {
     castle: {
-      name: 'Burg', ico: 'castle', kind: 'castle', tiers: 10,
+      name: 'Burg', ico: 'castle', kind: 'castle', tiers: 50,
       baseCost: 120, costMul: 2.0,
       hp: t => Math.round(450 * Math.pow(1.55, t - 1)),
       regen: 0.0035,          // Anteil der Max-HP pro Sekunde (innere Selbstheilung)
       desc: 'Das Herz des Königreichs. Fällt die Burg, fällt alles.',
     },
     tower_arrow: {
-      name: 'Wachturm', ico: 'bow', kind: 'tower', tiers: 10,
+      name: 'Wachturm', ico: 'bow', kind: 'tower', tiers: 50,
       baseCost: 60, costMul: 1.8,
       proj: 'arrow', dmg: 8.4, rate: 1.38, range: 235,
       dmgMul: 1.45, rateAdd: 0.05, rangeAdd: 7,
       desc: 'Verlässliche Pfeile in schneller Folge.',
     },
     tower_cannon: {
-      name: 'Kanonenturm', ico: 'cannon', kind: 'tower', tiers: 10,
+      name: 'Kanonenturm', ico: 'cannon', kind: 'tower', tiers: 50,
       baseCost: 150, costMul: 1.8,
       proj: 'cannon', dmg: 31.2, rate: 0.5, range: 265, splash: 62,
       dmgMul: 1.45, rateAdd: 0.016, rangeAdd: 6,
       desc: 'Donnernde Kugeln mit Flächenschaden.',
     },
     tower_frost: {
-      name: 'Frostturm', ico: 'snow', kind: 'tower', tiers: 10,
+      name: 'Frostturm', ico: 'snow', kind: 'tower', tiers: 50,
       baseCost: 170, costMul: 1.8,
       proj: 'frost', dmg: 12, rate: 1.02, range: 225, slow: 0.45, slowDur: 1.8,
       dmgMul: 1.42, rateAdd: 0.03, rangeAdd: 6,
       desc: 'Eisige Geschosse, die Feinde verlangsamen.',
     },
     tower_lightning: {
-      name: 'Blitzturm', ico: 'bolt', kind: 'tower', tiers: 10,
+      name: 'Blitzturm', ico: 'bolt', kind: 'tower', tiers: 50,
       baseCost: 210, costMul: 1.8,
       proj: 'zap', dmg: 24, rate: 0.9, range: 245, chain: 3, chainR: 130,
       dmgMul: 1.46, rateAdd: 0.03, rangeAdd: 6,
       desc: 'Kettenblitze springen von Feind zu Feind.',
     },
     tower_flame: {
-      name: 'Flammenturm', ico: 'flame', kind: 'tower', tiers: 10,
+      name: 'Flammenturm', ico: 'flame', kind: 'tower', tiers: 50,
       baseCost: 190, costMul: 1.8,
       proj: 'flame', dmg: 7.2, rate: 6.6, range: 165, burn: 3, burnDur: 2.2,
       dmgMul: 1.42, rateAdd: 0.12, rangeAdd: 5,
       desc: 'Ein Strom aus Feuer, der Feinde verbrennt.',
     },
     mine: {
-      name: 'Goldmine', ico: 'pickaxe', kind: 'prod', tiers: 10,
+      name: 'Goldmine', ico: 'pickaxe', kind: 'prod', tiers: 50,
       baseCost: 90, costMul: 1.9,
       income: t => Math.round(18 * Math.pow(1.55, t - 1)),
       interval: 6,
       desc: 'Fördert stetig Gold aus der Tiefe.',
     },
     tavern: {
-      name: 'Taverne', ico: 'mug', kind: 'prod', tiers: 10,
+      name: 'Taverne', ico: 'mug', kind: 'prod', tiers: 50,
       baseCost: 110, costMul: 1.9,
       capacity: t => t * 2,
       income: t => Math.round(2 * Math.pow(1.35, t - 1)),   // pro Überlebendem
@@ -158,38 +172,38 @@ KS.CFG = (() => {
       desc: 'Ein warmes Dach für Überlebende — sie zahlen Steuern.',
     },
     forge: {
-      name: 'Schmiede', ico: 'anvil', kind: 'forge', tiers: 10,
+      name: 'Schmiede', ico: 'anvil', kind: 'forge', tiers: 50,
       baseCost: 140, costMul: 1.9,
       desc: 'Schmiedet dem König immer mächtigere Klingen.',
     },
     markt: {
-      name: 'Markt', ico: 'market', kind: 'market', tiers: 10,
+      name: 'Markt', ico: 'market', kind: 'market', tiers: 50,
       baseCost: 120, costMul: 1.9,
       slots: t => Math.min(6, 3 + Math.floor(t / 2)),         // sichtbare Angebote
       discount: t => Math.max(0.82, 1 - 0.02 * (t - 1)),      // Rabatt je Stufe
       desc: 'Dauerhafte Verbesserungen für den König — Ware gegen Gold.',
     },
     wall: {
-      name: 'Stadtmauer', ico: 'wall', kind: 'wall', tiers: 10,
+      name: 'Stadtmauer', ico: 'wall', kind: 'wall', tiers: 50,
       baseCost: 150, costMul: 1.85,
       segHp: t => Math.round(780 * Math.pow(1.5, t - 1)),
       desc: 'Schützt das Dorf. Abschnitte können brechen — im Morgengrauen wird repariert.',
     },
     gates: {
-      name: 'Stadttore', ico: 'gate', kind: 'gates', tiers: 10,
+      name: 'Stadttore', ico: 'gate', kind: 'gates', tiers: 50,
       baseCost: 200, costMul: 1.85,
       gateHp: t => Math.round(1020 * Math.pow(1.5, t - 1)),  // etwas zäher als die Mauer
       desc: 'Verschließt alle acht Durchgänge. Ohne Tore läuft die Horde einfach hindurch.',
     },
     // ---- Wirtschaft: Sammler (schicken Arbeiter ins Feld) ----
     lager: {
-      name: 'Lager', ico: 'crate', kind: 'store', tiers: 10, placeable: true,
+      name: 'Lager', ico: 'crate', kind: 'store', tiers: 50, placeable: true,
       baseCost: 130, costMul: 1.8,
       cap: t => Math.round(90 * Math.pow(1.5, t - 1)),     // je Rohstoff
       desc: 'Hier landen alle Rohstoffe. Ohne Lager stehen die Arbeiter still.',
     },
     holzfaeller: {
-      name: 'Holzfäller', ico: 'axe', kind: 'gather', tiers: 10, placeable: true,
+      name: 'Holzfäller', ico: 'axe', kind: 'gather', tiers: 50, placeable: true,
       baseCost: 110, costMul: 1.75,
       res: 'wood', node: 'tree', workRange: 620,
       workers: t => Math.min(5, 1 + Math.floor(t / 2)),     // Arbeiter je Stufe
@@ -198,7 +212,7 @@ KS.CFG = (() => {
       desc: 'Arbeiter fällen Bäume im Umland und tragen das Holz ins Lager.',
     },
     steinbruch: {
-      name: 'Steinbruch', ico: 'pick', kind: 'gather', tiers: 10, placeable: true,
+      name: 'Steinbruch', ico: 'pick', kind: 'gather', tiers: 50, placeable: true,
       baseCost: 170, costMul: 1.78,
       res: 'stone', node: 'rock', workRange: 660,
       workers: t => Math.min(5, 1 + Math.floor(t / 2)),
@@ -207,7 +221,7 @@ KS.CFG = (() => {
       desc: 'Bricht Stein aus den Felsen ringsum — schwer, aber wertvoll.',
     },
     bauernhof: {
-      name: 'Bauernhof', ico: 'wheat', kind: 'gather', tiers: 10, placeable: true,
+      name: 'Bauernhof', ico: 'wheat', kind: 'gather', tiers: 50, placeable: true,
       baseCost: 140, costMul: 1.72,
       res: 'grain', node: 'field', workRange: 210,          // eigene Felder am Hof
       workers: t => Math.min(5, 1 + Math.floor((t + 1) / 2)),
@@ -218,7 +232,7 @@ KS.CFG = (() => {
 
     // ---- Wirtschaft: Verarbeiter (Rohstoff → Gold) ----
     saegewerk: {
-      name: 'Sägewerk', ico: 'saw', kind: 'craft', tiers: 10, placeable: true,
+      name: 'Sägewerk', ico: 'saw', kind: 'craft', tiers: 50, placeable: true,
       baseCost: 190, costMul: 1.8,
       res: 'wood', batch: t => Math.round(7 * Math.pow(1.34, t - 1)),   // Holz pro Durchgang
       gold: t => Math.round(28 * Math.pow(1.5, t - 1)),                  // Gold pro Durchgang
@@ -226,7 +240,7 @@ KS.CFG = (() => {
       desc: 'Sägt Bretter aus Holz und verkauft sie — verwandelt Holz in Gold.',
     },
     steinmetz: {
-      name: 'Steinmetz', ico: 'chisel', kind: 'craft', tiers: 10, placeable: true,
+      name: 'Steinmetz', ico: 'chisel', kind: 'craft', tiers: 50, placeable: true,
       baseCost: 260, costMul: 1.82,
       res: 'stone', batch: t => Math.round(6 * Math.pow(1.34, t - 1)),
       gold: t => Math.round(46 * Math.pow(1.5, t - 1)),
@@ -234,7 +248,7 @@ KS.CFG = (() => {
       desc: 'Meißelt Quader und Zierwerk — langsam, aber sehr einträglich.',
     },
     muehle: {
-      name: 'Mühle & Backhaus', ico: 'mill', kind: 'craft', tiers: 10, placeable: true,
+      name: 'Mühle & Backhaus', ico: 'mill', kind: 'craft', tiers: 50, placeable: true,
       baseCost: 165, costMul: 1.76,
       res: 'grain', batch: t => Math.round(8 * Math.pow(1.32, t - 1)),
       gold: t => Math.round(24 * Math.pow(1.5, t - 1)),
@@ -243,7 +257,7 @@ KS.CFG = (() => {
       desc: 'Mahlt und backt. Brot bringt Geld — und lockt weitere Überlebende an.',
     },
     shrine: {
-      name: 'Schrein des Lichts', ico: 'sparkle', kind: 'shrine', tiers: 10,
+      name: 'Schrein des Lichts', ico: 'sparkle', kind: 'shrine', tiers: 50,
       baseCost: 160, costMul: 1.9,
       auraR: t => 220 + t * 26,
       heal: t => 2.2 * Math.pow(1.32, t - 1),   // Spieler-HP/s in Aura
@@ -644,14 +658,41 @@ Die Wacht geht weiter — die Nächte werden härter, deine Legende größer. Ew
     COINS, DEPOSIT, SAVE_KEY, SAVE_KEY_B, SAVE_VERSION,
     costOf(type, tier) {  // Kosten für Stufe `tier` (1-basiert)
       const b = BUILDINGS[type];
-      return Math.round(b.baseCost * Math.pow(b.costMul, tier - 1));
+      // Bis Stufe 10 wie gehabt. Darüber mit einem flacheren Faktor weiter:
+      // mit den ursprünglichen 1,8–2,0 je Stufe wäre Stufe 50 astronomisch
+      // teuer (Faktor 10^12) und niemals erreichbar. 1,62 liegt knapp über
+      // dem Einkommenswachstum der Minen und Werke (1,55) — jede weitere
+      // Stufe kostet also spürbar mehr Zeit, bleibt aber machbar.
+      if (tier <= 10) return Math.round(b.baseCost * Math.pow(b.costMul, tier - 1));
+      const at10 = b.baseCost * Math.pow(b.costMul, 9);
+      return Math.round(at10 * Math.pow(LATE_COST_MUL, tier - 10));
+    },
+    // Waffe zur Schmiedestufe. Jenseits der benannten Klingen wird die
+    // letzte fortgeschrieben („Urlicht +3“) — sonst griffe die Suche ins
+    // Leere, sobald die Schmiede über die Tabelle hinauswächst.
+    weaponFor(tier) {
+      const n = WEAPONS.length;
+      const t = Math.max(1, Math.round(tier) || 1);
+      if (t <= n) return WEAPONS[t - 1];
+      const last = WEAPONS[n - 1], k = t - n;
+      return {
+        name: `${last.name} +${k}`,
+        dmg: last.dmg * Math.pow(1.42, k),
+        rate: Math.min(3.4, last.rate + 0.02 * k),
+        range: Math.min(last.range * 1.4, last.range + 1.5 * k),
+        beam: Math.min(1.8, last.beam + 0.02 * k),
+        blade: last.blade, glow: last.glow,
+        look: n,                        // Grafik der letzten Klinge weiterverwenden
+      };
     },
     towerStats(type, tier) {
       const b = BUILDINGS[type];
       return {
         dmg: b.dmg * Math.pow(b.dmgMul, tier - 1),
         rate: b.rate + (b.rateAdd || 0) * (tier - 1),
-        range: b.range + (b.rangeAdd || 0) * (tier - 1),
+        // Reichweite wächst, aber gedeckelt: mit 7 px je Stufe wäre ein
+        // Turm auf Stufe 50 bei 578 px und würde den halben Ring abdecken.
+        range: Math.min(b.range * 1.55, b.range + (b.rangeAdd || 0) * (tier - 1)),
         splash: b.splash ? b.splash + tier * 3 : 0,
         slow: b.slow, slowDur: b.slowDur,
         chain: b.chain ? b.chain + Math.floor((tier - 1) / 3) : 0,

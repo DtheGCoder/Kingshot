@@ -444,7 +444,7 @@ KS.Ent = (() => {
       G.swing.t += dt;
       if (G.swing.t >= G.swing.dur) G.swing = null;
     }
-    const w = CFG.WEAPONS[G.weaponTier - 1];
+    const w = CFG.weaponFor(G.weaponTier);
     const kdmg = w.dmg * (G.tech ? G.tech.kingDmg : 1);   // „Königsschliff“
     if (G.attackCd <= 0) {
       // Nächstes Monster in Reichweite suchen
@@ -524,7 +524,7 @@ KS.Ent = (() => {
 
     const spr = KS.Art.king(frame);
     // Schwert hinter dem Körper, wenn nach links geschwungen
-    const w = CFG.WEAPONS[G.weaponTier - 1];
+    const w = CFG.weaponFor(G.weaponTier);
     const sw = KS.Art.sword(G.weaponTier);
     let swingA;
     if (G.swing) {

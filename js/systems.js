@@ -507,7 +507,7 @@ KS.Systems = (() => {
       rebuildDerived(G);
     }
     if (pad.type === 'forge') {
-      const w = CFG.WEAPONS[G.weaponTier - 1];
+      const w = CFG.weaponFor(G.weaponTier);
       KS.UI.toast(`Neue Waffe: ${w.name}!`, 3400, 'sword');
       KS.Game.log(`${w.name} geschmiedet.`);
       Ent.ring(G, G.state.player.x, G.state.player.y, { r0: 8, r1: 60, color: 'rgba(190,230,255,0.9)' });

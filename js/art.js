@@ -205,8 +205,19 @@ KS.Art = (() => {
     { w: '#77869f', d: '#4c5568', hi: '#a8b6cc', name: 'Eisen' },
     { w: '#eec254', d: '#b7872a', hi: '#ffe89a', name: 'Gold' },
     { w: '#a5e0f5', d: '#5ba9cc', hi: '#effdff', name: 'Kristall' },
+    // ---- Ab Stufe 11 wird es exotisch ----
+    { w: '#4a4258', d: '#2a2436', hi: '#7d719a', name: 'Obsidian' },
+    { w: '#9dc2d4', d: '#5f8496', hi: '#e2f4ff', name: 'Mithril' },
+    { w: '#a03a4a', d: '#631f2c', hi: '#e2707e', name: 'Blutrubin' },
+    { w: '#3f5aa8', d: '#22315e', hi: '#8aa4ff', name: 'Sternenstahl' },
+    { w: '#c3aeee', d: '#8267bd', hi: '#f2eaff', name: 'Ätherglas' },
   ];
-  const matFor = tier => MATS[Math.min(4, Math.ceil(tier / 2) - 1)];
+  // Optik-Stufe: 1–10 wie bisher eine je Gebäudestufe, danach alle vier
+  // Stufen ein neuer Look — so bleibt der Aufstieg bis 50 sichtbar, ohne
+  // dass 50 Sprites je Gebäudeart im Zwischenspeicher landen.
+  const LOOKS = 20;
+  const lookOf = tier => (tier <= 10 ? tier : Math.min(LOOKS, 10 + Math.ceil((tier - 10) / 4)));
+  const matFor = look => MATS[Math.min(MATS.length - 1, Math.ceil(look / 2) - 1)];
 
   // ============================================================
   //  GEBÄUDE
@@ -1726,7 +1737,112 @@ KS.Art = (() => {
     g.restore();
   }
 
+  // Prunk für die hohen Stufen: Sockelglühen, schwebende Runensteine und
+  // Wimpel. Wird über JEDES Gebäude gelegt, damit alle 20 Bauarten von den
+  // neuen Stufen profitieren, ohne 20 Painter umzuschreiben.
+  function paintPrestige(g, look) {
+    if (look <= 10) return;
+    const k = (look - 10) / (LOOKS - 10);          // 0…1
+    const m = matFor(look);
+
+    // 1) Materialtönung über das GANZE Gebäude. Die meisten Painter haben
+    //    feste Farben — ohne diesen Schritt sähe Stufe 50 aus wie Stufe 10.
+    //    'source-atop' färbt nur, was schon gemalt ist, nichts drumherum.
+    g.save();
+    g.globalCompositeOperation = 'source-atop';
+    g.globalAlpha = 0.18 + k * 0.16;
+    g.fillStyle = m.w;
+    g.fillRect(-400, -400, 800, 800);
+    g.restore();
+    // Kanten nachziehen, damit die Tönung nicht flach wirkt
+    g.save();
+    g.globalCompositeOperation = 'source-atop';
+    g.globalAlpha = 0.2 + k * 0.12;
+    const lg = g.createLinearGradient(0, -170, 0, 10);
+    lg.addColorStop(0, m.hi); lg.addColorStop(0.55, 'rgba(0,0,0,0)'); lg.addColorStop(1, m.d);
+    g.fillStyle = lg;
+    g.fillRect(-400, -400, 800, 800);
+    g.restore();
+
+    // 2) Aura am Sockel
+    g.save();
+    g.globalAlpha = 0.3 + k * 0.35;
+    const R = 46 + k * 30;
+    const gr = g.createRadialGradient(0, -6, 3, 0, -6, R);
+    gr.addColorStop(0, m.hi); gr.addColorStop(0.5, m.w); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = gr;
+    ell(g, 0, -3, R, R * 0.42); g.fill();
+    g.restore();
+
+    // 3) Schwebende Kristalle — groß und leuchtend
+    const n = 3 + Math.round(k * 4);
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + 0.5;
+      const rx = 30 + k * 18, ry = 13 + k * 7;
+      const x = Math.cos(a) * rx;
+      const y = -58 - k * 34 + Math.sin(a) * ry;
+      const sz = 4.4 + k * 4;
+      g.save();
+      g.translate(x, y); g.rotate(a * 0.6);
+      g.shadowColor = m.hi; g.shadowBlur = 10 + k * 12;
+      const cg = g.createLinearGradient(0, -sz, 0, sz);
+      cg.addColorStop(0, m.hi); cg.addColorStop(1, m.w);
+      g.fillStyle = cg;
+      g.beginPath();
+      g.moveTo(0, -sz * 1.5); g.lineTo(sz * 0.72, 0); g.lineTo(0, sz * 1.5); g.lineTo(-sz * 0.72, 0);
+      g.closePath(); g.fill();
+      g.strokeStyle = 'rgba(255,255,255,0.75)'; g.lineWidth = 1; g.stroke();
+      g.restore();
+    }
+
+    // 4) Zwei Banner an den Flanken
+    if (look >= 13) {
+      for (const sx of [-1, 1]) {
+        g.save();
+        g.translate(sx * (34 + k * 8), 0);
+        g.strokeStyle = '#6b5436'; g.lineWidth = 2.2;
+        g.beginPath(); g.moveTo(0, -26); g.lineTo(0, -74 - k * 16); g.stroke();
+        g.beginPath();
+        g.moveTo(0, -74 - k * 16);
+        g.lineTo(sx * 20, -66 - k * 14);
+        g.lineTo(0, -56 - k * 12);
+        g.closePath();
+        g.fillStyle = vgrad(g, -76, -54, m.hi, m.d); g.fill(); outline(g, 1.5);
+        g.restore();
+      }
+    }
+
+    // 5) Lichtkrone über dem Dach für die höchsten Stufen
+    if (look >= 17) {
+      g.save();
+      g.globalAlpha = 0.5 + k * 0.4;
+      g.shadowColor = m.hi; g.shadowBlur = 16;
+      g.strokeStyle = m.hi; g.lineWidth = 2.6;
+      g.beginPath();
+      g.arc(0, -104 - k * 30, 20 + k * 10, Math.PI * 1.12, Math.PI * 1.88);
+      g.stroke();
+      for (let i = -2; i <= 2; i++) {
+        const px = i * (9 + k * 4);
+        const ph = 8 + (2 - Math.abs(i)) * (5 + k * 4);
+        g.beginPath();
+        g.moveTo(px, -104 - k * 30 - 2);
+        g.lineTo(px, -104 - k * 30 - ph);
+        g.stroke();
+      }
+      g.restore();
+    }
+  }
+
   function paintBuilding(g, type, tier) {
+    // Ab hier zählt nur noch die Optik-Stufe (1…20). Die Painter kennen
+    // dadurch weiterhin einen kleinen Zahlenbereich, obwohl Gebäude bis
+    // Stufe 50 gehen.
+    const look = lookOf(tier);
+    paintBuildingLook(g, type, look);
+    paintPrestige(g, look);
+  }
+
+  function paintBuildingLook(g, type, tier) {
     if (type === 'castle') return paintCastle(g, tier);
     if (type === 'mine') return paintMine(g, tier);
     if (type === 'tavern') return paintTavern(g, tier);
@@ -1747,8 +1863,16 @@ KS.Art = (() => {
 
   function building(type, tier) {
     const big = type === 'castle';
-    const w = big ? 260 : 150, h = big ? 240 : 190;
-    return make(`bld:${type}:${tier}`, w, h, g => paintBuilding(g, type, tier), big ? 10 : 8);
+    // Schlüssel über die Optik-Stufe: 20 Varianten je Bauart statt 50.
+    const look = lookOf(tier);
+    // Ab Stufe 11 werden die Bauten höher und der Prunk greift weiter aus.
+    // Die Leinwand muss mitwachsen, sonst schneidet sie Dächer, Wimpel und
+    // schwebende Runen einfach ab (der Anker sitzt unten in der Mitte, der
+    // Platz kommt also oben und an den Seiten dazu).
+    const grow = 1 + Math.max(0, look - 10) * 0.055;
+    const w = Math.round((big ? 260 : 150) * grow);
+    const h = Math.round((big ? 240 : 190) * grow);
+    return make(`bld:${type}:${look}`, w, h, g => paintBuilding(g, type, tier), big ? 10 : 8);
   }
 
   // ---------- Stadtmauer: Pfosten, Trümmer, Torpfeiler ----------
@@ -1817,7 +1941,10 @@ KS.Art = (() => {
   }
 
   function wallPost(tier, v, cracked) {
-    return make(`wallpost:${tier}:${v}:${cracked ? 1 : 0}`, 44, 76, g => paintWallPost(g, tier, v, cracked), 7);
+    // Optik-Stufe statt roher Stufe: sonst wächst der Pfosten bis Stufe 50
+    // ins Unförmige und es lägen 50 Varianten im Zwischenspeicher.
+    const t = lookOf(tier);
+    return make(`wallpost:${t}:${v}:${cracked ? 1 : 0}`, 44, 76, g => paintWallPost(g, t, v, cracked), 7);
   }
 
   // ---------- Stadttor (Torflügel im Durchgang) ----------
@@ -1916,11 +2043,13 @@ KS.Art = (() => {
   }
 
   function gateDoor(tier, dmg) {
-    return make(`gatedoor:${tier}:${dmg}`, 108, 96, g => paintGateDoor(g, tier, dmg), 8);
+    const t = lookOf(tier);
+    return make(`gatedoor:${t}:${dmg}`, 108, 96, g => paintGateDoor(g, t, dmg), 8);
   }
 
   // Zerbrochenes Tor: nur noch Trümmer und Angeln
-  function gateBroken(tier) {
+  function gateBroken(tierRaw) {
+    const tier = lookOf(tierRaw);
     return make(`gatebroken:${tier}`, 108, 70, g => {
       const W2 = 62, hgt = 34 + tier * 2.4;
       const gold = tier >= 8;
@@ -1980,7 +2109,7 @@ KS.Art = (() => {
   }
 
   function gatePost(tier) {
-    const t = Math.max(1, tier);
+    const t = Math.max(1, lookOf(tier));
     return make(`gatepost:${t}`, 40, 96, g => {
       const hgt = 42 + t * 2.4;
       aoShadow(g, 13, 5.4, 0.3);
@@ -2756,9 +2885,13 @@ KS.Art = (() => {
 
   // Schwert (zeigt nach oben, Griff am Ursprung)
   function sword(tier) {
-    const w = KS.CFG.WEAPONS[tier - 1];
-    const L = 24 + tier * 2.6;
-    return make(`sword:${tier}`, 34, L + 24, g => {
+    const w = KS.CFG.weaponFor(tier);
+    // Optik nach der benannten Klinge, nicht nach der rohen Stufe: sonst
+    // würde das Schwert auf Stufe 50 unförmig lang und es lägen 50 Sprites
+    // im Zwischenspeicher.
+    const look = Math.min(w.look || tier, KS.CFG.WEAPONS.length);
+    const L = 24 + look * 2.6;
+    return make(`sword:${look}`, 34, L + 24, g => {
       g.translate(0, -6);
       if (w.glow) {
         g.save();
@@ -2785,15 +2918,15 @@ KS.Art = (() => {
       g.quadraticCurveTo(0, -4.4, 8, -0.5);
       g.quadraticCurveTo(0, 1.4, -8, -0.5);
       g.closePath();
-      g.fillStyle = tier >= 5 ? vgrad(g, -4, 2, '#ffe084', '#c9992e') : vgrad(g, -4, 2, '#a8814e', '#6e4a26');
+      g.fillStyle = look >= 5 ? vgrad(g, -4, 2, '#ffe084', '#c9992e') : vgrad(g, -4, 2, '#a8814e', '#6e4a26');
       g.fill(); outline(g, 1.6);
       rr(g, -1.9, 1.4, 3.8, 8.6, 1.6);
       g.fillStyle = vgrad(g, 1, 10, '#6e4a26', '#3f2a12'); g.fill(); outline(g, 1.4);
       g.strokeStyle = 'rgba(255,220,160,0.4)'; g.lineWidth = 0.8;
       for (const gy of [3.4, 5.4, 7.4]) { g.beginPath(); g.moveTo(-1.6, gy); g.lineTo(1.6, gy); g.stroke(); }
       ell(g, 0, 12, 2.8, 2.8);
-      g.fillStyle = tier >= 5 ? '#f2d24a' : '#8a6a3a'; g.fill(); outline(g, 1.4);
-      if (tier >= 9) { ell(g, 0, 12, 1.3, 1.3); g.fillStyle = '#e5484d'; g.fill(); }
+      g.fillStyle = look >= 5 ? '#f2d24a' : '#8a6a3a'; g.fill(); outline(g, 1.4);
+      if (look >= 9) { ell(g, 0, 12, 1.3, 1.3); g.fillStyle = '#e5484d'; g.fill(); }
     }, 15);
   }
 
@@ -3495,6 +3628,6 @@ KS.Art = (() => {
     make, draw, building, padPlate, monster, king, sword, villager, worker, coin,
     prop, paintGround, generateProps,
     wallPost, wallRubble, gatePost, gateDoor, gateBroken, drawStar,
-    matFor, MATS, TOWER_ACCENT,
+    matFor, MATS, TOWER_ACCENT, lookOf,
   };
 })();

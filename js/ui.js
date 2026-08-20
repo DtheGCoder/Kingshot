@@ -846,7 +846,7 @@ KS.UI = (() => {
       ['moon', Math.max(0, st.day - 1), 'Nächte überstanden'],
       ['time', mins >= 60 ? Math.floor(mins / 60) + ' h ' + (mins % 60) + ' min' : mins + ' min', 'Spielzeit'],
       ['castle', 'Stufe ' + (st.buildings.castle ? st.buildings.castle.tier : 1), 'Burg'],
-      ['sword', CFG.WEAPONS[G.weaponTier - 1].name, 'Waffe'],
+      ['sword', CFG.weaponFor(G.weaponTier).name, 'Waffe'],
     ];
     $('stats-grid').innerHTML = rows.map(r =>
       `<div class="stat-box"><div class="sv">${icon(r[0])} ${r[1]}</div><div class="sl">${r[2]}</div></div>`

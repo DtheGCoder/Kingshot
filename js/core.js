@@ -27,7 +27,11 @@ KS.U = {
     if (n < 10000) return (n / 1000).toFixed(2).replace(/\.?0+$/, '') + 'k';
     if (n < 1e6) return (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
     if (n < 1e9) return (n / 1e6).toFixed(2).replace(/\.?0+$/, '') + 'M';
-    return (n / 1e9).toFixed(2).replace(/\.?0+$/, '') + 'B';
+    if (n < 1e12) return (n / 1e9).toFixed(2).replace(/\.?0+$/, '') + 'B';
+    if (n < 1e15) return (n / 1e12).toFixed(2).replace(/\.?0+$/, '') + 'T';
+    if (n < 1e18) return (n / 1e15).toFixed(2).replace(/\.?0+$/, '') + 'Q';
+    // Darüber hinaus: Zehnerpotenz, damit nie „Infinity" oder Kauderwelsch steht
+    return (n / 1e18).toFixed(2).replace(/\.?0+$/, '') + 'Qi';
   },
 
   // Deterministischer RNG (mulberry32) für Deko
