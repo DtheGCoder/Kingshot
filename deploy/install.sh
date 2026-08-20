@@ -19,6 +19,7 @@
 #    sudo ./deploy/install.sh --domain D --email a@b.de     # E-Mail für erste Certbot-Registrierung
 #    sudo ./deploy/install.sh --domain D --cert PFAD --key PFAD  # eigenes Zertifikat
 #    sudo ./deploy/install.sh --install-nginx          # nginx mitinstallieren
+#    sudo ./deploy/install.sh --force                  # fremdes Webroot trotzdem nutzen
 # ============================================================
 set -euo pipefail
 
@@ -31,6 +32,7 @@ NO_HTTPS=0
 CERT=""
 KEY=""
 EMAIL=""
+FORCE=0
 
 # ---------- Argumente ----------
 while [[ $# -gt 0 ]]; do
@@ -43,6 +45,7 @@ while [[ $# -gt 0 ]]; do
     --email)   EMAIL="$2"; shift 2 ;;
     --no-https) NO_HTTPS=1; shift ;;
     --install-nginx) INSTALL_NGINX=1; shift ;;
+    --force)   FORCE=1; shift ;;
     -h|--help)
       grep '^#' "$0" | head -22; exit 0 ;;
     *) echo "Unbekannte Option: $1 (siehe --help)"; exit 1 ;;
@@ -102,7 +105,7 @@ CONF_RHEL="/etc/nginx/conf.d/${SITE_NAME}.conf"
 
 # ---------- Konflikte prüfen ----------
 if [[ -z "$DOMAIN" ]]; then
-  CONFLICT=$(grep -RslE "listen[^;]*[ :]${PORT}([; ])" /etc/nginx/ 2>/dev/null \
+  CONFLICT=$(grep -RslE "^[^#]*listen[^;]*[ :]${PORT}([; ])" /etc/nginx/ 2>/dev/null \
     | grep -v "${SITE_NAME}.conf" || true)
   if [[ -n "$CONFLICT" ]]; then
     echo "❌ Port ${PORT} wird bereits von einer anderen nginx-Site benutzt:"
@@ -112,13 +115,56 @@ if [[ -z "$DOMAIN" ]]; then
   fi
 else
   # server_name darf nicht schon woanders vergeben sein
-  NAME_CONFLICT=$(grep -RslE "server_name[^;]*(^|[ \t])${DOMAIN//./\\.}([ \t;])" /etc/nginx/ 2>/dev/null \
+  NAME_CONFLICT=$(grep -RslE "^[^#]*server_name[^;]*(^|[ \t])${DOMAIN//./\\.}([ \t;])" /etc/nginx/ 2>/dev/null \
     | grep -v "${SITE_NAME}.conf" || true)
   if [[ -n "$NAME_CONFLICT" ]]; then
     echo "❌ Die Domain ${DOMAIN} wird bereits in einer anderen nginx-Site benutzt:"
     echo "$NAME_CONFLICT" | sed 's/^/     /'
     echo "   Bitte eine eigene (Sub-)Domain für Kingshot verwenden, z. B. kingshot.${DOMAIN#*.}"
     exit 1
+  fi
+fi
+
+# ---------- Rückfall-Server prüfen ----------
+# nginx beantwortet Anfragen an unbekannte Domains mit dem ERSTEN Block auf
+# dem Port ("impliziter Default-Server"). Ist auf 443 nirgends default_server
+# gesetzt, kann Kingshot je nach Ladereihenfolge zum Rückfall werden und
+# fremden Domains sein Zertifikat zeigen — die sehen dann eine
+# Zertifikatswarnung, obwohl mit ihrer Config alles stimmt.
+warn_default_server() {
+  local port="$1" others
+  others=$(grep -RlE "^[^#]*listen[^;]*[ :]${port}([; ]|$)" /etc/nginx/ 2>/dev/null            | grep -v "${SITE_NAME}\.conf" | grep -v '\.bak$' || true)
+  [[ -z "$others" ]] && return 0
+  if grep -RqsE "^[^#]*listen[^;]*[ :]${port}[^;]*default_server" /etc/nginx/ 2>/dev/null; then
+    return 0    # jemand hat den Rückfall schon beansprucht — alles gut
+  fi
+  echo
+  echo "⚠️  Auf Port ${port} laufen schon andere Sites, aber keine ist als"
+  echo "    default_server markiert:"
+  echo "$others" | head -5 | sed 's/^/      /'
+  echo "    Dann entscheidet die Ladereihenfolge, wer Anfragen an unbekannte"
+  echo "    Domains beantwortet — im Zweifel Kingshot. Damit deine Hauptseite"
+  echo "    der Rückfall bleibt, dort einmalig ergänzen:"
+  echo "      listen ${port}${2:+ $2} default_server;"
+  echo
+}
+
+# ---------- Webroot-Schutz ----------
+# Das Kopieren räumt css/, js/ und assets/ im Webroot auf. Zeigt --root
+# versehentlich auf ein Verzeichnis, in dem schon eine ANDERE Seite liegt,
+# wären deren Dateien weg. Also vorher prüfen, wem das Verzeichnis gehört.
+if [[ -d "$WEBROOT" ]] && [[ -n "$(ls -A "$WEBROOT" 2>/dev/null)" ]]; then
+  if [[ ! -f "$WEBROOT/js/game.js" && ! -f "$WEBROOT/version.json" ]]; then
+    echo "❌ ${WEBROOT} ist nicht leer und sieht nicht nach einer früheren"
+    echo "   Kingshot-Installation aus. Dort liegt offenbar eine andere Seite:"
+    ls -A "$WEBROOT" | head -8 | sed 's/^/     /'
+    echo
+    echo "   Das Kopieren würde dort css/, js/ und assets/ ersetzen."
+    echo "   Nimm ein eigenes Verzeichnis, z. B.:"
+    echo "     sudo $0 --root /var/www/kingshot ${DOMAIN:+--domain $DOMAIN}"
+    echo "   Wenn du wirklich genau dieses Verzeichnis willst:  --force"
+    [[ $FORCE -eq 0 ]] && exit 1
+    echo "   ⚠️  --force gesetzt — mache trotzdem weiter."
   fi
 fi
 
@@ -396,6 +442,8 @@ if [[ -n "$DOMAIN" && $NO_HTTPS -eq 0 && $USE_HTTPS -eq 0 ]]; then
 fi
 
 if [[ $USE_HTTPS -eq 1 ]]; then
+  warn_default_server 443 ssl
+  warn_default_server 80
   write_conf_and_reload "$(build_https_conf)" || exit 1
   echo "✅ HTTPS-Site aktiv: $TARGET_CONF"
   # Nach Zertifikats-Verlängerung nginx automatisch neu laden

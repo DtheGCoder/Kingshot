@@ -83,6 +83,26 @@ sudo ./deploy/install.sh --domain D --no-https          # Domain, bewusst ohne T
 - Das Skript prüft vorab **Port- und Domain-Konflikte** mit bestehenden Sites und
   schreibt ausschließlich in seine eigene `kingshot.conf`.
 
+### 🚑 Wenn etwas mit nginx nicht stimmt
+
+```bash
+sudo ./deploy/notfall.sh          # nur nachsehen: läuft nginx? Config gültig? Logs?
+sudo ./deploy/notfall.sh --aus    # Kingshot-Site abschalten + nginx neu laden
+sudo ./deploy/notfall.sh --an     # wieder einschalten
+```
+
+`--aus` nimmt **nur** die Kingshot-Site heraus und lässt alles andere unangetastet.
+Gehen deine Seiten danach wieder, war es Kingshot; bleibt der Fehler, sagt dir
+`nginx -t` in der Diagnose, welche fremde Datei und Zeile gemeint ist.
+
+Die Diagnose zeigt außerdem, wer der **default_server** ist — also welche Site
+Anfragen an unbekannte Domains beantwortet. Ist dort keiner gesetzt, entscheidet
+die Ladereihenfolge der Dateinamen, und dann kann eine Site für fremde Domains
+ihr Zertifikat zeigen (Browser meldet einen Zertifikatsfehler, obwohl die Config
+der anderen Seite in Ordnung ist). Abhilfe: bei deiner Hauptseite einmalig
+`listen 443 ssl default_server;` ergänzen. `install.sh` warnt inzwischen von
+selbst, wenn diese Lücke besteht.
+
 ### Updaten / Entfernen
 
 > **Welche Version läuft gerade?** Im Spiel ⚙-Menü → *Optionen*, unten steht die
