@@ -1340,3 +1340,15 @@ html, body {
 }
 .mk-need .ico { width: 13px; height: 13px; flex: none; }
 #market-count { font-weight: 900; color: #8a6018; }
+
+/* Menü-Fuß: Weiterspielen und Lauf beenden nebeneinander */
+#menu-actions { display: flex; gap: 8px; align-items: stretch; }
+#menu-actions #menu-close { flex: 1 1 58%; }
+#menu-actions #btn-endrun { flex: 1 1 42%; font-size: 14px; padding-left: 8px; padding-right: 8px; }
+#menu-actions #btn-endrun .ico { width: 16px; height: 16px; }
+@media (max-width: 380px) {
+  #menu-actions { flex-direction: column; }
+  #menu-actions #menu-close, #menu-actions #btn-endrun { flex: none; }
+}
+/* Freiwilliger Rückzug: keine Flammen, sondern ein ruhiges Zeichen */
+.defeat-ico.calm { fill: #6a4ab8; filter: drop-shadow(0 3px 8px rgba(120,80,200,0.45)); }

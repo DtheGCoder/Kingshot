@@ -433,7 +433,6 @@
       <label class="opt-row"><span><svg class="ico"><use href="#i-note"/></svg> Musik</span><input type="checkbox" id="opt-music" checked></label>
       <label class="opt-row"><span><svg class="ico"><use href="#i-shake"/></svg> Bildschirm-Wackeln</span><input type="checkbox" id="opt-shake" checked></label>
       <div class="opt-actions">
-        <button id="btn-endrun" class="small-btn star">Lauf aufgeben &amp; Essenz bergen</button>
         <button id="btn-export" class="small-btn">Spielstand exportieren</button>
         <button id="btn-import" class="small-btn">Spielstand importieren</button>
         <button id="btn-reset" class="small-btn danger">Neu beginnen</button>
@@ -441,7 +440,13 @@
       <div class="menu-credits">Auto-Save aktiv — dein Fortschritt wird ständig gesichert.<br>
         Version <span id="opt-version">…</span></div>
     </div>
-    <button id="menu-close" class="big-btn"><svg class="ico"><use href="#i-play"/></svg> Weiterspielen</button>
+    <div id="menu-actions">
+      <button id="menu-close" class="big-btn"><svg class="ico"><use href="#i-play"/></svg> Weiterspielen</button>
+      <button id="btn-endrun" class="big-btn ess-btn">
+        <svg class="ico"><use href="#i-sparkle"/></svg>
+        <span id="endrun-lbl">Lauf beenden</span>
+      </button>
+    </div>
   </div>
 </div>
 

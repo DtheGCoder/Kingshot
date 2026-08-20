@@ -36,6 +36,7 @@ KS.UI = (() => {
       menu: $('menu'), menuDay: $('menu-day'), statsGrid: $('stats-grid'), chronik: $('chronik-list'),
       title: $('title-screen'), titleInfo: $('title-info'),
       defeat: $('defeat'), defeatTitle: $('defeat-title'), defeatText: $('defeat-text'),
+      defeatIco: document.querySelector('.defeat-ico'), endrunLbl: $('endrun-lbl'),
       market: $('market-panel'), marketRows: $('market-rows'),
       marketGold: $('market-gold-txt'), marketCount: $('market-count'),
       actBtn: $('act-btn'), actIco: $('act-ico'), actTitle: $('act-title'),
@@ -165,9 +166,10 @@ KS.UI = (() => {
     wire('btn-endrun', 'click', () => {
       KS.Audio.SFX.click();
       const r = KS.Game.pendingEssence();
-      if (!confirm(`Diesen Lauf jetzt aufgeben?\n\nDu bekommst ${U.fmt(r.total)} Weltenessenz und beginnst danach von vorn.`)) return;
+      if (!confirm(`Diesen Lauf jetzt beenden?\n\nEs wird behandelt wie eine Niederlage: `
+        + `${U.fmt(r.total)} Weltenessenz, danach der Sternenbaum und ein neuer Lauf.`)) return;
       toggleMenu(false);
-      KS.Game.harvestRun();
+      KS.Game.giveUpRun();
     });
     // Platzierungsleiste
     wire('place-cancel', 'click', () => { KS.Audio.SFX.click(); KS.Game.cancelPlaceMode(); });
@@ -832,7 +834,9 @@ KS.UI = (() => {
       `<div><div class="mp-lbl">Weltenessenz</div>` +
       `<div class="mp-val">${icon('sparkle')}${U.fmt(st.essence || 0)}</div></div>` +
       `<div class="mp-runs">${st.runs || 0} ${(st.runs || 0) === 1 ? 'Lauf' : 'Läufe'} · bester Tag ${st.runBest || 0}<br>` +
-      `${owned}/${total} Segnungen · ${U.fmt(st.essenceTotal || 0)} je geborgen</div>`;
+      `${owned}/${total} Segnungen · ${U.fmt(st.essenceTotal || 0)} je geborgen<br>` +
+      `${U.fmt((st.lifetime || {}).kills || 0)} Monster · ` +
+      `${U.fmt((st.lifetime || {}).bossKills || 0)} Bosse insgesamt</div>`;
 
     // Reiter je Zweig
     els.metaTabs.innerHTML = Object.entries(CFG.META_BRANCHES).map(([br, b]) => {
@@ -1043,11 +1047,26 @@ KS.UI = (() => {
     if (els.defeat) els.defeat.classList.add('hidden');
   }
 
-  function showDefeat(day) {
-    els.defeatTitle.textContent = `Die Burg ist gefallen… (Nacht ${day})`;
+  function showDefeat(day, freiwillig) {
+    els.defeatTitle.textContent = freiwillig
+      ? `Rückzug an Tag ${day}`
+      : `Die Burg ist gefallen… (Nacht ${day})`;
+    if (els.defeatText) {
+      els.defeatText.textContent = freiwillig
+        ? 'Du beendest diesen Lauf aus freiem Willen. Was du erkämpft hast, bleibt: '
+          + 'als Weltenessenz für den Sternenbaum.'
+        : 'Dieser Lauf ist zu Ende — der Bann der Leere holt jeden ein. Doch was du '
+          + 'erkämpft hast, bleibt: als Weltenessenz für den Sternenbaum.';
+    }
+    if (els.defeatIco) {
+      els.defeatIco.classList.toggle('calm', !!freiwillig);
+      // Beim Rückzug brennt nichts — das Zeichen soll das auch sagen
+      const u = els.defeatIco.querySelector('use');
+      if (u) u.setAttribute('href', freiwillig ? '#i-sparkle' : '#i-flame');
+    }
     updateDefeatEssence();
     els.defeat.classList.remove('hidden');
-    KS.Audio.SFX.defeat();
+    if (freiwillig) KS.Audio.SFX.essence(); else KS.Audio.SFX.defeat();
   }
 
   // ---------- Menü ----------
@@ -1056,6 +1075,11 @@ KS.UI = (() => {
     if (show) {
       const st = KS.Game.G.state;
       els.menuDay.textContent = `Tag ${st.day} · Kapitel ${st.chapterShown + 1} „${CFG.CHAPTERS[Math.min(Math.max(0, st.chapterShown), CFG.CHAPTERS.length - 1)].title}“`;
+      // Der Knopf sagt gleich, was der Rückzug einbringt
+      if (els.endrunLbl && KS.Game.pendingEssence) {
+        const r = KS.Game.pendingEssence();
+        els.endrunLbl.textContent = `Lauf beenden (+${U.fmt(r.total)})`;
+      }
       $('opt-sfx').checked = KS.Audio.sfxOn;
       $('opt-music').checked = KS.Audio.musicOn;
       $('opt-shake').checked = st.settings.shake !== false;
@@ -1081,6 +1105,9 @@ KS.UI = (() => {
   function renderStats() {
     const G = KS.Game.G, st = G.state;
     const mins = Math.floor(st.stats.playTime / 60);
+    // Über alle Läufe: „stats“ zählt nur den laufenden
+    const lt = st.lifetime || {};
+    const ges = k => (lt[k] || 0) + (st.stats[k] || 0);
     const rows = [
       ['swords', U.fmt(st.stats.kills), 'Monster besiegt'],
       ['crown', st.stats.bossKills, 'Bosse bezwungen'],
@@ -1092,6 +1119,10 @@ KS.UI = (() => {
       ['sword', CFG.weaponFor(G.weaponTier).name, 'Waffe'],
       ['sparkle', U.fmt(st.essence || 0), 'Weltenessenz'],
       ['star', (st.runs || 0) + ' · Tag ' + (st.runBest || 0), 'Läufe / bester Tag'],
+      ['swords', U.fmt(ges('kills')), 'Monster über alle Läufe'],
+      ['crown', U.fmt(ges('bossKills')), 'Bosse über alle Läufe'],
+      ['coin', U.fmt(ges('goldEarned')), 'Gold über alle Läufe'],
+      ['skull', U.fmt(ges('defeats')), 'gefallene Königreiche'],
       ['skull', 'Stufe ' + CFG.SCALE.voidTier(st.day, G.voidDelay || 0),
         'Bann der Leere (ab Tag ' + CFG.SCALE.voidStart(G.voidDelay || 0) + ')'],
     ];

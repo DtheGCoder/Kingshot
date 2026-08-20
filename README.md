@@ -206,6 +206,12 @@ tail -f /var/log/kingshot-update.log     # was ist passiert?
   Lauf ist vorbei. Auf dem Niederlagen-Bildschirm birgst du die **Weltenessenz**,
   wählst im **Sternenbaum** deine Segnungen — und beginnst mit **„Lauf N beginnen“**
   von vorn, aber stärker. Der Sternenbaum ist nur auf diesem Weg erreichbar.
+- **Freiwillig aufhören:** Im ⚙️-Menü steht neben „Weiterspielen“ ein
+  **„Lauf beenden (+N)“** — der Knopf sagt gleich, wieviel Essenz drin ist. Er läuft
+  durch **genau denselben Weg** wie eine Niederlage: derselbe Bildschirm (nur mit
+  anderem Text und ruhigem Zeichen statt Flamme), dieselbe Essenz, derselbe
+  Sternenbaum, derselbe nächste Lauf. Nützlich, wenn eine Nacht ohnehin verloren ist
+  oder man gezielt Essenz sammeln will.
 
 ## 🏰 Gebäude (je **50 Stufen**, mit sichtbarer Evolution über zehn Materialien)
 
@@ -413,9 +419,15 @@ Essenz = erreichter Tag ^1,6 × 1,6  +  60 je gefallener Boss
 
 ```
 Lauf spielen  →  Burg fällt  →  Essenz bergen  →  im Sternenbaum kaufen
-      ↑                                                      │
+      ↑              ODER                                     │
+      │         „Lauf beenden“                                │
       └──────────────  „Lauf N beginnen“  ←──────────────────┘
 ```
+
+Beide Wege — gefallen oder freiwillig beendet — münden in dieselbe Funktion, damit
+es nie zwei Wahrheiten gibt: gezählte Niederlage, geleertes Feld, Essenz, Baum,
+neuer Lauf. Zweimal drücken (oder mitten im Bildschirm noch sterben) beendet den
+Lauf trotzdem nur einmal.
 
 Wichtig an dieser Reihenfolge: der **neue Lauf entsteht erst, wenn du den Baum
 verlässt**. Was du gerade gekauft hast, steht damit schon an Tag 1 auf dem Feld —
@@ -461,6 +473,12 @@ deshalb trägt er die Plakette SCHLÜSSEL.
 
 Weltenessenz, Segnungen, Laufzähler und Rekorde liegen **außerhalb** des Laufs im
 Spielstand: sie überleben jede Niederlage, jeden neuen Lauf und jedes Update.
+
+Dazu eine **Gesamtbilanz** über alle Läufe (`lifetime`): Monster, Bosse, Gold,
+Münzen, Nächte, Spielzeit und gefallene Königreiche. Vorher zählte nur `stats`,
+und das wird mit jedem Lauf zurückgesetzt — „Niederlagen“ stand dort also immer
+auf 0 oder 1. Beide Zahlen stehen jetzt im ⚙️-Menü nebeneinander: der laufende
+Lauf und die Summe aller.
 
 ### ⚔️ Warum Bosse jetzt ein Kampf sind
 

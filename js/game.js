@@ -53,6 +53,9 @@ KS.Game = (() => {
       bossesKilled: {},
       killsByClass: {},
       stats: { kills: 0, bossKills: 0, goldEarned: 0, coins: 0, days: 0, playTime: 0, defeats: 0 },
+      // Dasselbe über ALLE Läufe. „stats“ zählt den laufenden Lauf und wird
+      // mit ihm zurückgesetzt — Niederlagen wären dort immer 0 oder 1.
+      lifetime: { kills: 0, bossKills: 0, goldEarned: 0, coins: 0, days: 0, playTime: 0, defeats: 0 },
       log: [],
       night: null,
       settings: { sfx: true, music: true, shake: true, questCollapsed: false },
@@ -82,6 +85,7 @@ KS.Game = (() => {
     G.wallFlash = new Array(CFG.WALL.segs).fill(0);
     G.gateFlash = new Array(CFG.GATES.length).fill(0);
     G.nearPad = null; G.buildArmed = null; G.buildLock = null;
+    G.defeatShown = false;
     // Wirtschaft
     G.workers = [];
     G.haulers = [];      // Träger Lager → Werk (reine Optik)
@@ -234,10 +238,14 @@ KS.Game = (() => {
     G.defeatQueued = true;
   }
 
-  function performDefeat() {
+  function performDefeat(freiwillig) {
     const st = G.state;
+    // Doppelt drücken, oder sterben während der Bildschirm schon offen ist,
+    // darf den Lauf nicht zweimal beenden.
+    if (st.runEnded || G.defeatShown) return;
+    G.defeatShown = true;
     st.stats.defeats += 1;
-    log('Die Burg ist gefallen…');
+    log(freiwillig ? 'Der König bläst zum Rückzug…' : 'Die Burg ist gefallen…');
     // Monster ziehen ab
     for (const m of G.monsters) {
       Ent.burst(G, m.x, m.y - m.r, 5, { colors: [m.sp.c1, m.sp.c2], speed: 80, up: 90 });
@@ -246,10 +254,20 @@ KS.Game = (() => {
     G.projectiles.length = 0;
     G.boss = null;
     KS.UI.hideBossBar();
-    G.shake = 16;
+    G.shake = freiwillig ? 0 : 16;
     setPaused(true);
-    KS.UI.showDefeat(st.day);
+    KS.UI.showDefeat(st.day, freiwillig);
     save();
+  }
+
+  // Lauf freiwillig beenden. Läuft absichtlich durch GENAU denselben Weg wie
+  // eine Niederlage: derselbe Bildschirm, dieselbe Essenz, derselbe
+  // Sternenbaum, derselbe nächste Lauf. Nur der Text ist ein anderer.
+  function giveUpRun() {
+    if (G.placeMode) cancelPlaceMode();
+    KS.UI.hidePlaceBar();
+    G.defeatQueued = false;
+    performDefeat(true);
   }
 
   // ================== LAUF BEENDEN / WELTENESSENZ ==================
@@ -331,6 +349,10 @@ KS.Game = (() => {
     st.runBossBest = Math.max(st.runBossBest || 0, st.stats.bossKills || 0);
     st.lastReward = { roh: rew.roh, bonus: rew.bonus, total: rew.total,
                       day: st.day, bosses: st.stats.bossKills || 0 };
+    // Lauf-Zahlen in die Gesamtbilanz übernehmen, bevor der Lauf endet
+    if (!st.lifetime) st.lifetime = { kills: 0, bossKills: 0, goldEarned: 0, coins: 0, days: 0, playTime: 0, defeats: 0 };
+    for (const k of Object.keys(st.lifetime)) st.lifetime[k] += st.stats[k] || 0;
+    st.lifetime.days += Math.max(0, (st.day || 1) - 1);
     st.runEnded = true;
     G.monsters.length = 0; G.projectiles.length = 0; G.boss = null;
     log(`Lauf ${st.runs} beendet — ${rew.total} Weltenessenz geborgen.`);
@@ -353,6 +375,7 @@ KS.Game = (() => {
       runBest: old.runBest || 0,
       runBossBest: old.runBossBest || 0,
       chaptersSeen: JSON.parse(JSON.stringify(old.chaptersSeen || {})),
+      lifetime: JSON.parse(JSON.stringify(old.lifetime || {})),
       settings: JSON.parse(JSON.stringify(old.settings || {})),
     };
     const st = newState();
@@ -1583,7 +1606,7 @@ KS.Game = (() => {
 
   return {
     G, boot, save, requestSave, serialize, hardReset, loadImported,
-    setPaused, onDefeat, harvestRun, startNextRun, pendingEssence, log, pingQuestTarget,
+    setPaused, onDefeat, giveUpRun, harvestRun, startNextRun, pendingEssence, log, pingQuestTarget,
     startPlaceMode, cancelPlaceMode, confirmPlaceMode,
   };
 })();
