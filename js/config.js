@@ -172,13 +172,13 @@ KS.CFG = (() => {
     wall: {
       name: 'Stadtmauer', ico: 'wall', kind: 'wall', tiers: 10,
       baseCost: 150, costMul: 1.85,
-      segHp: t => Math.round(260 * Math.pow(1.5, t - 1)),
+      segHp: t => Math.round(780 * Math.pow(1.5, t - 1)),
       desc: 'Schützt das Dorf. Abschnitte können brechen — im Morgengrauen wird repariert.',
     },
     gates: {
       name: 'Stadttore', ico: 'gate', kind: 'gates', tiers: 10,
       baseCost: 200, costMul: 1.85,
-      gateHp: t => Math.round(340 * Math.pow(1.5, t - 1)),   // etwas zäher als die Mauer
+      gateHp: t => Math.round(1020 * Math.pow(1.5, t - 1)),  // etwas zäher als die Mauer
       desc: 'Verschließt alle acht Durchgänge. Ohne Tore läuft die Horde einfach hindurch.',
     },
     // ---- Wirtschaft: Sammler (schicken Arbeiter ins Feld) ----

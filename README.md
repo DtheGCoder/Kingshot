@@ -208,8 +208,13 @@ tail -f /var/log/kingshot-update.log     # was ist passiert?
 | 🍺 **Tavernen** (2×) | Beherbergen Überlebende, die Steuern zahlen |
 | ⚒️ **Schmiede** | Schmiedet 10 immer mächtigere Königsklingen (ab Stufe 5 mit Klingenwelle!) |
 | 🛒 **Markt** | Shop mit 6 dauerhaften König-Upgrades: Leben, Tempo, Magnet, Krit, Gold, Rüstung. Öffnet per Tipp aufs Gebäude — solange er offen ist, **ruht das ganze Spiel** |
-| 🧱 **Stadtmauer** | Ring aus 16 Abschnitten mit eigenen HP — Monster brechen einzelne Abschnitte durch, morgens wird repariert. Auf der Mauer stehen **Bogenschützen**: sie beschießen jeden, der an Mauer oder Tor nagt, überall am Ring. Zahl und Schaden wachsen mit der Mauerstufe |
-| 🚪 **Stadttore** | Verschließen alle acht Durchgänge, sonst spaziert die Horde einfach hindurch. Eigene HP, werden aufgebrochen und im Morgengrauen wieder eingesetzt |
+| 🧱 **Stadtmauer** | Ring aus 16 Abschnitten mit eigenen HP (780 auf Stufe 1, ×1,5 je Stufe) — Monster brechen einzelne Abschnitte durch, morgens wird repariert. Auf der Mauer stehen **Bogenschützen**: sie beschießen jeden, der an Mauer oder Tor nagt, überall am Ring. Zahl und Schaden wachsen mit der Mauerstufe |
+| 🚪 **Stadttore** | Verschließen alle acht Durchgänge, sonst spaziert die Horde einfach hindurch. Eigene HP (1020 auf Stufe 1), werden aufgebrochen und im Morgengrauen wieder eingesetzt |
+
+> **Ausbauen heilt:** Wer Mauer oder Tore eine Stufe hochzieht, bekommt sie sofort
+> unbeschädigt zurück — auch bereits durchbrochene Abschnitte und aufgebrochene
+> Tore. Frisch gemauert ist frisch gemauert. Ohne Ausbau bleibt Schaden bis zum
+> Morgengrauen stehen.
 | ✨ **Schrein des Lichts** | Heil-Aura für König und Burg |
 
 ### 🌾 Wirtschaft — alles endet in Gold

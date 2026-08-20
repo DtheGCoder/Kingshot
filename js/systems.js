@@ -102,7 +102,14 @@ KS.Systems = (() => {
     G.wallMax = wallB && wallB.tier >= 1 ? Math.round(CFG.BUILDINGS.wall.segHp(wallB.tier) * G.tech.wallHp) : 0;
     if (G.wallMax > 0) {
       if (!st.wall || !Array.isArray(st.wall.hp) || st.wall.hp.length !== CFG.WALL.segs) {
-        st.wall = { hp: Array.from({ length: CFG.WALL.segs }, () => G.wallMax) };
+        st.wall = { hp: Array.from({ length: CFG.WALL.segs }, () => G.wallMax), tier: wallB.tier };
+      } else if (st.wall.tier === undefined) {
+        st.wall.tier = wallB.tier;      // alter Spielstand: Stufe nachtragen, nicht heilen
+        for (let i = 0; i < st.wall.hp.length; i++) st.wall.hp[i] = Math.min(st.wall.hp[i], G.wallMax);
+      } else if (st.wall.tier !== wallB.tier) {
+        // Ausgebaut: frisch gemauert ist frisch gemauert — voll auf die neue Stufe
+        st.wall.tier = wallB.tier;
+        for (let i = 0; i < st.wall.hp.length; i++) st.wall.hp[i] = G.wallMax;
       } else {
         for (let i = 0; i < st.wall.hp.length; i++) st.wall.hp[i] = Math.min(st.wall.hp[i], G.wallMax);
       }
@@ -112,7 +119,14 @@ KS.Systems = (() => {
     G.gateMax = gateB && gateB.tier >= 1 ? Math.round(CFG.BUILDINGS.gates.gateHp(gateB.tier) * G.tech.wallHp) : 0;
     if (G.gateMax > 0) {
       if (!st.gates || !Array.isArray(st.gates.hp) || st.gates.hp.length !== CFG.GATES.length) {
-        st.gates = { hp: Array.from({ length: CFG.GATES.length }, () => G.gateMax) };
+        st.gates = { hp: Array.from({ length: CFG.GATES.length }, () => G.gateMax), tier: gateB.tier };
+      } else if (st.gates.tier === undefined) {
+        st.gates.tier = gateB.tier;     // alter Spielstand: Stufe nachtragen, nicht heilen
+        for (let i = 0; i < st.gates.hp.length; i++) st.gates.hp[i] = Math.min(st.gates.hp[i], G.gateMax);
+      } else if (st.gates.tier !== gateB.tier) {
+        // Neue Tore eingesetzt → sofort unbeschädigt, auch die vorher zerstörten
+        st.gates.tier = gateB.tier;
+        for (let i = 0; i < st.gates.hp.length; i++) st.gates.hp[i] = G.gateMax;
       } else {
         for (let i = 0; i < st.gates.hp.length; i++) st.gates.hp[i] = Math.min(st.gates.hp[i], G.gateMax);
       }
