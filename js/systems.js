@@ -970,10 +970,61 @@ KS.Systems = (() => {
     }
   }
 
+  // Vorzug für Belagerer bei der Turm-Zielwahl (in Pixeln „näher" gerechnet).
+  // Groß genug, damit ein Mauerknabberer ein durchgekommenes Monster schlägt,
+  // klein genug, dass ein Gegner direkt am Turm weiter Vorrang hat.
+  const SIEGE_PRIO = 150;
+  // Takt der Mauerwache (Sekunden zwischen den Salven)
+  const GARRISON_INTERVAL = 1.1;
+
+  // Mauerwache: auf der Mauer stehen Bogenschützen. Einzeln sind sie deutlich
+  // schwächer als ein Turm, dafür stehen sie überall.
+  // Ohne sie gibt es tote Winkel: ein Turm deckt nur rund 45° des Mauerrings,
+  // mit drei Türmen bleiben über 130° übrig, in denen Monster die Mauer in
+  // aller Ruhe zerlegen, weil kein Turm sie erreicht.
+  function updateGarrison(G, dt) {
+    const st = G.state;
+    const wb = st.buildings.wall;
+    if (!wb || wb.tier < 1 || G.wallMax <= 0) return;
+    G.garrisonT = (G.garrisonT || 0) + dt;
+    if (G.garrisonT < GARRISON_INTERVAL) return;
+    G.garrisonT = 0;
+
+    // Wer nagt gerade an Mauer oder Tor?
+    const ziele = [];
+    for (const m of G.monsters) if (!m.dead && m.siege) ziele.push(m);
+    if (!ziele.length) return;
+
+    // Zahl der gleichzeitig schießenden Verteidiger und ihr Schaden wachsen
+    // mit der Mauerstufe — ein Grund mehr, die Mauer auszubauen.
+    const schuesse = Math.min(2 + Math.floor(wb.tier / 2), 8, ziele.length);
+    const dmg = 18 * Math.pow(1.26, wb.tier - 1) * G.tech.towerDmg;
+    const { cx, cy } = CFG.WORLD;
+    // Angeschlagene zuerst: gebündeltes Feuer holt Angreifer wirklich runter.
+    // Verteilt man den Schaden gleichmäßig, nimmt jeder etwas Schaden, aber
+    // keiner fällt — und die Mauer bekommt trotzdem die volle Breitseite.
+    ziele.sort((a, b) => a.hp - b.hp);
+    for (let i = 0; i < schuesse; i++) {
+      const m = ziele[i];
+      // Der Schütze steht auf der Mauer, direkt vor dem Angreifer
+      const ang = Math.atan2(m.y - cy, m.x - cx);
+      const sx = cx + Math.cos(ang) * (CFG.WALL.r - 8);
+      const sy = cy + Math.sin(ang) * (CFG.WALL.r - 8) - 26;
+      const a = U.angleTo(sx, sy, m.x, m.y - m.r * 0.5);
+      G.projectiles.push({
+        kind: 'arrow', x: sx, y: sy,
+        vx: Math.cos(a) * 480, vy: Math.sin(a) * 480,
+        t: 0, ttl: 0.35, dmg, side: 'ally',
+      });
+    }
+    if (schuesse > 0) KS.Audio.SFX.arrow();
+  }
+
   // ============ GEBÄUDE-LOGIK ============
   function updateBuildings(G, dt) {
     const st = G.state;
     regenWalls(G, dt);
+    updateGarrison(G, dt);
     // Türme
     for (const t of G.towers) {
       if (t.flash > 0) t.flash -= dt;
@@ -981,11 +1032,17 @@ KS.Systems = (() => {
       if (t.cd > 0) continue;
       const s = t.stats;
       G.grid.query(t.pad.x, t.pad.y, s.range + 40, G.qbuf);
-      let target = null, bestD = Infinity;
+      // Wer an Mauer oder Tor nagt, wird bevorzugt beschossen: er steht still,
+      // zerlegt deine Verteidigung und ist fast immer etwas WEITER weg als das,
+      // was schon durchgekommen ist. Ohne diesen Vorzug zielen die Türme
+      // grundsätzlich nach innen und die Mauer fällt unbehelligt.
+      let target = null, bestScore = Infinity, bestD = 0;
       for (const m of G.qbuf) {
         if (m.dead) continue;
         const d = U.dist(t.pad.x, t.pad.y, m.x, m.y);
-        if (d - m.r <= s.range && d < bestD) { bestD = d; target = m; }
+        if (d - m.r > s.range) continue;
+        const score = m.siege ? d - SIEGE_PRIO : d;
+        if (score < bestScore) { bestScore = score; bestD = d; target = m; }
       }
       if (!target) { t.cd = 0.08; continue; }
       t.cd = 1 / s.rate;

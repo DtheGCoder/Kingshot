@@ -208,7 +208,7 @@ tail -f /var/log/kingshot-update.log     # was ist passiert?
 | 🍺 **Tavernen** (2×) | Beherbergen Überlebende, die Steuern zahlen |
 | ⚒️ **Schmiede** | Schmiedet 10 immer mächtigere Königsklingen (ab Stufe 5 mit Klingenwelle!) |
 | 🛒 **Markt** | Shop mit 6 dauerhaften König-Upgrades: Leben, Tempo, Magnet, Krit, Gold, Rüstung. Öffnet per Tipp aufs Gebäude — solange er offen ist, **ruht das ganze Spiel** |
-| 🧱 **Stadtmauer** | Ring aus 16 Abschnitten mit eigenen HP — Monster brechen einzelne Abschnitte durch, morgens wird repariert |
+| 🧱 **Stadtmauer** | Ring aus 16 Abschnitten mit eigenen HP — Monster brechen einzelne Abschnitte durch, morgens wird repariert. Auf der Mauer stehen **Bogenschützen**: sie beschießen jeden, der an Mauer oder Tor nagt, überall am Ring. Zahl und Schaden wachsen mit der Mauerstufe |
 | 🚪 **Stadttore** | Verschließen alle acht Durchgänge, sonst spaziert die Horde einfach hindurch. Eigene HP, werden aufgebrochen und im Morgengrauen wieder eingesetzt |
 | ✨ **Schrein des Lichts** | Heil-Aura für König und Burg |
 
@@ -240,6 +240,18 @@ Sammler versorgt zwei Verarbeiter. Rohstoffe zahlen außerdem die Forschung.
 | 📦 **Wirtschaft** | Schubkarren (+30 % je Fuhre), Große Speicher, Zünfte (+30 % Gold der Werke), Wasserkraft (Werke doppelt so schnell) |
 | ⚔️ **Militär** | Königsschliff (+25 % Königsschaden), Ballistik, Nachtwache (Mauer & Tore heilen nachts), Großes Arsenal (+50 % Turmschaden) |
 | 👑 **Reich** | Landvermessung (engere Bauplätze), Rechnungsbuch (−10 % Baukosten), Herolde (doppelte Zuwanderung), Baumeister (Einzahlen doppelt so schnell), Goldenes Zeitalter (+30 % auf alles Gold) |
+
+### 🏹 Warum die Mauer eigene Verteidiger braucht
+
+Ein Turm deckt nur rund 45° des Mauerrings. Gemessen heißt das: mit **einem**
+Turm sind 286° der Mauer für ihn unerreichbar, mit **drei** noch 138° — genau
+dort konnten Monster früher in aller Ruhe die Mauer zerlegen, während die Türme
+nichts trafen. Erst mit acht Türmen ist der Ring vollständig gedeckt. Die
+Mauerwache schließt diese toten Winkel: sie ist schwächer als ein Turm, steht
+aber überall, konzentriert ihr Feuer auf Angeschlagene und macht so jeden
+Angriff auf die Mauer teuer. Türme bleiben trotzdem die Hauptverteidigung —
+und die Türme priorisieren jetzt Gegner, die an Mauer oder Tor hängen, statt
+immer nur das nächstgelegene Ziel zu nehmen.
 
 ## 👹 Monster — 24 Arten in 12 Klassen + 10 Bosse
 

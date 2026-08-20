@@ -595,6 +595,7 @@ KS.Ent = (() => {
       rangedCd: U.rand(0.5, 1.5), lunge: 0, face: 1,
       state: 'march', dead: false,
       fly: sp.fly, venom: sp.venom,
+      siege: false,          // nagt gerade an Mauer oder Tor → Türme bevorzugen es
     };
     G.monsters.push(m);
     return m;
@@ -672,6 +673,11 @@ KS.Ent = (() => {
           }
         }
       }
+
+      // Merken, wer sich an Mauer oder Tor zu schaffen macht. Ohne diese
+      // Markierung nehmen die Türme immer nur das NÄCHSTE Ziel — und das ist
+      // fast immer etwas weiter innen, während die Mauer ungestört fällt.
+      m.siege = (wallSeg >= 0 || gateIdx >= 0);
 
       // Fernkampf (nicht gegen Mauer/Tor — die werden im Nahkampf zerlegt)
       if (m.sp.ranged && wallSeg < 0 && gateIdx < 0) {
