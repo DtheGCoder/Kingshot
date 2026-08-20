@@ -42,6 +42,9 @@ KS.Game = (() => {
       runs: 0,               // abgeschlossene Läufe
       runBest: 0,            // bester je erreichter Tag
       runBossBest: 0,        // meiste Bosse in einem Lauf
+      runEnded: false,       // Lauf vorbei, wartet auf den Sternenbaum
+      lastReward: null,      // Ausbeute des letzten Laufs (für die Anzeige)
+      chaptersSeen: {},      // je gelesene Kapitel — über alle Läufe hinweg
       res: { wood: 0, stone: 0, grain: 0 },      // Lagerbestand
       resTotal: { wood: 0, stone: 0, grain: 0 }, // je gelieferte Gesamtmenge
       placed: [], placedSeq: 0,                  // frei platzierte Bauplätze
@@ -232,35 +235,6 @@ KS.Game = (() => {
     save();
   }
 
-  function reviveAfterDefeat() {
-    const st = G.state;
-    st.gold = Math.floor(st.gold * (G.defeatKeep || 0.7));   // Rest des getragenen Goldes verloren
-    st.baseHp = Math.round(G.baseHpMax * 0.5);
-    st.player.hp = G.playerHpMax;
-    // Abseits jedes Bauplatzes einsteigen, sonst fließt sofort wieder Gold
-    const sp = Sys.safeSpawnPoint();
-    st.player.x = sp.x; st.player.y = sp.y;
-    G.playerDown = false; G.playerInvuln = 3;
-    // Angefangene Bauaufträge verfallen mit der Niederlage
-    G.buildArmed = null; G.buildLock = null; G.nearPad = null;
-    G.depositT = 0; G.depositAcc = 0;
-    st.phase = 'day'; st.phaseT = 0;
-    st.night = null; G.night = null;
-    KS.Audio.setNight(false);
-    // Mauer und Tore wieder aufbauen. Ohne das ginge es mit denselben
-    // Breschen in die nächste Nacht — eine Niederlage würde die nächste
-    // nach sich ziehen, und aus der Spirale käme man nicht mehr heraus.
-    const breached = Sys.restoreDefences(G);
-    KS.UI.banner(`Tag ${st.day}`, 'Ein König gibt niemals auf.');
-    if (breached > 0) {
-      KS.UI.toast(`Mauer und Tore sind wieder dicht (${breached} Durchbrüche geflickt).`, 3800, 'hammer');
-      log(`Mauer und Tore neu errichtet — ${breached} Durchbrüche geschlossen.`);
-    }
-    log('Der Wiederaufbau beginnt — die Hoffnung lebt.');
-    setPaused(false);
-    save();
-  }
-
   // ================== LAUF BEENDEN / WELTENESSENZ ==================
   // Ein Lauf ist nicht zu gewinnen — der Bann der Leere holt jeden ein.
   // Was bleibt, ist Weltenessenz: aus überlebten Tagen und gefallenen Bossen.
@@ -272,7 +246,9 @@ KS.Game = (() => {
     return { roh, bonus: Math.round(roh * 0.15 * lvl), total: Math.round(roh * (1 + 0.15 * lvl)) };
   }
   // Vorschau für Niederlagen-Bildschirm und Menü
-  function pendingEssence() { return essenceReward(G.state); }
+  function pendingEssence() {
+    return G.state.runEnded && G.state.lastReward ? G.state.lastReward : essenceReward(G.state);
+  }
 
   // Startvorteile aus dem Zweig „Aufbruch“ auf einen frischen Spielstand legen.
   // Teil 1 läuft vor initRuntime (reine Daten), Teil 2 danach (braucht G).
@@ -309,37 +285,57 @@ KS.Game = (() => {
   }
 
   // Teil 2: frei platzierte Wirtschaftsgebäude aufstellen
-  const ECO_START = [
-    { type: 'lager',       name: 'Lager' },
-    { type: 'holzfaeller', name: 'Holzfäller' },
-    { type: 'saegewerk',   name: 'Sägewerk' },
-    { type: 'bauernhof',   name: 'Bauernhof' },
-  ];
+  const ECO_START = ['lager', 'holzfaeller', 'saegewerk', 'bauernhof'];
   function applyRunStartPlaced(st) {
-    const ml = id => (st.meta && st.meta[id]) || 0;
-    const n = ml('b_eco');
+    const n = (st.meta && st.meta.b_eco) || 0;
     if (n <= 0) return;
     const tier = Math.max(1, G.startTier || 1);
-    for (let i = 0; i < Math.min(n, ECO_START.length); i++) {
-      Sys.autoPlace(G, ECO_START[i].type, tier);
-    }
+    for (let i = 0; i < Math.min(n, ECO_START.length); i++) Sys.autoPlace(G, ECO_START[i], tier);
   }
 
-  // Lauf abschließen: Essenz gutschreiben und mit allen Segnungen neu anfangen
-  function endRun() {
-    // Erst alles Halbfertige abräumen, sonst zeigt der Baumodus auf ein Pad,
-    // das es im neuen Lauf nicht mehr gibt.
+  // Schritt 1 — Ernte. Der Lauf ist vorbei: Essenz gutschreiben, den
+  // Spielstand als „abgeschlossen“ markieren und den Sternenbaum öffnen.
+  // Der neue Lauf entsteht erst BEIM VERLASSEN des Baums — nur so gelten
+  // die Segnungen, die man dort gerade gekauft hat, auch schon ab Tag 1.
+  function harvestRun() {
+    const st = G.state;
+    if (st.runEnded) {                       // schon geerntet (z. B. Neuladen)
+      KS.UI.hideDefeat();
+      KS.UI.openMeta(G, st.lastReward || null);
+      return st.lastReward || essenceReward(st);
+    }
     if (G.placeMode) cancelPlaceMode();
     KS.UI.hidePlaceBar();
+    const rew = essenceReward(st);
+    st.essence = (st.essence || 0) + rew.total;
+    st.essenceTotal = (st.essenceTotal || 0) + rew.total;
+    st.runs = (st.runs || 0) + 1;
+    st.runBest = Math.max(st.runBest || 0, st.day || 1);
+    st.runBossBest = Math.max(st.runBossBest || 0, st.stats.bossKills || 0);
+    st.lastReward = { roh: rew.roh, bonus: rew.bonus, total: rew.total,
+                      day: st.day, bosses: st.stats.bossKills || 0 };
+    st.runEnded = true;
+    G.monsters.length = 0; G.projectiles.length = 0; G.boss = null;
+    log(`Lauf ${st.runs} beendet — ${rew.total} Weltenessenz geborgen.`);
+    setPaused(true);
+    save();                                  // erst sichern, dann zeigen
+    KS.UI.hideDefeat();
+    KS.UI.hideBossBar();
+    KS.UI.openMeta(G, st.lastReward);
+    return rew;
+  }
+
+  // Schritt 2 — Aufbruch. Frischer Lauf mit allem, was im Baum steht.
+  function startNextRun() {
     const old = G.state;
-    const rew = essenceReward(old);
     const carry = {
       meta: JSON.parse(JSON.stringify(old.meta || {})),
-      essence: (old.essence || 0) + rew.total,
-      essenceTotal: (old.essenceTotal || 0) + rew.total,
-      runs: (old.runs || 0) + 1,
-      runBest: Math.max(old.runBest || 0, old.day || 1),
-      runBossBest: Math.max(old.runBossBest || 0, old.stats.bossKills || 0),
+      essence: old.essence || 0,
+      essenceTotal: old.essenceTotal || 0,
+      runs: old.runs || 0,
+      runBest: old.runBest || 0,
+      runBossBest: old.runBossBest || 0,
+      chaptersSeen: JSON.parse(JSON.stringify(old.chaptersSeen || {})),
       settings: JSON.parse(JSON.stringify(old.settings || {})),
     };
     const st = newState();
@@ -355,13 +351,24 @@ KS.Game = (() => {
     // Immer Münzen streuen: die erste Quest verlangt gesammelte Münzen, und
     // Startgold aus dem Sternenbaum zählt dafür nicht.
     scatterStarterCoins();
-    G.paused = false;
     KS.UI.hideDefeat();
     KS.UI.hideBossBar();
-    log(`Lauf ${carry.runs} beendet — ${rew.total} Weltenessenz geborgen.`);
+    KS.UI.closeMeta();
+    log(`Lauf ${(st.runs || 0) + 1} beginnt.`);
+    setPaused(false);
     save();
-    KS.UI.openMeta(G, rew);
-    return rew;
+    KS.UI.banner(`Lauf ${(st.runs || 0) + 1}`, 'Ein neuer Anfang, ein stärkeres Reich.');
+    return st;
+  }
+
+  // Wird beim Start gerufen: hängt der Spielstand zwischen zwei Läufen,
+  // führt kein Weg daran vorbei — erst der Baum, dann der nächste Lauf.
+  function resumePendingRunEnd() {
+    if (!G.state.runEnded) return false;
+    setPaused(true);
+    KS.UI.hideDefeat();
+    KS.UI.openMeta(G, G.state.lastReward || null);
+    return true;
   }
 
   // ================== PAUSE ==================
@@ -1388,7 +1395,8 @@ KS.Game = (() => {
         return;
       }
       const b = G.state.buildings[hit.id];
-      if (hit.type === 'markt' && b && b.tier >= 1) KS.UI.openMarket(G);
+      // Tippen baut aus — auch beim Markt. Der Laden hat seinen eigenen Knopf.
+      if (hit.type === 'markt' && Sys.padMaxed(G, hit)) KS.UI.openMarket(G);
       else Sys.toggleBuild(G);
       KS.UI.refreshActBtn(G);
     });
@@ -1419,7 +1427,9 @@ KS.Game = (() => {
       KS.Audio.unlock();
       KS.Audio.SFX.click();
       KS.UI.hideTitle();
-      setPaused(false);
+      // Hängt der Spielstand zwischen zwei Läufen, geht es zuerst in den
+      // Sternenbaum — sonst würde der beendete Lauf weiterlaufen.
+      if (!resumePendingRunEnd()) setPaused(false);
       if (!KS.SaveIO.available) {
         KS.UI.toast('Speicher nicht verfügbar (privater Modus?) — Fortschritt geht beim Schließen verloren!', 6000, 'lock');
       }
@@ -1510,7 +1520,7 @@ KS.Game = (() => {
 
   return {
     G, boot, save, requestSave, serialize, hardReset, loadImported,
-    setPaused, onDefeat, reviveAfterDefeat, endRun, pendingEssence, log, pingQuestTarget,
+    setPaused, onDefeat, harvestRun, startNextRun, pendingEssence, log, pingQuestTarget,
     startPlaceMode, cancelPlaceMode, confirmPlaceMode,
   };
 })();

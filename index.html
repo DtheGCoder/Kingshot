@@ -282,10 +282,6 @@
       <svg class="ico"><use href="#i-flask"/></svg>
       <span class="rb-label">Forschung</span>
     </button>
-    <button id="btn-meta" class="round-btn star" aria-label="Sternenbaum">
-      <svg class="ico"><use href="#i-sparkle"/></svg>
-      <span class="rb-label">Sterne</span>
-    </button>
   </div>
 
   <!-- Platzierungsleiste im Baumodus -->
@@ -369,9 +365,6 @@
     <div id="meta-stars"></div>
   </div>
   <div id="meta-card">
-    <button id="meta-close" class="close-btn" aria-label="Schließen">
-      <svg class="ico"><use href="#i-x"/></svg>
-    </button>
     <div id="meta-head">
       <svg class="mh-ico" viewBox="0 0 24 24"><use href="#i-sparkle"/></svg>
       <div class="mh-txt">
@@ -384,6 +377,9 @@
     <div id="meta-tabs"></div>
     <div id="meta-rows"></div>
     <div id="meta-foot"></div>
+    <button id="meta-next" class="big-btn ess-btn">
+      <svg class="ico"><use href="#i-play"/></svg> <span id="meta-next-lbl">Nächsten Lauf beginnen</span>
+    </button>
   </div>
 </div>
 
@@ -437,7 +433,7 @@
       <label class="opt-row"><span><svg class="ico"><use href="#i-note"/></svg> Musik</span><input type="checkbox" id="opt-music" checked></label>
       <label class="opt-row"><span><svg class="ico"><use href="#i-shake"/></svg> Bildschirm-Wackeln</span><input type="checkbox" id="opt-shake" checked></label>
       <div class="opt-actions">
-        <button id="btn-endrun" class="small-btn star">Lauf beenden &amp; Essenz bergen</button>
+        <button id="btn-endrun" class="small-btn star">Lauf aufgeben &amp; Essenz bergen</button>
         <button id="btn-export" class="small-btn">Spielstand exportieren</button>
         <button id="btn-import" class="small-btn">Spielstand importieren</button>
         <button id="btn-reset" class="small-btn danger">Neu beginnen</button>
@@ -467,11 +463,10 @@
   <div class="story-card defeat-card">
     <svg class="defeat-ico" viewBox="0 0 24 24"><use href="#i-flame"/></svg>
     <div id="defeat-title">Die Burg ist gefallen…</div>
-    <div id="defeat-text">Doch ein König gibt niemals auf. Die Überlebenden sammeln sich in den Ruinen — bereit für einen neuen Versuch.</div>
+    <div id="defeat-text">Dieser Lauf ist zu Ende — der Bann der Leere holt jeden ein. Doch was du erkämpft hast, bleibt: als Weltenessenz für den Sternenbaum.</div>
     <div id="defeat-ess"></div>
-    <button id="defeat-btn" class="big-btn"><svg class="ico"><use href="#i-crown"/></svg> Wieder aufstehen</button>
-    <button id="defeat-end" class="big-btn ess-btn"><svg class="ico"><use href="#i-sparkle"/></svg> <span id="defeat-end-lbl">Lauf beenden</span></button>
-    <div id="defeat-hint">Nur wer den Lauf beendet, birgt die Essenz und beginnt gestärkt von vorn.</div>
+    <button id="defeat-end" class="big-btn ess-btn"><svg class="ico"><use href="#i-sparkle"/></svg> <span id="defeat-end-lbl">Weltenessenz bergen</span></button>
+    <div id="defeat-hint">Im Sternenbaum wählst du deine Segnungen — sie gelten ab dem nächsten Lauf für immer.</div>
   </div>
 </div>
 

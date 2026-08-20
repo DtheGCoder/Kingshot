@@ -1093,7 +1093,7 @@ html, body {
   border-color: rgba(200,160,255,0.5);
   color: #e8dcff; box-shadow: 0 2px 0 rgba(0,0,0,0.45);
 }
-#meta-head { display: flex; align-items: center; gap: 11px; padding-right: 42px; }
+#meta-head { display: flex; align-items: center; gap: 11px; }
 #meta-head .mh-ico {
   width: 40px; height: 40px; flex: none;
   fill: #ffe9a8;
@@ -1305,3 +1305,11 @@ html, body {
   color: #3a2508; background: linear-gradient(180deg, #fff3c4, #ffd166);
   border-radius: 6px;
 }
+
+/* Der einzige Ausgang aus dem Sternenbaum */
+#meta-next {
+  width: 100%;
+  margin-top: 12px;
+  font-size: 17px;
+}
+#meta-next .ico { width: 19px; height: 19px; }

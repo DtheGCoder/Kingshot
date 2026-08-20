@@ -194,12 +194,13 @@ tail -f /var/log/kingshot-update.log     # was ist passiert?
 - **Tag & Nacht:** Tagsüber bauen, sammeln und produzieren — nachts kommt die Flut.
   Alle 5 Nächte wartet ein **Boss**. Deine Arbeiter gehen bei Sonnenuntergang von
   selbst in Deckung und morgens wieder aufs Feld.
-- **Sterne:** Der dritte Knopf öffnet den **Sternenbaum** — dort gibst du
-  Weltenessenz für Segnungen aus, die jeden Lauf überdauern.
-- **Niederlage?** Zwei Wege: **Wieder aufstehen** (der König steht auf, die Burg wird
-  notdürftig geflickt, **Mauer und Tore werden komplett neu errichtet**, ein Teil des
-  getragenen Goldes geht verloren — weiter geht's am selben Tag) oder **Lauf beenden**
-  und die gesammelte Weltenessenz bergen.
+- **Markt:** Der große Aktionsknopf **baut den Markt aus** wie jedes andere Gebäude —
+  den Laden öffnet der kleine Knopf daneben. Erst auf der Endstufe, wo es nichts mehr
+  zu bauen gibt, öffnet auch der große Knopf den Laden.
+- **Niederlage = Ende des Laufs.** Es gibt kein Wiederaufstehen: die Burg fällt, der
+  Lauf ist vorbei. Auf dem Niederlagen-Bildschirm birgst du die **Weltenessenz**,
+  wählst im **Sternenbaum** deine Segnungen — und beginnst mit **„Lauf N beginnen“**
+  von vorn, aber stärker. Der Sternenbaum ist nur auf diesem Weg erreichbar.
 
 ## 🏰 Gebäude (je **50 Stufen**, mit sichtbarer Evolution über zehn Materialien)
 
@@ -300,6 +301,24 @@ Essenz = erreichter Tag ^1,6 × 1,6  +  60 je gefallener Boss
 | Tag 20 | 3 | 373 |
 | Tag 30 | 5 | 669 |
 | Tag 50 | 9 | 1 376 |
+
+### Der Kreislauf
+
+```
+Lauf spielen  →  Burg fällt  →  Essenz bergen  →  im Sternenbaum kaufen
+      ↑                                                      │
+      └──────────────  „Lauf N beginnen“  ←──────────────────┘
+```
+
+Wichtig an dieser Reihenfolge: der **neue Lauf entsteht erst, wenn du den Baum
+verlässt**. Was du gerade gekauft hast, steht damit schon an Tag 1 auf dem Feld —
+Mauer, Tore, Schmiede, Wirtschaft. Der Baum hat deshalb auch kein „Schließen“:
+sein einziger Ausgang ist der nächste Lauf. Und wenn du mitten im Baum den Browser
+schließt, landest du beim nächsten Öffnen genau dort wieder — die Essenz wird nie
+doppelt gutgeschrieben.
+
+Die Kapitel-Geschichte wird **einmal** erzählt, nicht in jedem Lauf neu: ab dem
+zweiten Mal genügt ein Banner.
 
 Ausgegeben wird sie im **Sternenbaum** — 19 Knoten, 150 Stufen, vier Zweige,
 zusammen rund **58 000 Essenz**. Die ersten Stufen kosten 30–120 und sind nach

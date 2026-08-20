@@ -48,6 +48,7 @@ KS.UI = (() => {
       metaPanel: $('meta-panel'), metaRows: $('meta-rows'), metaTabs: $('meta-tabs'),
       metaPurse: $('meta-purse'), metaGain: $('meta-gain'), metaFoot: $('meta-foot'),
       defeatEss: $('defeat-ess'), defeatEnd: $('defeat-end'), defeatEndLbl: $('defeat-end-lbl'),
+      metaNext: $('meta-next'), metaNextLbl: $('meta-next-lbl'),
       placeBar: $('place-bar'), placeIco: $('place-ico'), placeName: $('place-name'),
       placeHint: $('place-hint'), placeOk: $('place-ok'),
       sndOn: $('snd-on'), sndOff: $('snd-off'),
@@ -75,11 +76,6 @@ KS.UI = (() => {
       els.story.classList.add('hidden');
       KS.Game.setPaused(false);
     });
-    $('defeat-btn').addEventListener('click', () => {
-      KS.Audio.SFX.click();
-      els.defeat.classList.add('hidden');
-      KS.Game.reviveAfterDefeat();
-    });
     // Aktionsknopf: bauen bestätigen oder Markt öffnen
     els.actBtn.addEventListener('click', e => {
       e.stopPropagation();
@@ -87,7 +83,10 @@ KS.UI = (() => {
       const G = KS.Game.G;
       const pad = G.nearPad;
       if (!pad) return;
-      if (pad.type === 'markt' && (G.state.buildings.markt || {}).tier >= 1) openMarket(G);
+      // Der Markt ist hier kein Sonderfall mehr: der Aktionsknopf baut aus,
+      // den Laden öffnet der eigene Knopf daneben. Nur auf der Endstufe, wo
+      // es nichts mehr zu bauen gibt, öffnet er den Laden.
+      if (pad.type === 'markt' && KS.Systems.padMaxed(G, pad)) openMarket(G);
       else KS.Systems.toggleBuild(G);
       refreshActBtn(G);
     });
@@ -143,11 +142,11 @@ KS.UI = (() => {
       techBranch = tab.dataset.br;
       renderTech(KS.Game.G);
     });
-    // Sternenbaum
-    wire('btn-meta', 'click', () => { KS.Audio.unlock(); KS.Audio.SFX.click(); openMeta(KS.Game.G); });
-    wire('meta-close', 'click', () => { KS.Audio.SFX.click(); closeMeta(); });
-    if (els.metaPanel) els.metaPanel.addEventListener('click', e => {
-      if (e.target === els.metaPanel || e.target.id === 'meta-sky') closeMeta();
+    // Sternenbaum. Er ist bewusst NUR nach einem beendeten Lauf erreichbar
+    // und hat keinen Schließen-Knopf: der einzige Ausgang ist der nächste Lauf.
+    wire('meta-next', 'click', () => {
+      KS.Audio.unlock(); KS.Audio.SFX.build();
+      KS.Game.startNextRun();
     });
     if (els.metaRows) els.metaRows.addEventListener('click', e => {
       const btn = e.target.closest('.mn-buy');
@@ -161,14 +160,14 @@ KS.UI = (() => {
       metaBranch = tab.dataset.br;
       renderMeta(KS.Game.G);
     });
-    // Lauf beenden — von der Niederlage aus und aus dem Menü
-    wire('defeat-end', 'click', () => { KS.Audio.SFX.click(); hideDefeat(); KS.Game.endRun(); });
+    // Ernte — nach einer Niederlage und (freiwillig) aus dem Menü
+    wire('defeat-end', 'click', () => { KS.Audio.SFX.click(); hideDefeat(); KS.Game.harvestRun(); });
     wire('btn-endrun', 'click', () => {
       KS.Audio.SFX.click();
       const r = KS.Game.pendingEssence();
-      if (!confirm(`Diesen Lauf jetzt beenden?\n\nDu bekommst ${U.fmt(r.total)} Weltenessenz und beginnst mit allen Segnungen von vorn.`)) return;
+      if (!confirm(`Diesen Lauf jetzt aufgeben?\n\nDu bekommst ${U.fmt(r.total)} Weltenessenz und beginnst danach von vorn.`)) return;
       toggleMenu(false);
-      KS.Game.endRun();
+      KS.Game.harvestRun();
     });
     // Platzierungsleiste
     wire('place-cancel', 'click', () => { KS.Audio.SFX.click(); KS.Game.cancelPlaceMode(); });
@@ -263,7 +262,10 @@ KS.UI = (() => {
       els.titleInfo.innerHTML =
         `Tag ${state.day} · Kapitel ${state.chapterShown + 1} „${ch.title}“<br>` +
         `${icon('coin')} ${U.fmt(state.gold)} &nbsp;·&nbsp; ${icon('person')} ${state.survivors} &nbsp;·&nbsp; ${icon('swords')} ${U.fmt(state.stats.kills)} Siege`;
-      btnCont.innerHTML = `${icon('play')} Weiterspielen`;
+      // Zwischen zwei Läufen führt der Weg zuerst in den Sternenbaum
+      btnCont.innerHTML = state.runEnded
+        ? `${icon('sparkle')} Sternenbaum öffnen`
+        : `${icon('play')} Weiterspielen`;
       btnNew.classList.remove('hidden');
     } else {
       els.titleInfo.textContent = 'Das Königreich Alderian braucht dich, König!';
@@ -752,6 +754,10 @@ KS.UI = (() => {
   function openMeta(G, gain) {
     if (!els.metaPanel) return;
     metaVisible = true;
+    if (marketVisible) closeMarket();
+    if (buildVisible) closeBuild();
+    if (techVisible) closeTech();
+    els.menu.classList.add('hidden');
     metaGain = gain || null;
     renderMeta(G);
     els.metaPanel.classList.remove('hidden');
@@ -783,10 +789,12 @@ KS.UI = (() => {
       if (metaGain) {
         const b = metaGain.bonus > 0
           ? `<div class="mg-line">Grundwert ${U.fmt(metaGain.roh)} + Sternendeuter ${U.fmt(metaGain.bonus)}</div>` : '';
+        const tag = metaGain.day || st.runBest || 0;
+        const bos = metaGain.bosses !== undefined ? metaGain.bosses : (st.runBossBest || 0);
         els.metaGain.innerHTML =
           `<div class="mg-top">${icon('sparkle')}+${U.fmt(metaGain.total)} Weltenessenz geborgen</div>` +
-          `<div class="mg-line">Aus ${st.runBest > 0 ? `${st.runBest} überlebten Tagen` : 'dem letzten Lauf'} ` +
-          `und ${st.runBossBest || 0} gefallenen Bossen.</div>${b}`;
+          `<div class="mg-line">Lauf ${st.runs || 1}: ${tag} ${tag === 1 ? 'Tag' : 'Tage'} überlebt, ` +
+          `${bos} ${bos === 1 ? 'Boss' : 'Bosse'} gefallen.</div>${b}`;
         els.metaGain.classList.remove('hidden');
       } else {
         els.metaGain.classList.add('hidden');
@@ -843,11 +851,18 @@ KS.UI = (() => {
     }
     els.metaRows.innerHTML = html.join('');
     if (els.metaFoot) {
+      const offen = CFG.META.filter(n => lvl(n.id) < n.lvl)
+        .reduce((a, n) => Math.min(a, CFG.metaCost(n, lvl(n.id))), Infinity);
+      const rest = (st.essence || 0) >= offen
+        ? '<b>Du kannst noch etwas kaufen</b> — gekaufte Segnungen gelten sofort im nächsten Lauf.'
+        : (offen === Infinity
+            ? 'Der ganze Baum ist deiner. Jetzt zählt nur noch, wie weit du kommst.'
+            : `Die nächste Segnung kostet ${U.fmt(offen)} Essenz — dafür brauchst du noch einen Lauf.`);
       els.metaFoot.innerHTML =
-        'Segnungen bleiben für immer. Essenz gibt es nur, wenn du einen Lauf beendest — ' +
-        'aus überlebten Tagen und gefallenen Bossen. Der Bann der Leere holt jeden Lauf ein; ' +
-        'wie weit du kommst, entscheidet dieser Baum.';
+        'Segnungen bleiben für immer und gelten ab dem nächsten Lauf. Der Bann der Leere ' +
+        'holt jeden Lauf ein — wie weit du kommst, entscheidet dieser Baum.<br>' + rest;
     }
+    if (els.metaNextLbl) els.metaNextLbl.textContent = `Lauf ${(st.runs || 0) + 1} beginnen`;
   }
 
   // Kauf einer Knotenstufe
@@ -879,13 +894,14 @@ KS.UI = (() => {
     const r = KS.Game.pendingEssence();
     els.defeatEss.innerHTML =
       `<div class="de-val">${icon('sparkle')}${U.fmt(r.total)} Weltenessenz</div>` +
-      `<div class="de-note">wartet darauf, geborgen zu werden</div>`;
-    if (els.defeatEndLbl) els.defeatEndLbl.textContent = `Lauf beenden (+${U.fmt(r.total)})`;
+      `<div class="de-note">aus diesem Lauf geborgen</div>`;
+    if (els.defeatEndLbl) els.defeatEndLbl.textContent = `Weltenessenz bergen (+${U.fmt(r.total)})`;
   }
 
   // Weiterlaufen, sobald kein Vollbildfenster mehr offen ist
   function resumeIfClear() {
     if (marketVisible || buildVisible || techVisible || metaVisible) return;
+    if (KS.Game.G.state && KS.Game.G.state.runEnded) return;
     if (!els.story.classList.contains('hidden')) return;
     if (!els.defeat.classList.contains('hidden')) return;
     if (!els.menu.classList.contains('hidden')) return;

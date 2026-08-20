@@ -1649,10 +1649,18 @@ KS.Systems = (() => {
     const st = G.state;
     const q = activeQuest(G);
     if (!q) return;
-    // Kapitelwechsel anzeigen?
+    // Kapitelwechsel anzeigen? Die Geschichte wird nur EINMAL erzählt — über
+    // alle Läufe hinweg. Wer im zwanzigsten Lauf ist, will Kapitel 1 nicht
+    // noch einmal lesen; ein Banner genügt dann.
     if (q.ch > st.chapterShown) {
       st.chapterShown = q.ch;
-      KS.UI.showChapter(q.ch);
+      if (!st.chaptersSeen) st.chaptersSeen = {};
+      if (st.chaptersSeen[q.ch]) {
+        KS.UI.banner(`Kapitel ${q.ch + 1}`, CFG.CHAPTERS[q.ch].title);
+      } else {
+        st.chaptersSeen[q.ch] = 1;
+        KS.UI.showChapter(q.ch);
+      }
       KS.Game.log(`Kapitel ${q.ch + 1}: ${CFG.CHAPTERS[q.ch].title}`);
       KS.Game.requestSave();
     }
