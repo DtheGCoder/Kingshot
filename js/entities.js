@@ -594,8 +594,9 @@ KS.Ent = (() => {
   function makeMonster(G, spKey, x, y, opts = {}) {
     const sp = CFG.MONSTERS[spKey];
     const day = G.state.day;
-    const hpM = CFG.SCALE.hpMul(day) * (opts.hpMul || 1) * (opts.elite ? 3 : 1);
-    const dmgM = CFG.SCALE.dmgMul(day) * (opts.dmgMul || 1) * (opts.elite ? 1.8 : 1);
+    const vd = G.voidDelay || 0;
+    const hpM = CFG.SCALE.hpMul(day, vd) * (opts.hpMul || 1) * (opts.elite ? 3 : 1);
+    const dmgM = CFG.SCALE.dmgMul(day, vd) * (opts.dmgMul || 1) * (opts.elite ? 1.8 : 1);
     const goldM = CFG.SCALE.goldMul(day) * (opts.elite ? 1 : 1);
     const size = (opts.size || 1) * CFG.SCALE.sizeMul(day) * (opts.elite ? 1.28 : 1);
     const hpTotal = opts.hpOverride !== undefined ? opts.hpOverride : sp.hp * hpM;
@@ -604,7 +605,7 @@ KS.Ent = (() => {
       x, y, r: sp.r * size * (sp.big || 1),
       hp: hpTotal, hpMax: hpTotal,
       dmg: sp.dmg * dmgM,
-      speed: (opts.speed || sp.speed) * U.rand(0.92, 1.08),
+      speed: (opts.speed || sp.speed) * U.rand(0.92, 1.08) * (G.monsterSpeedMul || 1),
       gold: opts.gold !== undefined ? opts.gold * goldM : sp.gold * goldM,
       size, elite: !!opts.elite, boss: !!opts.boss, bossId: opts.bossId, name: opts.name,
       kx: 0, ky: 0, slowT: 0, slowF: 0, burnT: 0, burnDps: 0, hitT: 0,

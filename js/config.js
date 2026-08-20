@@ -8,6 +8,15 @@ window.KS = window.KS || {};
 
 KS.CFG = (() => {
 
+  // Kurzformat für Zahlen in Beschreibungstexten
+  // Kurzschreibweise für Beschreibungstexte. Bewusst dieselbe Auflösung wie
+  // KS.U.fmt, aber ohne Abhängigkeit — config.js lädt vor core.js.
+  const fmtN = n => n < 1000 ? String(Math.round(n))
+    : n < 1e4 ? (n / 1e3).toFixed(2).replace(/\.?0+$/, '') + 'k'
+    : n < 1e6 ? (n / 1e3).toFixed(1).replace(/\.0$/, '') + 'k'
+    : n < 1e9 ? (n / 1e6).toFixed(2).replace(/\.?0+$/, '') + 'M'
+    : (n / 1e9).toFixed(2).replace(/\.?0+$/, '') + 'B';
+
   // ---------- Welt ----------
   const WORLD = {
     w: 2400, h: 2400,
@@ -330,6 +339,79 @@ KS.CFG = (() => {
     realm: { name: 'Reich',      ico: 'crown',  color: '#f7c948' },
   };
 
+  // ---------- Weltenessenz & Meta-Baum ----------
+  // Ein Lauf ist nicht zu gewinnen — die Nächte wachsen schneller als ein
+  // einzelner Aufstieg. Beim Beenden eines Laufs kristallisiert alles
+  // Erreichte zu Weltenessenz, und die fließt in dauerhafte Segnungen, die
+  // JEDEN künftigen Lauf stärker machen.
+  const META_BRANCHES = {
+    macht:     { name: 'Macht',      ico: 'swords',  color: '#ff6a7a' },
+    wohlstand: { name: 'Wohlstand',  ico: 'coin',    color: '#ffd34e' },
+    beginn:    { name: 'Aufbruch',   ico: 'castle',  color: '#7ab6ff' },
+    schicksal: { name: 'Schicksal',  ico: 'sparkle', color: '#c88cff' },
+  };
+
+  // lvl: Höchststufe, base: Essenzkosten der ersten Stufe (×1,6 je Stufe)
+  const META = [
+    // ═══ Macht ═══
+    { id: 'm_king',  br: 'macht', name: 'Königsblut',        ico: 'sword',  lvl: 10, base: 40,
+      desc: l => `Der König schlägt ${l * 12} % härter` },
+    { id: 'm_tower', br: 'macht', name: 'Arsenal der Ahnen',  ico: 'bow',    lvl: 10, base: 45,
+      desc: l => `Alle Türme +${l * 10} % Schaden` },
+    { id: 'm_wall',  br: 'macht', name: 'Ewiger Stein',       ico: 'wall',   lvl: 8,  base: 55,
+      desc: l => `Mauer und Tore +${l * 18} % Leben` },
+    { id: 'm_gar',   br: 'macht', name: 'Wachtruf',           ico: 'bow',    lvl: 6,  base: 70,
+      desc: l => `+${l} ${l === 1 ? 'Bogenschütze' : 'Bogenschützen'} auf der Mauer` },
+    { id: 'm_crit',  br: 'macht', name: 'Schneide des Schicksals', ico: 'swords', lvl: 8, base: 60,
+      desc: l => `+${l * 3} % kritische Treffer` },
+    // ═══ Wohlstand ═══
+    { id: 'w_start', br: 'wohlstand', name: 'Erbe der Krone', ico: 'coin',   lvl: 12, base: 30,
+      desc: l => `Startet mit ${fmtN(Math.round(220 * Math.pow(2.15, l - 1)))} Gold` },
+    { id: 'w_gold',  br: 'wohlstand', name: 'Goldadern',      ico: 'pickaxe', lvl: 10, base: 50,
+      desc: l => `Alles Gold +${l * 10} %` },
+    { id: 'w_res',   br: 'wohlstand', name: 'Reiche Erde',    ico: 'wheat',  lvl: 8,  base: 45,
+      desc: l => `Arbeiter tragen ${l * 16} % mehr` },
+    { id: 'w_cost',  br: 'wohlstand', name: 'Gunst der Gilden', ico: 'book', lvl: 8,  base: 65,
+      desc: l => `Bauen kostet ${l * 5} % weniger` },
+    // ═══ Aufbruch ═══
+    { id: 'b_tier',  br: 'beginn', name: 'Feste Fundamente',  ico: 'hammer', lvl: 6,  base: 90,
+      desc: l => `Freigeschaltete Bauten starten auf Stufe ${1 + l}` },
+    { id: 'b_forge', br: 'beginn', name: 'Erbstück',          ico: 'anvil',  lvl: 6,  base: 80,
+      desc: l => `Schmiede startet auf Stufe ${1 + l}` },
+    { id: 'b_wall',  br: 'beginn', name: 'Alte Mauern',       ico: 'wall',   lvl: 5,  base: 100,
+      desc: l => `Mauer und Tore stehen schon auf Stufe ${l}` },
+    { id: 'b_eco',   br: 'beginn', name: 'Bewährte Pläne',    ico: 'crate',  lvl: 4,  base: 110,
+      desc: l => {
+        const bau = ['Lager', 'Holzfäller', 'Sägewerk', 'Bauernhof'].slice(0, Math.max(1, Math.min(4, l)));
+        const liste = bau.length === 1 ? bau[0] : `${bau.slice(0, -1).join(', ')} und ${bau[bau.length - 1]}`;
+        return `${liste} ${bau.length === 1 ? 'steht' : 'stehen'} bereits`;
+      } },
+    // ═══ Schicksal ═══
+    // Der Schlüsselknoten: er verschiebt den Bann selbst nach hinten und
+    // entscheidet damit, wie weit ein Lauf überhaupt tragen kann. Steht
+    // bewusst an erster Stelle — wer ihn übersieht, kommt nicht voran.
+    { id: 'f_bann',  br: 'schicksal', name: 'Siegel der Ahnen', ico: 'star', lvl: 12, base: 120, key: true,
+      desc: l => `Der Bann der Leere beginnt erst an Tag ${VOID_DAY + l * 3}` },
+    { id: 'f_ess',   br: 'schicksal', name: 'Sternendeuter',  ico: 'sparkle', lvl: 10, base: 55,
+      desc: l => `+${l * 15} % Weltenessenz aus jedem Lauf` },
+    { id: 'f_hp',    br: 'schicksal', name: 'Segen des Lichts', ico: 'heart', lvl: 10, base: 40,
+      desc: l => `Der König hat ${l * 15} % mehr Leben` },
+    { id: 'f_mag',   br: 'schicksal', name: 'Goldwitterung',  ico: 'magnet', lvl: 6,  base: 35,
+      desc: l => `Sammelradius +${l * 20} %` },
+    { id: 'f_slow',  br: 'schicksal', name: 'Zeitdehnung',    ico: 'time',   lvl: 6,  base: 75,
+      desc: l => `Monster sind ${l * 4} % langsamer` },
+    { id: 'f_rev',   br: 'schicksal', name: 'Zweites Leben',  ico: 'shield', lvl: 5,  base: 60,
+      desc: l => `Niederlagen kosten ${l * 6} % weniger Gold` },
+  ];
+
+  // Kosten je Knotenstufe. 1,42 pro Stufe: die ersten Stufen sind nach einem
+  // einzigen Lauf drin, der komplette Baum kostet rund 39 000 Essenz.
+  const metaCost = (node, level) => Math.round(node.base * Math.pow(1.42, level));
+  // Essenz eines Laufs: Tage zählen überproportional, Bosse zählen schwer.
+  // Tag 12/2 Bosse ≈ 205, Tag 25/4 ≈ 515, Tag 50/9 ≈ 1376.
+  const essenceFor = (bestDay, bossKills) =>
+    Math.max(1, Math.floor(Math.pow(Math.max(1, bestDay), 1.6) * 1.6 + bossKills * 60));
+
   // ---------- Bauplätze (Pads) ----------
   // Winkel: 0° = Osten, 90° = Süden (y nach unten)
   const deg = a => a * Math.PI / 180;
@@ -455,16 +537,35 @@ KS.CFG = (() => {
   }
 
   // ---------- Skalierung ----------
+  // Bann der Leere: ab Tag 9 legt sich ein Fluch über Alderian, der mit jeder
+  // Nacht schwerer wiegt. Er wächst schneller als jede Wirtschaft in einem
+  // einzelnen Lauf — irgendwann fällt die Burg, immer. Genau das ist gewollt:
+  // aus jedem Lauf nimmt man Weltenessenz mit und kommt im nächsten weiter.
+  const VOID_DAY = 8;          // bis hierhin ist das Land noch unverflucht
+  const VOID_STEP = 1.115;     // je Nacht danach +11,5 % Monsterleben
+  // delay = gnädige Tage aus dem Sternenbaum („Siegel der Ahnen“)
+  const voidStart = delay => VOID_DAY + (delay || 0);
+  const voidMul = (d, delay) => {
+    const s0 = voidStart(delay);
+    return d <= s0 ? 1 : Math.pow(VOID_STEP, d - s0);
+  };
+
   const SCALE = {
-    hpMul: d => {
-      if (d <= 25) return Math.pow(1.105, d - 1);
-      if (d <= 50) return Math.pow(1.105, 24) * Math.pow(1.05, d - 25);
-      return Math.pow(1.105, 24) * Math.pow(1.05, 25) * Math.pow(1.048, d - 50);
+    voidMul, voidStart, VOID_STEP,
+    // Der Bann trifft das Leben voll, den Schaden gedämpft (^0,6) — sonst
+    // würde ein einziger Treffer den König ab Tag 30 sofort umlegen.
+    voidDmgMul: (d, delay) => Math.pow(voidMul(d, delay), 0.6),
+    hpMul: (d, vd) => {
+      const v = voidMul(d, vd);
+      if (d <= 25) return v * Math.pow(1.105, d - 1);
+      if (d <= 50) return v * Math.pow(1.105, 24) * Math.pow(1.05, d - 25);
+      return v * Math.pow(1.105, 24) * Math.pow(1.05, 25) * Math.pow(1.048, d - 50);
     },
-    dmgMul: d => {
-      if (d <= 25) return Math.pow(1.065, d - 1);
-      if (d <= 50) return Math.pow(1.065, 24) * Math.pow(1.04, d - 25);
-      return Math.pow(1.065, 24) * Math.pow(1.04, 25) * Math.pow(1.035, d - 50);
+    dmgMul: (d, vd) => {
+      const v = Math.pow(voidMul(d, vd), 0.6);
+      if (d <= 25) return v * Math.pow(1.065, d - 1);
+      if (d <= 50) return v * Math.pow(1.065, 24) * Math.pow(1.04, d - 25);
+      return v * Math.pow(1.065, 24) * Math.pow(1.04, 25) * Math.pow(1.035, d - 50);
     },
     goldMul: d => 1 + 0.075 * (d - 1),
     budget: d => {
@@ -692,6 +793,7 @@ Die Wacht geht weiter — die Nächte werden härter, deine Legende größer. Ew
     WORLD, PLAYER, WEAPONS, BUILDINGS, PADS, MONSTERS, BOSSES, bossHp,
     GATES, WALL, MARKET, migrateQuestIdx, QUEST_VERSION, interactR,
     RESOURCES, RES_ORDER, BUILD_ZONE, TECH, TECH_BRANCHES,
+    META, META_BRANCHES, metaCost, essenceFor,
     SCALE, PHASES, CHAPTERS, QUESTS, endlessQuest,
     DAWN_LINES, SURVIVOR_LINES, SURVIVOR_NAMES, VICTORY_TEXT,
     COINS, DEPOSIT, SAVE_KEY, SAVE_KEY_B, SAVE_VERSION,

@@ -8,6 +8,11 @@ Dazu baust du eine echte Wirtschaft: Holzfäller, Steinbruch und Bauernhof schic
 Arbeiter ins Umland, Sägewerk, Steinmetz und Mühle machen aus ihren Fuhren wieder Gold —
 und ein Techtree mit 25 Neuerungen lässt dich entscheiden, wohin dein Reich wächst.
 
+Und dann wird es ernst: ab Tag 9 legt sich der **Bann der Leere** über das Land und macht
+jede Nacht unerbittlich schwerer. **Kein einzelner Lauf ist zu gewinnen.** Aus überlebten
+Tagen und gefallenen Bossen wird **Weltenessenz**, die du im **Sternenbaum** in dauerhafte
+Segnungen umsetzt — bis du irgendwann weit genug kommst, um den Weltenfresser zu stellen.
+
 Kein Build-Tool, keine Abhängigkeiten, kein Backend — pures HTML5/Canvas/JavaScript.
 Läuft auf jedem Handy und Desktop-Browser, direkt von deinem eigenen nginx-Server.
 
@@ -17,7 +22,7 @@ Läuft auf jedem Handy und Desktop-Browser, direkt von deinem eigenen nginx-Serv
 | ![Königreich](docs/screenshots/koenigreich.jpg) | ![Belagerung](docs/screenshots/belagerung.jpg) | ![Markt](docs/screenshots/markt.jpg) |
 | ![Bauen bestätigen](docs/screenshots/bauen.jpg) | ![Stadttore](docs/screenshots/tore.jpg) | ![Quest eingeklappt](docs/screenshots/quest-eingeklappt.jpg) |
 | ![Bau-Menü](docs/screenshots/bauen-menu.jpg) | ![Gebäude platzieren](docs/screenshots/platzieren.jpg) | ![Techtree](docs/screenshots/forschung.jpg) |
-| ![Wirtschaft](docs/screenshots/wirtschaft.jpg) | | |
+| ![Wirtschaft](docs/screenshots/wirtschaft.jpg) | ![Sternenbaum](docs/screenshots/sternenbaum.jpg) | ![Lauf beenden](docs/screenshots/lauf-ende.jpg) |
 
 ![Desktop](docs/screenshots/desktop.jpg)
 
@@ -189,10 +194,12 @@ tail -f /var/log/kingshot-update.log     # was ist passiert?
 - **Tag & Nacht:** Tagsüber bauen, sammeln und produzieren — nachts kommt die Flut.
   Alle 5 Nächte wartet ein **Boss**. Deine Arbeiter gehen bei Sonnenuntergang von
   selbst in Deckung und morgens wieder aufs Feld.
-- **Niederlage?** Halb so wild: Der König steht wieder auf, die Burg wird notdürftig
-  geflickt, **Mauer und Tore werden komplett neu errichtet**, ein Teil des getragenen
-  Goldes geht verloren — weiter geht's am selben Tag. Gebäudestufen bleiben natürlich
-  erhalten. Du gehst also nie mit offenen Breschen in die nächste Nacht.
+- **Sterne:** Der dritte Knopf öffnet den **Sternenbaum** — dort gibst du
+  Weltenessenz für Segnungen aus, die jeden Lauf überdauern.
+- **Niederlage?** Zwei Wege: **Wieder aufstehen** (der König steht auf, die Burg wird
+  notdürftig geflickt, **Mauer und Tore werden komplett neu errichtet**, ein Teil des
+  getragenen Goldes geht verloren — weiter geht's am selben Tag) oder **Lauf beenden**
+  und die gesammelte Weltenessenz bergen.
 
 ## 🏰 Gebäude (je **50 Stufen**, mit sichtbarer Evolution über zehn Materialien)
 
@@ -270,6 +277,67 @@ Angriff auf die Mauer teuer. Türme bleiben trotzdem die Hauptverteidigung —
 und die Türme priorisieren jetzt Gegner, die an Mauer oder Tor hängen, statt
 immer nur das nächstgelegene Ziel zu nehmen.
 
+## 🌌 Bann der Leere & Sternenbaum — die eigentliche Kampagne
+
+**Kein einzelner Lauf ist zu gewinnen. Das ist Absicht.**
+
+Ab **Tag 9** legt sich der *Bann der Leere* über Alderian: jede weitere Nacht macht
+alle Monster **+11,5 % zäher** (der Schaden steigt gedämpft mit `^0,6` mit, sonst
+läge der König ab Tag 30 nach einem Treffer). Der Bann wächst schneller als jede
+Wirtschaft, die man in einem Lauf aufbauen kann — irgendwann fällt die Burg, immer.
+Der aktuelle Faktor steht dauerhaft im HUD (💀 ×4,6) und in jeder Nacht-Ankündigung,
+damit die Nächte nach einer **Regel** schwerer werden und nicht willkürlich.
+
+Was bleibt, ist **Weltenessenz**:
+
+```
+Essenz = erreichter Tag ^1,6 × 1,6  +  60 je gefallener Boss
+```
+
+| Lauf endet an | Bosse | Essenz |
+|---|---|---|
+| Tag 12 | 2 | 205 |
+| Tag 20 | 3 | 373 |
+| Tag 30 | 5 | 669 |
+| Tag 50 | 9 | 1 376 |
+
+Ausgegeben wird sie im **Sternenbaum** — 19 Knoten, 150 Stufen, vier Zweige,
+zusammen rund **58 000 Essenz**. Die ersten Stufen kosten 30–120 und sind nach
+einem einzigen Lauf drin; jede weitere Stufe kostet ×1,42.
+
+| Zweig | Was er tut |
+|---|---|
+| ⚔️ **Macht** | Königsblut (+12 % Königsschaden/Stufe), Arsenal der Ahnen (+10 % Turmschaden), Ewiger Stein (+18 % Mauerleben), Wachtruf (+1 Bogenschütze auf der Mauer), Schneide des Schicksals (+3 % Krit) |
+| 🪙 **Wohlstand** | Erbe der Krone (Startgold bis ~1 M), Goldadern (+10 % auf alles Gold), Reiche Erde (+16 % Traglast), Gunst der Gilden (−5 % Baukosten) |
+| 🏗️ **Aufbruch** | Feste Fundamente (freigeschaltete Bauten starten auf Stufe 2–7), Erbstück (Schmiede vorgebaut), Alte Mauern (Mauer & Tore stehen schon), Bewährte Pläne (Lager, Holzfäller, Sägewerk, Bauernhof stehen bereits) |
+| ✨ **Schicksal** | **Siegel der Ahnen** (Schlüssel: der Bann beginnt erst an Tag 11 … 44), Sternendeuter (+15 % Essenz), Segen des Lichts (+15 % Königsleben), Goldwitterung, Zeitdehnung (−4 % Monstertempo), Zweites Leben |
+
+Der **Schlüsselknoten** ist das *Siegel der Ahnen*: es schiebt den Bann selbst nach
+hinten (bis Tag 44) und entscheidet damit, wie weit ein Lauf überhaupt tragen kann.
+Er ist bewusst der teuerste Knoten des Baums (9 239 Essenz für alle 12 Stufen).
+
+**Der Bogen, nachgerechnet** (konservatives Modell, ohne Mauerwache, Königsschaden,
+Frostverlangsamung, Markt und Forschung — im echten Spiel geht es also etwas
+schneller):
+
+| Lauf | Bann ab | erreichter Tag |
+|---|---|---|
+| 1 | Tag 8 | ~15–21 |
+| 3 | Tag 20 | ~25–28 |
+| 6 | Tag 26 | ~31–35 |
+| 12 | Tag 29 | ~34–39 |
+| 24 | Tag 32–35 | ~43–48 |
+| ~26–36 | Tag 38–44 | **Tag 50 — Sieg** |
+| Baum voll | Tag 44 | Tag 52+ (Ewige Wacht) |
+
+Zum Vergleich: an Tag 50 braucht die Verteidigung rund **3,2 Mio DPS** ohne Siegel —
+mit dem Gold eines einzelnen Laufs sind höchstens **51 000** drin. Mit vollem Baum
+sinkt der Bedarf auf 64 000 und die Türme liefern 427 000. Ein Lauf allein reicht
+nie, der Baum macht es möglich.
+
+Weltenessenz, Segnungen, Laufzähler und Rekorde liegen **außerhalb** des Laufs im
+Spielstand: sie überleben jede Niederlage, jeden neuen Lauf und jedes Update.
+
 ## 👹 Monster — 44 Arten in 22 Klassen + 17 Bosse
 
 Von **Klasse 1** (Grünschleim, ganz harmlos) über Goblins, Spinnen, Untote, Orks,
@@ -298,6 +366,11 @@ neuen Königreich — jedes Kapitel bringt eine kleine Geschichte, neue Bauplät
 Monsterklassen und einen Boss. Danach beginnt die **Ewige Wacht**: endlose Nächte,
 rotierende, immer stärkere Bosse und generierte Meilenstein-Quests. In der Chronik
 (⚙️-Menü) kannst du deine ganze Legende nachlesen.
+
+Der Sieg an Tag 50 ist das Ziel **über viele Läufe hinweg** — siehe
+[Bann der Leere & Sternenbaum](#-bann-der-leere--sternenbaum--die-eigentliche-kampagne).
+Jeder Lauf beginnt die Kette von vorn, aber mit den Segnungen des Sternenbaums stehen
+Burg, Schmiede, Mauer und Wirtschaft schon da — die frühen Quests fliegen dann durch.
 
 Kapitel 4 nimmt dich an die Hand, wenn die Wirtschaft dazukommt: Lager errichten →
 Holzfäller einstellen → 40 Holz liefern lassen → Sägewerk bauen → erste Forschung.

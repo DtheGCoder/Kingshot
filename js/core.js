@@ -185,6 +185,12 @@ KS.Audio = (() => {
     heal() { tone('sine', 780, 1180, 0.3, 0.06, 0.05); },
     defeat() { [330, 262, 220, 165].forEach((f, i) => setTimeout(() => tone('sawtooth', f, f * 0.97, 0.5, 0.2), i * 260)); },
     victory() { [523, 659, 784, 1046, 1318].forEach((f, i) => setTimeout(() => tone('triangle', f, f, 0.5, 0.22), i * 150)); },
+    // Sternenbaum: schimmernd, nach oben offen
+    essence() {
+      [784, 1046, 1318, 1568].forEach((f, i) => setTimeout(() => tone('sine', f, f * 1.5, 0.45, 0.12, 0.01), i * 70));
+      tone('triangle', 392, 784, 0.6, 0.07, 0.02);
+    },
+    denied() { tone('square', 220, 160, 0.14, 0.11); },
   };
 
   // ---- Sanfte generative Musik ----

@@ -23,6 +23,12 @@ KS.Systems = (() => {
     if (!st.res) st.res = { wood: 0, stone: 0, grain: 0 };
     if (!st.tech) st.tech = {};
     const T = id => hasTech(G, id);
+    // ---- Dauerhafte Segnungen aus Weltenessenz ----
+    // Sie überleben jeden Lauf und greifen an denselben Stellen wie Markt
+    // und Forschung, damit es genau eine Rechenstelle je Wirkung gibt.
+    if (!st.meta) st.meta = {};
+    const ML = id => st.meta[id] || 0;
+    G.metaLvl = ML;
     // Waffe = Schmiede-Stufe
     const forge = st.buildings.forge;
     G.weaponTier = Math.max(1, forge ? forge.tier : 0) || 1;
@@ -33,24 +39,25 @@ KS.Systems = (() => {
     // Markt-Verbesserungen des Königs
     if (!st.market) st.market = {};
     const mk = id => st.market[id] || 0;
-    G.playerHpMax = Math.round((CFG.PLAYER.hpMax + (castle ? (castle.tier - 1) * 10 : 0)) * (1 + 0.12 * mk('hp')));
+    G.playerHpMax = Math.round((CFG.PLAYER.hpMax + (castle ? (castle.tier - 1) * 10 : 0))
+      * (1 + 0.12 * mk('hp')) * (1 + 0.15 * ML('f_hp')));
     st.player.hp = Math.min(st.player.hp, G.playerHpMax);
     G.playerSpeed = CFG.PLAYER.speed * (1 + 0.03 * mk('speed'));
-    G.magnetMul = (1 + 0.10 * mk('magnet')) * (T('magnet_tech') ? 1.4 : 1);
-    G.critCh = 0.12 + 0.02 * mk('crit');
+    G.magnetMul = (1 + 0.10 * mk('magnet')) * (T('magnet_tech') ? 1.4 : 1) * (1 + 0.20 * ML('f_mag'));
+    G.critCh = 0.12 + 0.02 * mk('crit') + 0.03 * ML('m_crit');
     G.armorMul = Math.max(0.55, 1 - 0.02 * mk('armor'));
 
     // ---- Techtree-Faktoren ----
-    G.goldMul = (1 + 0.04 * mk('gold')) * (T('golden_age') ? 1.3 : 1);
+    G.goldMul = (1 + 0.04 * mk('gold')) * (T('golden_age') ? 1.3 : 1) * (1 + 0.10 * ML('w_gold'));
     G.tech = {
-      towerDmg: (T('fletching') ? 1.15 : 1) * (T('grand_arsenal') ? 1.5 : 1),
+      towerDmg: (T('fletching') ? 1.15 : 1) * (T('grand_arsenal') ? 1.5 : 1) * (1 + 0.10 * ML('m_tower')),
       towerRate: T('drill') ? 1.12 : 1,
       towerRange: T('spyglass') ? 1.12 : 1,
       heavyDmg: T('ballistics') ? 1.4 : 1,          // Kanone & Blitz
-      kingDmg: T('kings_edge') ? 1.25 : 1,
-      wallHp: T('masonry') ? 1.5 : 1,
+      kingDmg: (T('kings_edge') ? 1.25 : 1) * (1 + 0.12 * ML('m_king')),
+      wallHp: (T('masonry') ? 1.5 : 1) * (1 + 0.18 * ML('m_wall')),
       wallRegen: T('night_watch'),
-      workerLoad: T('carts') ? 1.3 : 1,
+      workerLoad: (T('carts') ? 1.3 : 1) * (1 + 0.16 * ML('w_res')),
       workerSpeed: T('boots_eco') ? 1.25 : 1,
       harvestSpeed: T('sharp_axes') ? 1.25 : 1,
       extraWorker: T('crew') ? 1 : 0,
@@ -60,11 +67,21 @@ KS.Systems = (() => {
       prodGold: T('trade_route') ? 1.25 : 1,        // Minen & Tavernen
       taxes: T('granary') ? 1.5 : 1,
       arrivals: T('heralds') ? 2 : 1,
-      buildCost: T('ledger') ? 0.9 : 1,
+      buildCost: (T('ledger') ? 0.9 : 1) * (1 - 0.05 * ML('w_cost')),
       depositSpeed: T('architects') ? 2 : 1,
       gapShrink: T('surveying') ? 0.82 : 1,
       breadBonus: 0,
     };
+    // Startstufe frisch freigeschalteter Bauten („Feste Fundamente“)
+    G.startTier = ML('b_tier') > 0 ? 1 + ML('b_tier') : 0;
+    // Siegel der Ahnen: der Bann der Leere setzt später ein
+    G.voidDelay = 3 * ML('f_bann');
+    G.voidNow = CFG.SCALE.voidMul(st.day, G.voidDelay);
+    G.voidStart = CFG.SCALE.voidStart(G.voidDelay);
+    // Zeitdehnung: dauerhaft langsamere Monster (greift beim Erzeugen)
+    G.monsterSpeedMul = Math.max(0.6, 1 - 0.04 * ML('f_slow'));
+    // Zweites Leben: eine Niederlage kostet weniger vom getragenen Gold
+    G.defeatKeep = Math.min(0.97, 0.7 + 0.06 * ML('f_rev'));
 
     // ---- Lager & Wirtschaft ----
     G.storeCap = 0;
@@ -159,6 +176,13 @@ KS.Systems = (() => {
     if (isUnlocked(G, padId)) return;
     G.state.unlockedPads.push(padId);
     const pad = G.padList.find(p => p.id === padId);
+    // „Feste Fundamente“: neu freigeschaltete Bauten stehen schon fertig da.
+    // Mauer und Tore bleiben ausgenommen — die hat „Alte Mauern“.
+    const stier = G.startTier || 0;
+    if (stier > 0 && pad && pad.type !== 'wall' && pad.type !== 'gates') {
+      const b = G.state.buildings[padId];
+      if (!b || b.tier < stier) G.state.buildings[padId] = { tier: stier, prog: 0 };
+    }
     if (pad && !silent) {
       Ent.ring(G, pad.x, pad.y, { r0: 10, r1: 90, life: 0.8, color: 'rgba(255,220,120,0.9)', lw: 5 });
       Ent.burst(G, pad.x, pad.y - 10, 14, { colors: ['#ffe084', '#fff'], speed: 90, up: 110 });
@@ -595,6 +619,31 @@ KS.Systems = (() => {
     return pad;
   }
 
+  // Setzt ein freies Gebäude ohne Kosten und ohne Meldung an den ersten
+  // gültigen Platz — für die Startvorteile aus dem Sternenbaum.
+  function autoPlace(G, type, tier) {
+    const Z = CFG.BUILD_ZONE;
+    const { cx, cy } = CFG.WORLD;
+    const st = G.state;
+    for (let r = 190; r <= Z.rMax - 10; r += 16) {
+      for (let a = 0; a < 360; a += 7) {
+        const rad = a * Math.PI / 180;
+        const x = Math.round((cx + Math.cos(rad) * r) / Z.gridSnap) * Z.gridSnap;
+        const y = Math.round((cy + Math.sin(rad) * r) / Z.gridSnap) * Z.gridSnap;
+        if (placeProblem(G, type, x, y)) continue;
+        st.placedSeq = (st.placedSeq || 0) + 1;
+        const pad = { id: `p${st.placedSeq}`, type, label: CFG.BUILDINGS[type].name, x, y, placed: true };
+        if (!st.placed) st.placed = [];
+        st.placed.push(pad);
+        st.buildings[pad.id] = { tier: Math.max(1, tier || 1), prog: 0 };
+        if (!st.unlockedPads.includes(pad.id)) st.unlockedPads.push(pad.id);
+        rebuildDerived(G);
+        return pad;
+      }
+    }
+    return null;
+  }
+
   // Was ein Abriss zurückgibt: die Hälfte allen eingezahlten Goldes
   function refundOf(G, padId) {
     const st = G.state;
@@ -1011,7 +1060,8 @@ KS.Systems = (() => {
 
     // Zahl der gleichzeitig schießenden Verteidiger und ihr Schaden wachsen
     // mit der Mauerstufe — ein Grund mehr, die Mauer auszubauen.
-    const schuesse = Math.min(2 + Math.floor(wb.tier / 2), 8, ziele.length);
+    const extra = G.metaLvl ? G.metaLvl('m_gar') : 0;
+    const schuesse = Math.min(2 + Math.floor(wb.tier / 2) + extra, 14, ziele.length);
     const dmg = 18 * Math.pow(1.26, wb.tier - 1) * G.tech.towerDmg;
     const { cx, cy } = CFG.WORLD;
     // Angeschlagene zuerst: gebündeltes Feuer holt Angreifer wirklich runter.
@@ -1373,13 +1423,19 @@ KS.Systems = (() => {
     KS.Audio.SFX.hornDusk();
     KS.Audio.setNight(true);
     const bossDef = G.night.bossId ? (CFG.bossForDay(st.day) || {}) : null;
-    KS.UI.banner(`Nacht ${st.day}`, bossDef ? `${bossDef.name} naht!` : 'Sie kommen…', 'night');
-    KS.Game.log(`Nacht ${st.day} bricht herein.`);
+    // Der Bann der Leere soll sichtbar sein — sonst wirkt die Nacht nur
+    // willkürlich schwerer, statt nach einer Regel, gegen die man rüsten kann.
+    G.voidNow = CFG.SCALE.voidMul(st.day, G.voidDelay || 0);
+    const bann = G.voidNow > 1.05 ? ` · Bann der Leere ×${G.voidNow.toFixed(1)}` : '';
+    KS.UI.banner(`Nacht ${st.day}`,
+      (bossDef ? `${bossDef.name} naht!` : 'Sie kommen…') + bann, 'night');
+    KS.Game.log(`Nacht ${st.day} bricht herein.${bann}`);
     KS.Game.requestSave();
   }
 
   function startDay(G, first) {
     const st = G.state;
+    G.voidNow = CFG.SCALE.voidMul(st.day, G.voidDelay || 0);
     st.phase = 'day';
     st.phaseT = 0;
     G.night = null;
@@ -1637,7 +1693,7 @@ KS.Systems = (() => {
     storeTotal, storeFree, storeAdd, storeTake, nearestStore,
     updateWorkers, updateCrafters, updateHaulers, syncWorkers,
     // Freies Bauen
-    placeableTypes, placeProblem, placeCost, placeBuilding, demolish, refundOf,
+    placeableTypes, placeProblem, placeCost, placeBuilding, autoPlace, demolish, refundOf,
     // Techtree
     hasTech, techNode, techState, techAffordable, buyTech,
     gateAt, gateCenter, gateBlocks, damageGate,

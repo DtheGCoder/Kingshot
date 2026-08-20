@@ -35,6 +35,13 @@ KS.Game = (() => {
       questVersion: CFG.QUEST_VERSION,
       market: {},
       tech: {},                                  // erforschte Knoten
+      // ---- Weltenessenz: überlebt jeden Lauf ----
+      meta: {},              // Knoten-Stufen des Sternenbaums
+      essence: 0,            // verfügbare Essenz
+      essenceTotal: 0,       // je verdiente Essenz (nur Statistik)
+      runs: 0,               // abgeschlossene Läufe
+      runBest: 0,            // bester je erreichter Tag
+      runBossBest: 0,        // meiste Bosse in einem Lauf
       res: { wood: 0, stone: 0, grain: 0 },      // Lagerbestand
       resTotal: { wood: 0, stone: 0, grain: 0 }, // je gelieferte Gesamtmenge
       placed: [], placedSeq: 0,                  // frei platzierte Bauplätze
@@ -227,7 +234,7 @@ KS.Game = (() => {
 
   function reviveAfterDefeat() {
     const st = G.state;
-    st.gold = Math.floor(st.gold * 0.7);          // 30 % des getragenen Goldes verloren
+    st.gold = Math.floor(st.gold * (G.defeatKeep || 0.7));   // Rest des getragenen Goldes verloren
     st.baseHp = Math.round(G.baseHpMax * 0.5);
     st.player.hp = G.playerHpMax;
     // Abseits jedes Bauplatzes einsteigen, sonst fließt sofort wieder Gold
@@ -252,6 +259,109 @@ KS.Game = (() => {
     log('Der Wiederaufbau beginnt — die Hoffnung lebt.');
     setPaused(false);
     save();
+  }
+
+  // ================== LAUF BEENDEN / WELTENESSENZ ==================
+  // Ein Lauf ist nicht zu gewinnen — der Bann der Leere holt jeden ein.
+  // Was bleibt, ist Weltenessenz: aus überlebten Tagen und gefallenen Bossen.
+  // Sie wird im Sternenbaum in dauerhafte Segnungen umgemünzt.
+
+  function essenceReward(st) {
+    const lvl = (st.meta && st.meta.f_ess) || 0;
+    const roh = CFG.essenceFor(st.day, st.stats.bossKills || 0);
+    return { roh, bonus: Math.round(roh * 0.15 * lvl), total: Math.round(roh * (1 + 0.15 * lvl)) };
+  }
+  // Vorschau für Niederlagen-Bildschirm und Menü
+  function pendingEssence() { return essenceReward(G.state); }
+
+  // Startvorteile aus dem Zweig „Aufbruch“ auf einen frischen Spielstand legen.
+  // Teil 1 läuft vor initRuntime (reine Daten), Teil 2 danach (braucht G).
+  function applyRunStartData(st) {
+    const ml = id => (st.meta && st.meta[id]) || 0;
+    // Erbe der Krone: Startgold
+    const gs = ml('w_start');
+    if (gs > 0) st.gold = Math.round(220 * Math.pow(2.15, gs - 1));
+    // Feste Fundamente: alles, was schon offen ist, steht fertig da
+    const stier = ml('b_tier') > 0 ? 1 + ml('b_tier') : 0;
+    if (stier > 0) {
+      for (const pid of st.unlockedPads) {
+        const pad = CFG.PADS.find(p => p.id === pid);
+        if (!pad || pad.type === 'wall' || pad.type === 'gates') continue;
+        const b = st.buildings[pid];
+        if (!b || b.tier < stier) st.buildings[pid] = { tier: stier, prog: 0 };
+      }
+    }
+    // Erbstück: die Schmiede ist schon geschlagen
+    const fs = ml('b_forge');
+    if (fs > 0) {
+      if (!st.unlockedPads.includes('forge')) st.unlockedPads.push('forge');
+      st.buildings.forge = { tier: Math.max(1 + fs, stier), prog: 0 };
+    }
+    // Alte Mauern: Mauerring und Tore stehen bereits
+    const ws = ml('b_wall');
+    if (ws > 0) {
+      for (const pid of ['wall', 'gates']) {
+        if (!st.unlockedPads.includes(pid)) st.unlockedPads.push(pid);
+        st.buildings[pid] = { tier: ws, prog: 0 };
+      }
+      st.wall = null; st.gates = null;   // HP baut rebuildDerived frisch auf
+    }
+  }
+
+  // Teil 2: frei platzierte Wirtschaftsgebäude aufstellen
+  const ECO_START = [
+    { type: 'lager',       name: 'Lager' },
+    { type: 'holzfaeller', name: 'Holzfäller' },
+    { type: 'saegewerk',   name: 'Sägewerk' },
+    { type: 'bauernhof',   name: 'Bauernhof' },
+  ];
+  function applyRunStartPlaced(st) {
+    const ml = id => (st.meta && st.meta[id]) || 0;
+    const n = ml('b_eco');
+    if (n <= 0) return;
+    const tier = Math.max(1, G.startTier || 1);
+    for (let i = 0; i < Math.min(n, ECO_START.length); i++) {
+      Sys.autoPlace(G, ECO_START[i].type, tier);
+    }
+  }
+
+  // Lauf abschließen: Essenz gutschreiben und mit allen Segnungen neu anfangen
+  function endRun() {
+    // Erst alles Halbfertige abräumen, sonst zeigt der Baumodus auf ein Pad,
+    // das es im neuen Lauf nicht mehr gibt.
+    if (G.placeMode) cancelPlaceMode();
+    KS.UI.hidePlaceBar();
+    const old = G.state;
+    const rew = essenceReward(old);
+    const carry = {
+      meta: JSON.parse(JSON.stringify(old.meta || {})),
+      essence: (old.essence || 0) + rew.total,
+      essenceTotal: (old.essenceTotal || 0) + rew.total,
+      runs: (old.runs || 0) + 1,
+      runBest: Math.max(old.runBest || 0, old.day || 1),
+      runBossBest: Math.max(old.runBossBest || 0, old.stats.bossKills || 0),
+      settings: JSON.parse(JSON.stringify(old.settings || {})),
+    };
+    const st = newState();
+    Object.assign(st, carry);
+    applyRunStartData(st);
+    initRuntime(st);
+    applyRunStartPlaced(st);
+    Sys.rebuildDerived(G);
+    Sys.syncVillagers(G);
+    Sys.syncWorkers(G);                    // Arbeiter der vorgebauten Sammelstätten
+    st.player.hp = G.playerHpMax;          // frisch und mit allen Segnungen
+    st.baseHp = G.baseHpMax;
+    // Immer Münzen streuen: die erste Quest verlangt gesammelte Münzen, und
+    // Startgold aus dem Sternenbaum zählt dafür nicht.
+    scatterStarterCoins();
+    G.paused = false;
+    KS.UI.hideDefeat();
+    KS.UI.hideBossBar();
+    log(`Lauf ${carry.runs} beendet — ${rew.total} Weltenessenz geborgen.`);
+    save();
+    KS.UI.openMeta(G, rew);
+    return rew;
   }
 
   // ================== PAUSE ==================
@@ -1400,7 +1510,7 @@ KS.Game = (() => {
 
   return {
     G, boot, save, requestSave, serialize, hardReset, loadImported,
-    setPaused, onDefeat, reviveAfterDefeat, log, pingQuestTarget,
+    setPaused, onDefeat, reviveAfterDefeat, endRun, pendingEssence, log, pingQuestTarget,
     startPlaceMode, cancelPlaceMode, confirmPlaceMode,
   };
 })();

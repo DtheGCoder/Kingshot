@@ -41,10 +41,13 @@ KS.UI = (() => {
       actBtn: $('act-btn'), actIco: $('act-ico'), actTitle: $('act-title'),
       actSub: $('act-sub'), actHint: $('act-hint'),
       questToggle: $('quest-toggle'), questTab: $('quest-tab'), questTabProg: $('quest-tab-prog'),
-      demoBtn: $('demo-btn'), demoTxt: $('demo-txt'),
+      demoBtn: $('demo-btn'), demoTxt: $('demo-txt'), shopBtn: $('shop-btn'),
       resBar: $('res-bar'), sideBtns: $('side-btns'),
       buildPanel: $('build-panel'), buildRows: $('build-rows'), buildPurse: $('build-purse'),
       techPanel: $('tech-panel'), techRows: $('tech-rows'), techTabs: $('tech-tabs'), techPurse: $('tech-purse'),
+      metaPanel: $('meta-panel'), metaRows: $('meta-rows'), metaTabs: $('meta-tabs'),
+      metaPurse: $('meta-purse'), metaGain: $('meta-gain'), metaFoot: $('meta-foot'),
+      defeatEss: $('defeat-ess'), defeatEnd: $('defeat-end'), defeatEndLbl: $('defeat-end-lbl'),
       placeBar: $('place-bar'), placeIco: $('place-ico'), placeName: $('place-name'),
       placeHint: $('place-hint'), placeOk: $('place-ok'),
       sndOn: $('snd-on'), sndOff: $('snd-off'),
@@ -104,6 +107,12 @@ KS.UI = (() => {
       }
       lastDemoKey = '';
     });
+    // Shop am Markt öffnen
+    if (els.shopBtn) els.shopBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      KS.Audio.unlock(); KS.Audio.SFX.click();
+      openMarket(KS.Game.G);
+    });
     // Bauen & Forschung
     wire('btn-build', 'click', () => { KS.Audio.unlock(); KS.Audio.SFX.click(); openBuild(KS.Game.G); });
     wire('btn-tech', 'click', () => { KS.Audio.unlock(); KS.Audio.SFX.click(); openTech(KS.Game.G); });
@@ -133,6 +142,33 @@ KS.UI = (() => {
       KS.Audio.SFX.click();
       techBranch = tab.dataset.br;
       renderTech(KS.Game.G);
+    });
+    // Sternenbaum
+    wire('btn-meta', 'click', () => { KS.Audio.unlock(); KS.Audio.SFX.click(); openMeta(KS.Game.G); });
+    wire('meta-close', 'click', () => { KS.Audio.SFX.click(); closeMeta(); });
+    if (els.metaPanel) els.metaPanel.addEventListener('click', e => {
+      if (e.target === els.metaPanel || e.target.id === 'meta-sky') closeMeta();
+    });
+    if (els.metaRows) els.metaRows.addEventListener('click', e => {
+      const btn = e.target.closest('.mn-buy');
+      if (!btn || btn.classList.contains('max')) return;
+      buyMeta(KS.Game.G, btn.dataset.id);
+    });
+    if (els.metaTabs) els.metaTabs.addEventListener('click', e => {
+      const tab = e.target.closest('.mt-tab');
+      if (!tab) return;
+      KS.Audio.SFX.click();
+      metaBranch = tab.dataset.br;
+      renderMeta(KS.Game.G);
+    });
+    // Lauf beenden — von der Niederlage aus und aus dem Menü
+    wire('defeat-end', 'click', () => { KS.Audio.SFX.click(); hideDefeat(); KS.Game.endRun(); });
+    wire('btn-endrun', 'click', () => {
+      KS.Audio.SFX.click();
+      const r = KS.Game.pendingEssence();
+      if (!confirm(`Diesen Lauf jetzt beenden?\n\nDu bekommst ${U.fmt(r.total)} Weltenessenz und beginnst mit allen Segnungen von vorn.`)) return;
+      toggleMenu(false);
+      KS.Game.endRun();
     });
     // Platzierungsleiste
     wire('place-cancel', 'click', () => { KS.Audio.SFX.click(); KS.Game.cancelPlaceMode(); });
@@ -297,6 +333,13 @@ KS.UI = (() => {
     if (els.resBar) updateResBar(G);
     // Abriss-Knopf
     if (els.demoBtn) refreshDemoBtn(G, dt);
+    // Shop-Knopf am Markt
+    if (els.shopBtn) {
+      const pad = G.nearPad;
+      const zeig = !!pad && pad.type === 'markt' && !G.playerDown && !anyPanelOpen() && !G.placeMode
+        && (G.state.buildings.markt || {}).tier >= 1;
+      els.shopBtn.classList.toggle('hidden', !zeig);
+    }
     // Markt-Preise regelmäßig auffrischen (Kaufkraft-Anzeige)
     if (marketVisible) {
       marketRefreshT -= dt;
@@ -356,7 +399,11 @@ KS.UI = (() => {
     const def = CFG.BUILDINGS[pad.type];
     const b = st.buildings[pad.id] || { tier: 0, prog: 0 };
     const maxed = b.tier >= def.tiers;
-    const isMarket = pad.type === 'markt' && b.tier >= 1;
+    // Der Markt wurde bisher NUR geöffnet — ausbauen war dadurch unmöglich.
+    // Jetzt baut der Aktionsknopf wie überall aus; den Shop öffnet ein
+    // zweiter Knopf daneben. Nur auf der Maximalstufe übernimmt der große
+    // Knopf wieder das Öffnen.
+    const isMarket = pad.type === 'markt' && b.tier >= 1 && maxed;
     const running = G.buildArmed === pad.id;
     const cost = maxed ? 0 : CFG.costOf(pad.type, b.tier + 1);
     const rest = Math.max(0, cost - b.prog);
@@ -498,7 +545,19 @@ KS.UI = (() => {
   let lastResKey = '';
 
   function updateResBar(G) {
+    // Der Bann der Leere gehört dauerhaft ins Bild: er erklärt, warum die
+    // Nächte härter werden, und wofür man Weltenessenz ausgibt.
+    // Direkt aus dem Tag gerechnet, nicht aus einem Zwischenwert: so stimmt
+    // die Anzeige auch, wenn der Tag ohne Neuberechnung gewechselt hat.
+    const vm = CFG.SCALE.voidMul(G.state.day, G.voidDelay || 0);
+    const bann = vm > 1.05
+      ? `<span class="res-pill res-bann">${icon('skull')}×${vm.toFixed(1)}</span>` : '';
     if (!G.storeCap) {
+      if (bann) {
+        if (els.resBar.innerHTML !== bann) { els.resBar.innerHTML = bann; lastResKey = 'b' + bann; }
+        els.resBar.classList.remove('hidden');
+        return;
+      }
       if (!els.resBar.classList.contains('hidden')) {
         els.resBar.classList.add('hidden');
         els.resBar.innerHTML = '';
@@ -517,7 +576,8 @@ KS.UI = (() => {
         `<span class="cap">/${U.fmt(G.storeCap)}</span></span>`
       );
     }
-    const key = G.storeCap + '|' + keys.join(',');
+    if (bann) parts.push(bann);
+    const key = G.storeCap + '|' + keys.join(',') + '|' + bann;
     if (key !== lastResKey) {
       lastResKey = key;
       els.resBar.innerHTML = parts.join('');
@@ -685,16 +745,154 @@ KS.UI = (() => {
 
   function isTechOpen() { return techVisible; }
 
+  // ---------- Sternenbaum (Weltenessenz) ----------
+  let metaVisible = false;
+  let metaBranch = 'macht';
+
+  function openMeta(G, gain) {
+    if (!els.metaPanel) return;
+    metaVisible = true;
+    metaGain = gain || null;
+    renderMeta(G);
+    els.metaPanel.classList.remove('hidden');
+    els.actBtn.classList.add('hidden');
+    els.questCard.classList.remove('raised');
+    els.questTab.classList.remove('raised');
+    lastActKey = '';
+    KS.Game.setPaused(true);
+    if (gain) KS.Audio.SFX.essence();
+  }
+
+  function closeMeta() {
+    if (!metaVisible) return;
+    metaVisible = false;
+    metaGain = null;
+    els.metaPanel.classList.add('hidden');
+    resumeIfClear();
+  }
+
+  function isMetaOpen() { return metaVisible; }
+  let metaGain = null;
+
+  function renderMeta(G) {
+    const st = G.state;
+    const lvl = id => (st.meta && st.meta[id]) || 0;
+
+    // Ausbeute des gerade beendeten Laufs
+    if (els.metaGain) {
+      if (metaGain) {
+        const b = metaGain.bonus > 0
+          ? `<div class="mg-line">Grundwert ${U.fmt(metaGain.roh)} + Sternendeuter ${U.fmt(metaGain.bonus)}</div>` : '';
+        els.metaGain.innerHTML =
+          `<div class="mg-top">${icon('sparkle')}+${U.fmt(metaGain.total)} Weltenessenz geborgen</div>` +
+          `<div class="mg-line">Aus ${st.runBest > 0 ? `${st.runBest} überlebten Tagen` : 'dem letzten Lauf'} ` +
+          `und ${st.runBossBest || 0} gefallenen Bossen.</div>${b}`;
+        els.metaGain.classList.remove('hidden');
+      } else {
+        els.metaGain.classList.add('hidden');
+      }
+    }
+
+    // Börse
+    const total = CFG.META.reduce((a, n) => a + n.lvl, 0);
+    const owned = CFG.META.reduce((a, n) => a + lvl(n.id), 0);
+    els.metaPurse.innerHTML =
+      `<div><div class="mp-lbl">Weltenessenz</div>` +
+      `<div class="mp-val">${icon('sparkle')}${U.fmt(st.essence || 0)}</div></div>` +
+      `<div class="mp-runs">${st.runs || 0} ${(st.runs || 0) === 1 ? 'Lauf' : 'Läufe'} · bester Tag ${st.runBest || 0}<br>` +
+      `${owned}/${total} Segnungen · ${U.fmt(st.essenceTotal || 0)} je geborgen</div>`;
+
+    // Reiter je Zweig
+    els.metaTabs.innerHTML = Object.entries(CFG.META_BRANCHES).map(([br, b]) => {
+      const nodes = CFG.META.filter(n => n.br === br);
+      const have = nodes.reduce((a, n) => a + lvl(n.id), 0);
+      const max = nodes.reduce((a, n) => a + n.lvl, 0);
+      return `<button class="mt-tab br-${br}${br === metaBranch ? ' active' : ''}" data-br="${br}">` +
+             `${icon(b.ico)}<span class="mt-name">${b.name}</span>` +
+             `<span class="mt-cnt">${have}/${max}</span></button>`;
+    }).join('');
+
+    // Knoten des aktiven Zweigs
+    const html = [];
+    for (const node of CFG.META.filter(n => n.br === metaBranch)) {
+      const l = lvl(node.id);
+      const maxed = l >= node.lvl;
+      const cost = maxed ? 0 : CFG.metaCost(node, l);
+      const broke = !maxed && (st.essence || 0) < cost;
+      const pips = Array.from({ length: node.lvl },
+        (_, i) => `<span class="mn-pip${i < l ? ' on' : ''}"></span>`).join('');
+      const jetzt = l > 0 ? `<div class="mn-desc">Jetzt: ${node.desc(l)}</div>` : '';
+      const naechste = maxed ? '' : `<div class="mn-next">Nächste Stufe: ${node.desc(l + 1)}</div>`;
+      const btn = maxed
+        ? `<button class="mn-buy max"><span class="mb-cost">${icon('check')}</span><span class="mb-lbl">VOLL</span></button>`
+        : `<button class="mn-buy${broke ? ' broke' : ''}" data-id="${node.id}">` +
+          `<span class="mb-cost">${icon('sparkle')}${U.fmt(cost)}</span>` +
+          `<span class="mb-lbl">STUFE ${l + 1}</span></button>`;
+      html.push(`
+        <div class="mn-row br-${metaBranch}${node.key ? ' key' : ''}">
+          <div class="mn-orb${l > 0 ? ' lit' : ''}${maxed ? ' full' : ''}">
+            ${icon(node.ico)}${l > 0 ? `<span class="mn-lvl">${l}</span>` : ''}
+          </div>
+          <div class="mn-body">
+            <div class="mn-name">${node.name}</div>
+            ${jetzt}${naechste}
+            <div class="mn-pips">${pips}</div>
+          </div>
+          ${btn}
+        </div>`);
+    }
+    els.metaRows.innerHTML = html.join('');
+    if (els.metaFoot) {
+      els.metaFoot.innerHTML =
+        'Segnungen bleiben für immer. Essenz gibt es nur, wenn du einen Lauf beendest — ' +
+        'aus überlebten Tagen und gefallenen Bossen. Der Bann der Leere holt jeden Lauf ein; ' +
+        'wie weit du kommst, entscheidet dieser Baum.';
+    }
+  }
+
+  // Kauf einer Knotenstufe
+  function buyMeta(G, id) {
+    const st = G.state;
+    const node = CFG.META.find(n => n.id === id);
+    if (!node) return;
+    if (!st.meta) st.meta = {};
+    const l = st.meta[id] || 0;
+    if (l >= node.lvl) return;
+    const cost = CFG.metaCost(node, l);
+    if ((st.essence || 0) < cost) {
+      toast(`Dafür fehlen ${U.fmt(cost - (st.essence || 0))} Weltenessenz.`, 2200, 'sparkle');
+      KS.Audio.SFX.denied();
+      return;
+    }
+    st.essence -= cost;
+    st.meta[id] = l + 1;
+    KS.Systems.rebuildDerived(G);
+    KS.Audio.SFX.essence();
+    toast(`${node.name} Stufe ${l + 1}: ${node.desc(l + 1)}`, 3200, node.ico);
+    renderMeta(G);
+    KS.Game.requestSave();
+  }
+
+  // Vorschau der Essenz auf dem Niederlagen-Bildschirm
+  function updateDefeatEssence() {
+    if (!els.defeatEss || !KS.Game.pendingEssence) return;
+    const r = KS.Game.pendingEssence();
+    els.defeatEss.innerHTML =
+      `<div class="de-val">${icon('sparkle')}${U.fmt(r.total)} Weltenessenz</div>` +
+      `<div class="de-note">wartet darauf, geborgen zu werden</div>`;
+    if (els.defeatEndLbl) els.defeatEndLbl.textContent = `Lauf beenden (+${U.fmt(r.total)})`;
+  }
+
   // Weiterlaufen, sobald kein Vollbildfenster mehr offen ist
   function resumeIfClear() {
-    if (marketVisible || buildVisible || techVisible) return;
+    if (marketVisible || buildVisible || techVisible || metaVisible) return;
     if (!els.story.classList.contains('hidden')) return;
     if (!els.defeat.classList.contains('hidden')) return;
     if (!els.menu.classList.contains('hidden')) return;
     KS.Game.setPaused(false);
   }
 
-  function anyPanelOpen() { return marketVisible || buildVisible || techVisible; }
+  function anyPanelOpen() { return marketVisible || buildVisible || techVisible || metaVisible; }
 
   // ---------- Platzierungsleiste ----------
   // Der Geist folgt dem König; die Leiste sagt jederzeit, ob es hier geht.
@@ -801,8 +999,13 @@ KS.UI = (() => {
     KS.Audio.SFX.victory();
   }
 
+  function hideDefeat() {
+    if (els.defeat) els.defeat.classList.add('hidden');
+  }
+
   function showDefeat(day) {
     els.defeatTitle.textContent = `Die Burg ist gefallen… (Nacht ${day})`;
+    updateDefeatEssence();
     els.defeat.classList.remove('hidden');
     KS.Audio.SFX.defeat();
   }
@@ -847,6 +1050,10 @@ KS.UI = (() => {
       ['time', mins >= 60 ? Math.floor(mins / 60) + ' h ' + (mins % 60) + ' min' : mins + ' min', 'Spielzeit'],
       ['castle', 'Stufe ' + (st.buildings.castle ? st.buildings.castle.tier : 1), 'Burg'],
       ['sword', CFG.weaponFor(G.weaponTier).name, 'Waffe'],
+      ['sparkle', U.fmt(st.essence || 0), 'Weltenessenz'],
+      ['star', (st.runs || 0) + ' · Tag ' + (st.runBest || 0), 'Läufe / bester Tag'],
+      ['skull', '×' + CFG.SCALE.voidMul(st.day, G.voidDelay || 0).toFixed(1),
+        'Bann der Leere (ab Tag ' + CFG.SCALE.voidStart(G.voidDelay || 0) + ')'],
     ];
     $('stats-grid').innerHTML = rows.map(r =>
       `<div class="stat-box"><div class="sv">${icon(r[0])} ${r[1]}</div><div class="sl">${r[2]}</div></div>`
@@ -905,6 +1112,7 @@ KS.UI = (() => {
     openMarket, closeMarket, isMarketOpen,
     openBuild, closeBuild, renderBuild, isBuildOpen,
     openTech, closeTech, renderTech, isTechOpen,
+    openMeta, closeMeta, renderMeta, isMetaOpen, hideDefeat,
     showPlaceBar, hidePlaceBar, updatePlaceBar,
     updateResBar, anyPanelOpen,
     setQuestCollapsed,

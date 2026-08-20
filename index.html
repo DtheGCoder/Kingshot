@@ -282,6 +282,10 @@
       <svg class="ico"><use href="#i-flask"/></svg>
       <span class="rb-label">Forschung</span>
     </button>
+    <button id="btn-meta" class="round-btn star" aria-label="Sternenbaum">
+      <svg class="ico"><use href="#i-sparkle"/></svg>
+      <span class="rb-label">Sterne</span>
+    </button>
   </div>
 
   <!-- Platzierungsleiste im Baumodus -->
@@ -307,6 +311,12 @@
       <span id="act-sub"></span>
     </span>
     <span id="act-hint"></span>
+  </button>
+
+  <!-- Shop öffnen: nur am Markt, damit der Aktionsknopf zum Ausbauen frei bleibt -->
+  <button id="shop-btn" class="hidden" aria-label="Markt öffnen">
+    <svg class="ico"><use href="#i-market"/></svg>
+    <span>Shop</span>
   </button>
 
   <!-- Abreißen: nur an selbst gesetzten Gebäuden, mit Nachfrage -->
@@ -349,6 +359,31 @@
     <div id="tech-purse"></div>
     <div id="tech-tabs"></div>
     <div id="tech-rows"></div>
+  </div>
+</div>
+
+<!-- Sternenbaum: dauerhafte Segnungen aus Weltenessenz -->
+<div id="meta-panel" class="overlay hidden">
+  <div id="meta-sky">
+    <div class="neb neb-a"></div><div class="neb neb-b"></div><div class="neb neb-c"></div>
+    <div id="meta-stars"></div>
+  </div>
+  <div id="meta-card">
+    <button id="meta-close" class="close-btn" aria-label="Schließen">
+      <svg class="ico"><use href="#i-x"/></svg>
+    </button>
+    <div id="meta-head">
+      <svg class="mh-ico" viewBox="0 0 24 24"><use href="#i-sparkle"/></svg>
+      <div class="mh-txt">
+        <div class="mh-title">Sternenbaum</div>
+        <div class="mh-sub">Segnungen, die jeden Lauf überdauern</div>
+      </div>
+    </div>
+    <div id="meta-gain" class="hidden"></div>
+    <div id="meta-purse"></div>
+    <div id="meta-tabs"></div>
+    <div id="meta-rows"></div>
+    <div id="meta-foot"></div>
   </div>
 </div>
 
@@ -402,6 +437,7 @@
       <label class="opt-row"><span><svg class="ico"><use href="#i-note"/></svg> Musik</span><input type="checkbox" id="opt-music" checked></label>
       <label class="opt-row"><span><svg class="ico"><use href="#i-shake"/></svg> Bildschirm-Wackeln</span><input type="checkbox" id="opt-shake" checked></label>
       <div class="opt-actions">
+        <button id="btn-endrun" class="small-btn star">Lauf beenden &amp; Essenz bergen</button>
         <button id="btn-export" class="small-btn">Spielstand exportieren</button>
         <button id="btn-import" class="small-btn">Spielstand importieren</button>
         <button id="btn-reset" class="small-btn danger">Neu beginnen</button>
@@ -432,7 +468,10 @@
     <svg class="defeat-ico" viewBox="0 0 24 24"><use href="#i-flame"/></svg>
     <div id="defeat-title">Die Burg ist gefallen…</div>
     <div id="defeat-text">Doch ein König gibt niemals auf. Die Überlebenden sammeln sich in den Ruinen — bereit für einen neuen Versuch.</div>
+    <div id="defeat-ess"></div>
     <button id="defeat-btn" class="big-btn"><svg class="ico"><use href="#i-crown"/></svg> Wieder aufstehen</button>
+    <button id="defeat-end" class="big-btn ess-btn"><svg class="ico"><use href="#i-sparkle"/></svg> <span id="defeat-end-lbl">Lauf beenden</span></button>
+    <div id="defeat-hint">Nur wer den Lauf beendet, birgt die Essenz und beginnt gestärkt von vorn.</div>
   </div>
 </div>
 
