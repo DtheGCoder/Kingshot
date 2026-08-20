@@ -85,6 +85,10 @@ sudo ./deploy/install.sh --domain D --no-https          # Domain, bewusst ohne T
 
 ### Updaten / Entfernen
 
+> **Welche Version läuft gerade?** Im Spiel ⚙-Menü → *Optionen*, unten steht die
+> Version (der Git-Kurz-Hash). Stimmt sie nicht mit `git rev-parse --short HEAD`
+> im Repo überein, ist das Update noch nicht durch — dann einmal `sudo ./deploy/update.sh`.
+
 ```bash
 sudo ./deploy/update.sh        # git pull + Dateien neu kopieren (Spielstände bleiben!)
 sudo ./deploy/uninstall.sh     # nur die Kingshot-Site entfernen

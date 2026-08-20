@@ -50,6 +50,10 @@ KS.UI = (() => {
       sndOn: $('snd-on'), sndOff: $('snd-off'),
     };
 
+    // Ereignis anhängen, aber nur wenn das Element da ist. Bei einem halb
+    // aktualisierten Webroot fehlt sonst ein Knopf und das ganze HUD stirbt.
+    const wire = (id, ev, fn) => { const el = $(id); if (el) el.addEventListener(ev, fn); };
+
     // Buttons
     $('btn-pause').addEventListener('click', () => { KS.Audio.SFX.click(); toggleMenu(); });
     $('btn-sound').addEventListener('click', () => {
@@ -85,7 +89,7 @@ KS.UI = (() => {
       refreshActBtn(G);
     });
     // Abreißen — zwei Tipper, damit es nie versehentlich passiert
-    els.demoBtn.addEventListener('click', e => {
+    if (els.demoBtn) els.demoBtn.addEventListener('click', e => {
       e.stopPropagation();
       KS.Audio.unlock(); KS.Audio.SFX.click();
       const G = KS.Game.G, pad = G.nearPad;
@@ -101,14 +105,14 @@ KS.UI = (() => {
       lastDemoKey = '';
     });
     // Bauen & Forschung
-    $('btn-build').addEventListener('click', () => { KS.Audio.unlock(); KS.Audio.SFX.click(); openBuild(KS.Game.G); });
-    $('btn-tech').addEventListener('click', () => { KS.Audio.unlock(); KS.Audio.SFX.click(); openTech(KS.Game.G); });
-    $('build-close').addEventListener('click', () => { KS.Audio.SFX.click(); closeBuild(); });
-    $('tech-close').addEventListener('click', () => { KS.Audio.SFX.click(); closeTech(); });
-    els.buildPanel.addEventListener('click', e => { if (e.target === els.buildPanel) closeBuild(); });
-    els.techPanel.addEventListener('click', e => { if (e.target === els.techPanel) closeTech(); });
+    wire('btn-build', 'click', () => { KS.Audio.unlock(); KS.Audio.SFX.click(); openBuild(KS.Game.G); });
+    wire('btn-tech', 'click', () => { KS.Audio.unlock(); KS.Audio.SFX.click(); openTech(KS.Game.G); });
+    wire('build-close', 'click', () => { KS.Audio.SFX.click(); closeBuild(); });
+    wire('tech-close', 'click', () => { KS.Audio.SFX.click(); closeTech(); });
+    if (els.buildPanel) els.buildPanel.addEventListener('click', e => { if (e.target === els.buildPanel) closeBuild(); });
+    if (els.techPanel) els.techPanel.addEventListener('click', e => { if (e.target === els.techPanel) closeTech(); });
     // Gebäude wählen → Baumodus
-    els.buildRows.addEventListener('click', e => {
+    if (els.buildRows) els.buildRows.addEventListener('click', e => {
       const btn = e.target.closest('.bd-pick');
       if (!btn) return;
       KS.Audio.SFX.click();
@@ -117,13 +121,13 @@ KS.UI = (() => {
       KS.Game.startPlaceMode(type);
     });
     // Forschung kaufen
-    els.techRows.addEventListener('click', e => {
+    if (els.techRows) els.techRows.addEventListener('click', e => {
       const btn = e.target.closest('.tt-buy');
       if (!btn || btn.classList.contains('max')) return;
       if (KS.Systems.buyTech(KS.Game.G, btn.dataset.id)) renderTech(KS.Game.G);
       else renderTech(KS.Game.G);
     });
-    els.techTabs.addEventListener('click', e => {
+    if (els.techTabs) els.techTabs.addEventListener('click', e => {
       const tab = e.target.closest('.tt-tab');
       if (!tab) return;
       KS.Audio.SFX.click();
@@ -131,8 +135,8 @@ KS.UI = (() => {
       renderTech(KS.Game.G);
     });
     // Platzierungsleiste
-    $('place-cancel').addEventListener('click', () => { KS.Audio.SFX.click(); KS.Game.cancelPlaceMode(); });
-    els.placeOk.addEventListener('click', () => { KS.Game.confirmPlaceMode(); });
+    wire('place-cancel', 'click', () => { KS.Audio.SFX.click(); KS.Game.cancelPlaceMode(); });
+    if (els.placeOk) els.placeOk.addEventListener('click', () => { KS.Game.confirmPlaceMode(); });
 
     // Markt schließen
     const closeM = () => { KS.Audio.SFX.click(); closeMarket(); };
@@ -290,9 +294,9 @@ KS.UI = (() => {
       }
     }
     // Rohstoffe
-    updateResBar(G);
+    if (els.resBar) updateResBar(G);
     // Abriss-Knopf
-    refreshDemoBtn(G, dt);
+    if (els.demoBtn) refreshDemoBtn(G, dt);
     // Markt-Preise regelmäßig auffrischen (Kaufkraft-Anzeige)
     if (marketVisible) {
       marketRefreshT -= dt;
@@ -303,13 +307,15 @@ KS.UI = (() => {
       }
     }
     // Bau-/Forschungsknöpfe verstecken, solange ein Bauplatz-Knopf im Weg wäre
-    els.sideBtns.classList.toggle('hidden-soft', !!G.placeMode || !!G.nearPad || G.playerDown);
-    // Verlangt die Quest ein neues Gebäude oder eine Forschung? Dann darf der
-    // passende Knopf ruhig auf sich aufmerksam machen.
-    const wantBuild = !!q && (q.type === 'place' || q.type === 'res');
-    const wantTech = !!q && q.type === 'tech';
-    if (wantBuild !== hintBuild) { hintBuild = wantBuild; $('btn-build').classList.toggle('nudge', wantBuild); }
-    if (wantTech !== hintTech) { hintTech = wantTech; $('btn-tech').classList.toggle('nudge', wantTech); }
+    if (els.sideBtns) {
+      els.sideBtns.classList.toggle('hidden-soft', !!G.placeMode || !!G.nearPad || G.playerDown);
+      // Verlangt die Quest ein neues Gebäude oder eine Forschung? Dann darf der
+      // passende Knopf ruhig auf sich aufmerksam machen.
+      const wantBuild = !!q && (q.type === 'place' || q.type === 'res');
+      const wantTech = !!q && q.type === 'tech';
+      if (wantBuild !== hintBuild) { hintBuild = wantBuild; $('btn-build').classList.toggle('nudge', wantBuild); }
+      if (wantTech !== hintTech) { hintTech = wantTech; $('btn-tech').classList.toggle('nudge', wantTech); }
+    }
     // Aktionsknopf am Bauplatz
     refreshActBtn(G);
   }
@@ -550,7 +556,7 @@ KS.UI = (() => {
   }
 
   function openBuild(G) {
-    if (buildVisible || G.placeMode) return;
+    if (buildVisible || G.placeMode || !els.buildPanel) return;
     buildVisible = true;
     renderBuild(G);
     els.buildPanel.classList.remove('hidden');
@@ -603,7 +609,7 @@ KS.UI = (() => {
   let techBranch = 'eco';
 
   function openTech(G) {
-    if (techVisible || G.placeMode) return;
+    if (techVisible || G.placeMode || !els.techPanel) return;
     techVisible = true;
     renderTech(G);
     els.techPanel.classList.remove('hidden');
@@ -696,7 +702,7 @@ KS.UI = (() => {
 
   function showPlaceBar(G) {
     const pm = G.placeMode;
-    if (!pm) return;
+    if (!pm || !els.placeBar) return;
     els.placeIco.innerHTML = icon(pm.def.ico);
     els.placeName.textContent = pm.def.name;
     els.placeBar.classList.remove('hidden');
@@ -710,6 +716,7 @@ KS.UI = (() => {
   }
 
   function hidePlaceBar() {
+    if (!els.placeBar) return;
     els.placeBar.classList.add('hidden');
     els.sideBtns.classList.remove('hidden-soft');
     lastPlaceKey = '';
@@ -717,7 +724,7 @@ KS.UI = (() => {
 
   function updatePlaceBar(G) {
     const pm = G.placeMode;
-    if (!pm) return;
+    if (!pm || !els.placeBar) return;
     const cost = KS.Systems.placeCost(G, pm.type);
     const key = `${pm.ok}|${pm.problem || ''}`;
     if (key === lastPlaceKey) return;
@@ -810,12 +817,22 @@ KS.UI = (() => {
       $('opt-music').checked = KS.Audio.musicOn;
       $('opt-shake').checked = st.settings.shake !== false;
       renderStats();
+      const ver = $('opt-version');
+      if (ver) ver.textContent = runningVersion();
       els.menu.classList.remove('hidden');
       KS.Game.setPaused(true);
     } else {
       els.menu.classList.add('hidden');
       resumeIfClear();
     }
+  }
+
+  // Laufende Version aus dem Cache-Busting-Stempel der Skripte lesen.
+  // So sieht man im Menü sofort, ob der Server schon aktualisiert hat.
+  function runningVersion() {
+    const sc = document.querySelector('script[src*="game.js"]');
+    const m = sc && /[?&]v=([\w.-]+)/.exec(sc.getAttribute('src') || '');
+    return m ? m[1] : 'lokal (ohne Stempel)';
   }
 
   function renderStats() {
