@@ -23,6 +23,7 @@ Läuft auf jedem Handy und Desktop-Browser, direkt von deinem eigenen nginx-Serv
 | ![Bauen bestätigen](docs/screenshots/bauen.jpg) | ![Stadttore](docs/screenshots/tore.jpg) | ![Quest eingeklappt](docs/screenshots/quest-eingeklappt.jpg) |
 | ![Bau-Menü](docs/screenshots/bauen-menu.jpg) | ![Gebäude platzieren](docs/screenshots/platzieren.jpg) | ![Techtree](docs/screenshots/forschung.jpg) |
 | ![Wirtschaft](docs/screenshots/wirtschaft.jpg) | ![Sternenbaum](docs/screenshots/sternenbaum.jpg) | ![Lauf beenden](docs/screenshots/lauf-ende.jpg) |
+| ![Stadt bei Nacht](docs/screenshots/nacht-stadt.jpg) | ![Schräges Stadttor](docs/screenshots/tor-schraeg.jpg) | |
 
 ![Desktop](docs/screenshots/desktop.jpg)
 
@@ -193,7 +194,9 @@ tail -f /var/log/kingshot-update.log     # was ist passiert?
   **und** Rohstoffen.
 - **Tag & Nacht:** Tagsüber bauen, sammeln und produzieren — nachts kommt die Flut.
   Alle 5 Nächte wartet ein **Boss**. Deine Arbeiter gehen bei Sonnenuntergang von
-  selbst in Deckung und morgens wieder aufs Feld.
+  selbst in Deckung und morgens wieder aufs Feld. Nachts bleibt die **Stadt
+  innerhalb der Mauer hell** — dort baust du weiter und sammelst Münzen; jenseits
+  des Mauerrings wird es finster, und die Horde kommt aus dem Dunkeln.
 - **Markt:** Der große Aktionsknopf **baut den Markt aus** wie jedes andere Gebäude —
   den Laden öffnet der kleine Knopf daneben. Erst auf der Endstufe, wo es nichts mehr
   zu bauen gibt, öffnet auch der große Knopf den Laden.
@@ -265,6 +268,42 @@ Sammler versorgt zwei Verarbeiter. Rohstoffe zahlen außerdem die Forschung.
 | 📦 **Wirtschaft** | Schubkarren (+30 % je Fuhre), Große Speicher, Zünfte (+30 % Gold der Werke), Wasserkraft (Werke doppelt so schnell) |
 | ⚔️ **Militär** | Königsschliff (+25 % Königsschaden), Ballistik, Nachtwache (Mauer & Tore heilen nachts), Großes Arsenal (+50 % Turmschaden) |
 | 👑 **Reich** | Landvermessung (engere Bauplätze), Rechnungsbuch (−10 % Baukosten), Herolde (doppelte Zuwanderung), Baumeister (Einzahlen doppelt so schnell), Goldenes Zeitalter (+30 % auf alles Gold) |
+
+### 🌙 Licht in der Nacht
+
+Die Dunkelheit liegt nicht mehr gleichmäßig über der Karte. In den Lichtpuffer
+wird zuerst eine **Stadtmaske** gestanzt: bis kurz vor die Mauer ein flaches
+Plateau voller Helligkeit, dann ein lesbarer Streifen über den Mauerring und
+etwa 120 px davor — genau dort, wo die Angreifer stehen —, danach volle Nacht.
+Ein normaler Radialverlauf wäre in der Mitte hell und am Rand schwarz gewesen;
+gebraucht wird aber die umgekehrte Form.
+
+Gemessen (mittlere Helligkeit 0–255, Nacht 12, Mauer Stufe 5):
+
+| Ort | Nacht | Tag |
+|---|---|---|
+| Stadtmitte | 123 | 120 |
+| Mauerring | 111 | — |
+| 90 px davor (Angreifer) | 114 | — |
+| 300 px davor (Ferne) | **56** | 126 |
+
+Die Stadt ist nachts also so gut lesbar wie am Tag, die Ferne halb so hell.
+Fackeln, Fenster, Schmiedefeuer und der Schein des Königs kommen zusätzlich
+obendrauf.
+
+### 🚪 Warum die Tore jetzt in der Mauer stehen
+
+Das Stadttor war ein **einziges breites Bild** samt eigener Pfosten und Sturz —
+und es stand immer waagerecht. Richtig war das nur an den Toren im Norden und
+Süden: an Ost und West lag es 90° quer zur Mauer, an den vier schrägen 45°
+daneben, sichtbar neben der Öffnung statt darin.
+
+Jetzt besteht jedes Tor aus **vier schmalen Flügeln in Mauerpfosten-Breite**, die
+auf der Sehne zwischen den beiden Torpfosten liegen — genau so, wie die Mauer
+selbst aus Pfosten entlang ihres Bogens gebaut ist. Damit folgt das Tor dem Ring
+in jedem Winkel, ohne eine einzige Drehung im Code. Nachgemessen liegen alle 32
+Flügel mit **0,0000 px Abweichung** auf ihrer Sehne, und die Öffnung (104,2 px)
+ist überall gleich weit gefüllt.
 
 ### 🏹 Warum die Mauer eigene Verteidiger braucht
 

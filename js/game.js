@@ -68,7 +68,7 @@ KS.Game = (() => {
     G.villagers = []; G.depositFx = [];
     G.grid = new KS.Grid(72); G.qbuf = []; G.qbuf2 = [];
     G.towers = []; G.prodTimers = {}; G.buildBounce = {}; G.padDisplay = {};
-    G.time = 0; G.shake = 0; G.dark = state.phase === 'night' ? 0.66 : 0;
+    G.time = 0; G.shake = 0; G.dark = state.phase === 'night' ? NIGHT_DARK : 0;
     G.baseFlash = 0; G.baseHitSfxT = 0; G.baseAlertT = 0;
     G.playerAnimT = 0; G.playerFace = 1;
     G.playerDown = false; G.playerDownT = 0; G.playerInvuln = 0; G.playerHurtT = 0;
@@ -108,15 +108,30 @@ KS.Game = (() => {
     }
     // Torpfosten flankieren jede Öffnung
     G.gatePosts = [];
-    for (const g of CFG.GATES) {
+    G.gateLeaves = [];
+    CFG.GATES.forEach((g, gi) => {
+      const p = [];
       for (const s of [-1, 1]) {
         const a = g + s * (CFG.WALL.gateHalf + 0.015);
-        G.gatePosts.push({
+        const pt = {
           x: CFG.WORLD.cx + Math.cos(a) * CFG.WALL.r,
           y: CFG.WORLD.cy + Math.sin(a) * CFG.WALL.r,
+        };
+        G.gatePosts.push(pt);
+        p.push(pt);
+      }
+      // Die Torflügel liegen auf der Sehne zwischen den Pfosten und sind so
+      // schmal wie ein Mauerpfosten. Genau wie die Mauer folgen sie damit dem
+      // Ring — an den schrägen Toren ebenso wie an Nord/Süd oder Ost/West.
+      // side: −1/+1 = äußerer Flügel (Wappen), 0 = innerer (Ringgriff).
+      for (const [t, side] of [[0.13, -1], [0.38, 0], [0.62, 0], [0.87, 1]]) {
+        G.gateLeaves.push({
+          gi, side,
+          x: p[0].x + (p[1].x - p[0].x) * t,
+          y: p[0].y + (p[1].y - p[0].y) * t,
         });
       }
-    }
+    });
     // Welt (deterministisch aus Seed)
     G.ground = KS.Art.paintGround(state.seed);
     G.props = KS.Art.generateProps(state.seed);
@@ -432,7 +447,7 @@ KS.Game = (() => {
     G.shake = Math.max(0, G.shake - dt * 26);
 
     // Dunkelheit angleichen
-    const targetDark = st.phase === 'night' ? 0.62 : 0;
+    const targetDark = st.phase === 'night' ? NIGHT_DARK : 0;
     G.dark += (targetDark - G.dark) * Math.min(1, dt * 0.9);
 
     // Kamera
@@ -455,6 +470,30 @@ KS.Game = (() => {
 
   // ================== RENDER ==================
   const GLOWS = {};
+  // Die Stadt soll nachts bewohnt aussehen, nicht erblindet: innerhalb der
+  // Mauer eine flache, gleichmäßig helle Fläche, die erst am Ring ausläuft.
+  // Ein normaler Radialverlauf wäre in der Mitte hell und am Rand schwarz —
+  // hier braucht es ein Plateau.
+  let cityMask = null;
+  function citySprite() {
+    if (cityMask) return cityMask;
+    const c = document.createElement('canvas');
+    c.width = c.height = 256;
+    const g = c.getContext('2d');
+    const gr = g.createRadialGradient(128, 128, 2, 128, 128, 128);
+    // Plateau bis zur Mauer, dann ein lesbarer Streifen davor (dort stehen
+    // die Angreifer), danach volle Nacht.
+    gr.addColorStop(0, 'rgba(255,255,255,1)');
+    gr.addColorStop(0.76, 'rgba(255,255,255,1)');
+    gr.addColorStop(0.86, 'rgba(255,255,255,0.72)');
+    gr.addColorStop(0.94, 'rgba(255,255,255,0.30)');
+    gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr;
+    g.fillRect(0, 0, 256, 256);
+    cityMask = c;
+    return c;
+  }
+
   function glowSprite(color) {
     if (GLOWS[color]) return GLOWS[color];
     const c = document.createElement('canvas');
@@ -556,13 +595,12 @@ KS.Game = (() => {
         items.push({ y: p.y, kind: 'gatepost', p, wTier });
       }
     }
-    // Stadttore (Torflügel in den Durchgängen)
+    // Stadttore (zwei Flügel je Durchgang, auf der Sehne)
     if (G.gateMax > 0 && st.gates) {
       const gTier = st.buildings.gates.tier;
-      for (let i = 0; i < CFG.GATES.length; i++) {
-        const c = Sys.gateCenter(i);
-        if (!inView(c.x, c.y, 90)) continue;
-        items.push({ y: c.y, kind: 'gatedoor', gi: i, gx: c.x, gy: c.y, gTier });
+      for (const lf of G.gateLeaves) {
+        if (!inView(lf.x, lf.y, 80)) continue;
+        items.push({ y: lf.y, kind: 'gateleaf', lf, gTier });
       }
     }
     items.push({ y: st.player.y, kind: 'player' });
@@ -605,21 +643,20 @@ KS.Game = (() => {
         }
       } else if (it.kind === 'gatepost') {
         KS.Art.draw(ctx, KS.Art.gatePost(it.wTier), it.p.x, it.p.y);
-      } else if (it.kind === 'gatedoor') {
-        const hp = st.gates.hp[it.gi];
+      } else if (it.kind === 'gateleaf') {
+        const lf = it.lf;
+        const hp = st.gates.hp[lf.gi];
         const pct = hp / G.gateMax;
         const spr = hp <= 0
-          ? KS.Art.gateBroken(it.gTier)
-          : KS.Art.gateDoor(it.gTier, pct < 0.35 ? 2 : pct < 0.7 ? 1 : 0);
-        // Tore stehen quer zur Mauer → in Blickrichtung des Rings drehen
-        const rot = Math.cos(CFG.GATES[it.gi]) === 0 ? 0 : 0;
-        KS.Art.draw(ctx, spr, it.gx, it.gy, 1, 1, false, rot);
-        const fl = G.gateFlash[it.gi];
+          ? KS.Art.gateLeafBroken(it.gTier, lf.side)
+          : KS.Art.gateLeaf(it.gTier, pct < 0.35 ? 2 : pct < 0.7 ? 1 : 0, lf.side);
+        KS.Art.draw(ctx, spr, lf.x, lf.y);
+        const fl = G.gateFlash[lf.gi];
         if (fl > 0 && hp > 0) {
           ctx.globalAlpha = fl * 0.45;
           ctx.fillStyle = '#fff';
           ctx.beginPath();
-          ctx.ellipse(it.gx, it.gy - 22, 30, 26, 0, 0, TAU);
+          ctx.ellipse(lf.x, lf.y - 20, 20, 24, 0, 0, TAU);
           ctx.fill();
           ctx.globalAlpha = 1;
         }
@@ -1089,6 +1126,11 @@ KS.Game = (() => {
   // hochskaliert aufgetragen: Licht ist weich, der Unterschied fällt nicht
   // auf — es spart aber rund 90 % Füllrate (der teuerste Teil der Nacht).
   const LIGHT_SCALE = 1 / 3;
+  // Nachts: draußen darf es richtig finster sein, drinnen nicht. CITY_LIGHT
+  // gibt an, wieviel der Dunkelheit innerhalb der Mauer weggestanzt wird.
+  const NIGHT_DARK = 0.72;
+  const CITY_LIGHT = 0.80;
+  const CITY_R = 522;          // WALL.r (402) + lesbarer Streifen davor
   let lightBuf = null, lightCtx = null;
 
   function ensureLightBuf() {
@@ -1155,8 +1197,19 @@ KS.Game = (() => {
     const k = ZOOM * s;
     const ox = (W / 2 - (G.cam.x - shX) * ZOOM) * s;
     const oy = (H / 2 - (G.cam.y - shY) * ZOOM) * s;
-    // 1) Löcher in die Dunkelheit stanzen
+    // 1) Die Stadt freistellen. Draußen darf es finster sein — drinnen muss
+    //    man sein Reich sehen: Bauplätze, Münzen, Angreifer an der Mauer.
     lg.globalCompositeOperation = 'destination-out';
+    {
+      const cr = CITY_R * k;
+      const cx = CFG.WORLD.cx * k + ox, cy = CFG.WORLD.cy * k + oy;
+      if (cr > 1 && cx > -cr && cy > -cr && cx < lw + cr && cy < lh + cr) {
+        lg.globalAlpha = CITY_LIGHT;
+        lg.drawImage(citySprite(), cx - cr, cy - cr, cr * 2, cr * 2);
+      }
+    }
+    // Einzelne Lichtquellen
+    lg.globalAlpha = 1;
     for (let i = 0; i < lights.length; i += 5) {
       const x = lights[i] * k + ox, y = lights[i + 1] * k + oy;
       const r = lights[i + 2] * k, a = lights[i + 4];
@@ -1166,6 +1219,14 @@ KS.Game = (() => {
     }
     // 2) Warmen Schein dazugeben
     lg.globalCompositeOperation = 'lighter';
+    {
+      const cr = CITY_R * k;
+      const cx = CFG.WORLD.cx * k + ox, cy = CFG.WORLD.cy * k + oy;
+      if (cr > 1 && cx > -cr && cy > -cr && cx < lw + cr && cy < lh + cr) {
+        lg.globalAlpha = G.dark * 0.20;
+        lg.drawImage(glowSprite('rgba(255,206,138,1)'), cx - cr, cy - cr, cr * 2, cr * 2);
+      }
+    }
     for (let i = 0; i < lights.length; i += 5) {
       const x = lights[i] * k + ox, y = lights[i + 1] * k + oy;
       const r = lights[i + 2] * k, a = lights[i + 4];

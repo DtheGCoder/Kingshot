@@ -1949,143 +1949,99 @@ KS.Art = (() => {
 
   // ---------- Stadttor (Torflügel im Durchgang) ----------
   // dmg: 0 = heil, 1 = angeschlagen, 2 = stark beschädigt
-  function paintGateDoor(g, tier, dmg) {
-    const W2 = 62, hgt = 34 + tier * 2.4;
+  // ---- Torflügel ----
+  // Früher war das Tor EIN breites Bild samt eigener Pfosten und Sturz. Das
+  // stand immer waagerecht — richtig nur an den Toren im Norden und Süden,
+  // an den vier schrägen und an Ost/West lag es 45–90° quer zur Mauer.
+  // Jetzt sind es vier schmale Flügel in Mauerpfosten-Breite, die entlang der
+  // Öffnung gesetzt werden. Damit folgt das Tor der Mauer in jedem Winkel.
+  function paintGateLeaf(g, tier, dmg, side) {
+    const w = 26, doorH = 30 + tier * 2.2;
     const gold = tier >= 8, iron = tier >= 5;
-    aoShadow(g, W2 * 0.5, 8, 0.3);
-    // Torbogen aus Stein
-    for (const sd of [-1, 1]) {
-      const px = sd * (W2 / 2 + 4);
-      g.save();
-      rr(g, px - 7, -hgt - 8, 14, hgt + 8, 2.4);
-      g.clip();
-      brickWall(g, px - 7, -hgt - 8, 14, hgt + 8,
-        gold ? '#efe6d2' : '#bcbdc6', gold ? '#b9ac90' : '#84858f', tier * 5 + sd, 8, 6);
-      g.restore();
-      rr(g, px - 7, -hgt - 8, 14, hgt + 8, 2.4);
-      outline(g, 2.2);
-      // Zinne auf dem Pfosten
-      rr(g, px - 8, -hgt - 14, 16, 7, 1.6);
-      g.fillStyle = gold ? '#e2d7bd' : '#a9aab4'; g.fill(); outline(g, 1.8);
+    aoShadow(g, w * 0.56, 6, 0.28);
+    const lean = dmg >= 2 ? side * 0.06 : 0;      // hängt schief, wenn stark beschädigt
+    g.save();
+    g.rotate(lean);
+    const x0 = -w / 2;
+    rr(g, x0, -doorH, w, doorH, 2.4);
+    g.fillStyle = vgrad(g, -doorH, 0,
+      dmg ? '#8a6234' : '#a8794a', dmg ? '#402a12' : '#5c3f1c');
+    g.fill();
+    texOver(g, 'wood', x0, -doorH, w, doorH, dmg ? 1.25 : 1);
+    rr(g, x0, -doorH, w, doorH, 2.4);
+    outline(g, 2.2);
+    // Senkrechte Planken
+    g.strokeStyle = 'rgba(40,24,10,0.45)'; g.lineWidth = 1.3;
+    for (let i = 1; i < 3; i++) {
+      const px = x0 + (w / 3) * i;
+      g.beginPath(); g.moveTo(px, -doorH + 2.5); g.lineTo(px, -2); g.stroke();
     }
-    // Sturz über dem Durchgang
-    rr(g, -W2 / 2 - 10, -hgt - 12, W2 + 20, 9, 2);
-    g.fillStyle = gold ? '#e8dcc2' : '#b0b1bb'; g.fill(); outline(g, 2.2);
-
-    // Torflügel (zwei Hälften)
-    const doorH = hgt - 2;
-    for (const sd of [-1, 1]) {
-      const x0 = sd < 0 ? -W2 / 2 + 1 : 1;
-      const w = W2 / 2 - 2;
-      const lean = dmg >= 2 ? sd * 0.09 : 0;    // hängt schief, wenn stark beschädigt
-      g.save();
-      g.translate(0, 0); g.rotate(lean);
-      rr(g, x0, -doorH, w, doorH, 2);
-      g.fillStyle = vgrad(g, -doorH, 0,
-        dmg ? '#8a6234' : '#a8794a', dmg ? '#402a12' : '#5c3f1c');
-      g.fill();
-      texOver(g, 'wood', x0, -doorH, w, doorH, dmg ? 1.25 : 1);
-      rr(g, x0, -doorH, w, doorH, 2);
-      outline(g, 2.2);
-      // Senkrechte Planken
-      g.strokeStyle = 'rgba(40,24,10,0.45)'; g.lineWidth = 1.4;
-      for (let i = 1; i < 4; i++) {
-        const px = x0 + (w / 4) * i;
-        g.beginPath(); g.moveTo(px, -doorH + 2); g.lineTo(px, -2); g.stroke();
-      }
-      // Eisenbänder
-      const band = iron ? (gold ? '#e8bb4a' : '#6e727e') : '#7a5a34';
+    // Eisenbänder mit Nieten
+    const band = iron ? (gold ? '#e8bb4a' : '#6e727e') : '#7a5a34';
+    for (const by of [-doorH * 0.76, -doorH * 0.34]) {
       g.fillStyle = band;
-      for (const by of [-doorH * 0.75, -doorH * 0.35]) {
-        g.fillRect(x0 + 1, by, w - 2, 3.4);
-        g.fillStyle = iron ? '#c9ccd4' : '#a8834a';
-        for (let i = 0; i < 3; i++) { ell(g, x0 + 4 + i * (w - 8) / 2, by + 1.7, 1.1, 1.1); g.fill(); }
-        g.fillStyle = band;
-      }
-      // Ring-Griff
+      g.fillRect(x0 + 1.2, by, w - 2.4, 3);
+      g.fillStyle = iron ? '#c9ccd4' : '#a8834a';
+      for (const px of [x0 + 3.5, x0 + w - 3.5]) { ell(g, px, by + 1.5, 1.1, 1.1); g.fill(); }
+    }
+    // Ring-Griff nur an den beiden mittleren Flügeln (side === 0)
+    if (side === 0) {
       g.strokeStyle = iron ? '#575b66' : '#7a5a34'; g.lineWidth = 2.2;
-      g.beginPath(); g.arc(x0 + (sd < 0 ? w - 7 : 7), -doorH * 0.5, 3.6, 0, Math.PI * 2); g.stroke();
-      // Glanzkante
-      g.fillStyle = 'rgba(255,235,190,0.2)';
-      g.fillRect(x0 + 1, -doorH + 1, 2.4, doorH - 3);
-      g.restore();
-    }
-    // Schadensbild
-    if (dmg >= 1) {
-      g.strokeStyle = 'rgba(15,10,6,0.8)'; g.lineWidth = 2.2;
+      g.beginPath(); g.arc(0, -doorH * 0.5, 3.6, 0, Math.PI * 2); g.stroke();
+    } else if (tier >= 6) {
+      // Wappen auf den äußeren Flügeln
+      g.fillStyle = gold ? '#f7d774' : '#c9ccd4';
       g.beginPath();
-      g.moveTo(-6, -doorH + 4); g.lineTo(2, -doorH * 0.6); g.lineTo(-4, -doorH * 0.34);
-      g.stroke();
+      g.moveTo(0, -doorH * 0.62); g.lineTo(4.6, -doorH * 0.56);
+      g.lineTo(0, -doorH * 0.42); g.lineTo(-4.6, -doorH * 0.56);
+      g.closePath(); g.fill(); outline(g, 1.5);
     }
-    if (dmg >= 2) {
-      // Loch mit gesplittertem Rand
-      g.fillStyle = '#1a1208';
-      g.beginPath();
-      g.moveTo(-10, -doorH * 0.62); g.lineTo(1, -doorH * 0.7); g.lineTo(7, -doorH * 0.4);
-      g.lineTo(-3, -doorH * 0.26); g.closePath(); g.fill();
-      g.strokeStyle = '#6e4a22'; g.lineWidth = 1.6; g.stroke();
-      g.fillStyle = '#8a6234';
-      ell(g, 12, -2.4, 3.4, 2.2); g.fill();
-      ell(g, -14, -1.8, 2.8, 2); g.fill();
-    }
-    // Wappen über dem Tor (ab Stufe 6)
-    if (tier >= 6) {
-      g.save(); g.translate(0, -hgt - 8);
-      g.fillStyle = gold ? '#f2d24a' : '#c9ccd4';
-      g.beginPath();
-      g.moveTo(-6, -6); g.lineTo(6, -6); g.lineTo(6, 1); g.quadraticCurveTo(6, 6, 0, 8);
-      g.quadraticCurveTo(-6, 6, -6, 1); g.closePath();
-      g.fill(); outline(g, 1.8);
-      g.fillStyle = '#8e1f2c';
-      g.beginPath(); g.arc(0, 0, 2.2, 0, Math.PI * 2); g.fill();
-      g.restore();
-    }
-  }
-
-  function gateDoor(tier, dmg) {
-    const t = lookOf(tier);
-    return make(`gatedoor:${t}:${dmg}`, 108, 96, g => paintGateDoor(g, t, dmg), 8);
-  }
-
-  // Zerbrochenes Tor: nur noch Trümmer und Angeln
-  function gateBroken(tierRaw) {
-    const tier = lookOf(tierRaw);
-    return make(`gatebroken:${tier}`, 108, 70, g => {
-      const W2 = 62, hgt = 34 + tier * 2.4;
-      const gold = tier >= 8;
-      aoShadow(g, W2 * 0.5, 8, 0.24);
-      for (const sd of [-1, 1]) {
-        const px = sd * (W2 / 2 + 4);
-        g.save();
-        rr(g, px - 7, -hgt - 8, 14, hgt + 8, 2.4);
-        g.clip();
-        brickWall(g, px - 7, -hgt - 8, 14, hgt + 8,
-          gold ? '#e2d9c4' : '#aeafb8', gold ? '#ac9f83' : '#77787f', tier * 5 + sd, 8, 6);
-        g.restore();
-        rr(g, px - 7, -hgt - 8, 14, hgt + 8, 2.4);
-        outline(g, 2.2);
-        // Abgerissene Angel
-        g.fillStyle = '#575b66';
-        g.fillRect(px + (sd < 0 ? 6 : -9), -hgt * 0.72, 3.4, 6);
-        g.fillRect(px + (sd < 0 ? 6 : -9), -hgt * 0.34, 3.4, 6);
-        // Splitter am Pfosten
-        g.fillStyle = '#8a6234';
-        g.beginPath();
-        g.moveTo(px + (sd < 0 ? 7 : -7), -hgt * 0.66);
-        g.lineTo(px + (sd < 0 ? 20 : -20), -hgt * 0.52);
-        g.lineTo(px + (sd < 0 ? 8 : -8), -hgt * 0.44);
-        g.closePath(); g.fill(); outline(g, 1.6);
+    // Risse bei Schaden
+    if (dmg) {
+      g.strokeStyle = 'rgba(30,18,8,0.55)'; g.lineWidth = 1.6;
+      const rnd = U.seededRng(tier * 13 + dmg * 7 + (side > 0 ? 3 : 0));
+      for (let i = 0; i < (dmg >= 2 ? 3 : 2); i++) {
+        const sx = x0 + 3 + rnd() * (w - 6), sy = -doorH * (0.2 + rnd() * 0.6);
+        g.beginPath(); g.moveTo(sx, sy);
+        g.lineTo(sx + (rnd() - 0.5) * 8, sy + 7 + rnd() * 9);
+        g.stroke();
       }
-      // Trümmer im Durchgang
-      const rnd = U.seededRng(tier * 31 + 7);
-      for (let i = 0; i < 5; i++) {
-        const x = (rnd() - 0.5) * W2 * 0.8, y = -rnd() * 6;
-        g.save(); g.translate(x, y); g.rotate((rnd() - 0.5) * 1.6);
-        rr(g, -6, -2.4, 12, 4.4, 1.4);
+    }
+    g.restore();
+  }
+
+  function gateLeaf(tier, dmg, side) {
+    const t = lookOf(tier);
+    return make(`gateleaf:${t}:${dmg}:${side}`, 40, 80, g => paintGateLeaf(g, t, dmg, side), 7);
+  }
+
+  // Zerschlagener Flügel: Angel, Splitter, Trümmer am Boden
+  function gateLeafBroken(tierRaw, side) {
+    const tier = lookOf(tierRaw);
+    return make(`gateleafbroken:${tier}:${side}`, 40, 50, g => {
+      aoShadow(g, 13, 5, 0.24);
+      const rnd = U.seededRng(tier * 31 + 7 + (side > 0 ? 5 : 0));
+      // Reststück am Pfosten, schief hängend
+      g.save();
+      g.translate((side || 1) * 4, 0);
+      g.rotate((side || 1) * 0.46);
+      rr(g, -7, -18, 14, 18, 2);
+      g.fillStyle = vgrad(g, -18, 0, '#8a6234', '#402a12'); g.fill();
+      texOver(g, 'wood', -7, -18, 14, 18, 1.3);
+      rr(g, -7, -18, 14, 18, 2);
+      outline(g, 2);
+      g.fillStyle = '#575b66';
+      g.fillRect(side < 0 ? -7 : 4, -14, 3, 5);
+      g.restore();
+      // Splitter und Bretter im Durchgang
+      for (let i = 0; i < 4; i++) {
+        const x = (rnd() - 0.5) * 22, y = -rnd() * 6;
+        g.save(); g.translate(x, y); g.rotate((rnd() - 0.5) * 1.8);
+        rr(g, -7, -2.6, 14, 4.6, 1.4);
         g.fillStyle = rnd() < 0.5 ? '#8a6234' : '#6e4a26'; g.fill(); outline(g, 1.6);
         g.restore();
       }
-    }, 8);
+    }, 6);
   }
 
   function wallRubble(v) {
@@ -4166,7 +4122,7 @@ KS.Art = (() => {
   return {
     make, draw, building, padPlate, monster, king, sword, villager, worker, coin,
     prop, paintGround, generateProps,
-    wallPost, wallRubble, gatePost, gateDoor, gateBroken, drawStar,
+    wallPost, wallRubble, gatePost, gateLeaf, gateLeafBroken, drawStar,
     matFor, MATS, TOWER_ACCENT, lookOf,
   };
 })();
