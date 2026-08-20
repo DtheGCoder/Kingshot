@@ -240,7 +240,15 @@ KS.Game = (() => {
     st.phase = 'day'; st.phaseT = 0;
     st.night = null; G.night = null;
     KS.Audio.setNight(false);
+    // Mauer und Tore wieder aufbauen. Ohne das ginge es mit denselben
+    // Breschen in die nächste Nacht — eine Niederlage würde die nächste
+    // nach sich ziehen, und aus der Spirale käme man nicht mehr heraus.
+    const breached = Sys.restoreDefences(G);
     KS.UI.banner(`Tag ${st.day}`, 'Ein König gibt niemals auf.');
+    if (breached > 0) {
+      KS.UI.toast(`Mauer und Tore sind wieder dicht (${breached} Durchbrüche geflickt).`, 3800, 'hammer');
+      log(`Mauer und Tore neu errichtet — ${breached} Durchbrüche geschlossen.`);
+    }
     log('Der Wiederaufbau beginnt — die Hoffnung lebt.');
     setPaused(false);
     save();

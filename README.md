@@ -190,7 +190,9 @@ tail -f /var/log/kingshot-update.log     # was ist passiert?
   Alle 5 Nächte wartet ein **Boss**. Deine Arbeiter gehen bei Sonnenuntergang von
   selbst in Deckung und morgens wieder aufs Feld.
 - **Niederlage?** Halb so wild: Der König steht wieder auf, die Burg wird notdürftig
-  geflickt, ein Teil des getragenen Goldes geht verloren — weiter geht's am selben Tag.
+  geflickt, **Mauer und Tore werden komplett neu errichtet**, ein Teil des getragenen
+  Goldes geht verloren — weiter geht's am selben Tag. Gebäudestufen bleiben natürlich
+  erhalten. Du gehst also nie mit offenen Breschen in die nächste Nacht.
 
 ## 🏰 Gebäude (je 10 Stufen, mit sichtbarer Evolution: Holz → Stein → Eisen → Gold → Kristall)
 

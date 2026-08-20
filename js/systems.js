@@ -268,21 +268,29 @@ KS.Systems = (() => {
     }
   }
 
-  function repairWallAtDawn(G) {
+  // Mauer und Tore vollständig wiederherstellen. Rückgabe: wie viele
+  // Abschnitte bzw. Tore vorher ganz durchbrochen waren.
+  function restoreDefences(G) {
     const st = G.state;
     let broken = repairGatesAtDawn(G);
-    if (!st.wall || G.wallMax <= 0) {
-      if (broken > 0) KS.UI.toast('Die Überlebenden haben die Tore über Nacht wieder eingesetzt.', 3400, 'hammer');
-      return;
-    }
-    for (let i = 0; i < st.wall.hp.length; i++) {
-      if (st.wall.hp[i] < G.wallMax) {
-        if (st.wall.hp[i] <= 0) broken++;
-        st.wall.hp[i] = G.wallMax;
+    if (st.wall && G.wallMax > 0) {
+      for (let i = 0; i < st.wall.hp.length; i++) {
+        if (st.wall.hp[i] < G.wallMax) {
+          if (st.wall.hp[i] <= 0) broken++;
+          st.wall.hp[i] = G.wallMax;
+        }
       }
     }
+    return broken;
+  }
+
+  function repairWallAtDawn(G) {
+    const hasWall = G.state.wall && G.wallMax > 0;
+    const broken = restoreDefences(G);
     if (broken > 0) {
-      KS.UI.toast('Die Überlebenden haben Mauer und Tore über Nacht repariert.', 3400, 'hammer');
+      KS.UI.toast(hasWall
+        ? 'Die Überlebenden haben Mauer und Tore über Nacht repariert.'
+        : 'Die Überlebenden haben die Tore über Nacht wieder eingesetzt.', 3400, 'hammer');
     }
   }
 
@@ -1523,7 +1531,7 @@ KS.Systems = (() => {
     startDay, startNight, generateNightPlan, spawnBoss, onBossKilled,
     tavernCapacity, dawnArrivals, onSurvivorArrived, syncVillagers,
     activeQuest, questProgress, questBaseline, questTargetPad, updateQuests,
-    wallSegAt, wallSegArc, wallSegCenter, damageWall, repairWallAtDawn,
+    wallSegAt, wallSegArc, wallSegCenter, damageWall, repairWallAtDawn, restoreDefences,
     // Wirtschaft
     storeTotal, storeFree, storeAdd, storeTake, nearestStore,
     updateWorkers, updateCrafters, updateHaulers, syncWorkers,
