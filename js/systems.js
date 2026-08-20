@@ -997,7 +997,10 @@ KS.Systems = (() => {
       c.idle = false;
       G.craftT[key] = 0;
       const gold = Math.max(1, Math.round(c.gold * (took / c.batch) * G.goldMul));
-      Ent.spawnCoinBurst(G, c.pad.x + U.rand(-16, 16), c.pad.y + U.rand(12, 28), gold);
+      // Jedes Werk hat seinen eigenen Haufen: wächst er weiter, kostet die
+      // Auszahlung genau nichts mehr — kein Suchen, keine neue Münze.
+      const beutel = G.purses[c.pad.id] || (G.purses[c.pad.id] = {});
+      Ent.spawnCoinBurst(G, c.pad.x + U.rand(-16, 16), c.pad.y + U.rand(12, 28), gold, beutel);
       Ent.text(G, c.pad.x, c.pad.y - 58, `+${U.fmt(gold)}`, { color: '#ffe084', size: 13, life: 0.9 });
       sendHauler(G, c);
       // Rauch/Funken je Werk
@@ -1277,7 +1280,8 @@ KS.Systems = (() => {
       if (G.prodTimers[key] >= interval) {
         G.prodTimers[key] -= interval;
         if (amount > 0) {
-          Ent.spawnCoinBurst(G, pad.x + U.rand(-14, 14), pad.y + U.rand(10, 26), amount);
+          const beutel = G.purses[pad.id] || (G.purses[pad.id] = {});
+          Ent.spawnCoinBurst(G, pad.x + U.rand(-14, 14), pad.y + U.rand(10, 26), amount, beutel);
           Ent.text(G, pad.x, pad.y - 60, `+${U.fmt(amount)}`, { color: '#ffe084', size: 13, life: 0.9 });
         }
       }

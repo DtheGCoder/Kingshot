@@ -610,11 +610,38 @@ KS.CFG = (() => {
     { day: 120, id: 'boss_titan', base: 'titan_void',  name: 'Leerentitan',      sub: 'Wo er geht, endet die Welt', hpTweak: 2.0, dmgMul: 3.6, size: 3.0, gold: 300000, speed: 42 },
   ];
 
-  // Boss-HP: eigene Kurve, ausgelegt auf ~30–60 s Kampf je nach Ausbau
+  // Waffe zu einer Schmiedestufe. Über die 20 gezeichneten Klingen hinaus
+  // wird extrapoliert, damit Stufe 50 nicht ins Leere greift.
+  function weaponFor(tier) {
+    const n = WEAPONS.length;
+    const t = Math.max(1, Math.round(tier) || 1);
+    if (t <= n) return WEAPONS[t - 1];
+    const last = WEAPONS[n - 1], k = t - n;
+    return {
+      name: `${last.name} +${k}`,
+      dmg: last.dmg * Math.pow(1.42, k),
+      rate: Math.min(3.4, last.rate + 0.02 * k),
+      range: Math.min(last.range * 1.4, last.range + 1.5 * k),
+      beam: Math.min(1.8, last.beam + 0.02 * k),
+      blade: last.blade, glow: last.glow,
+      look: n,                        // Grafik der letzten Klinge weiterverwenden
+    };
+  }
+
+  // ---------- Boss-Leben ----------
+  // Früher hatten Bosse eine EIGENE Kurve — und die Waffe des Königs lief ihnen
+  // davon: ×1,42 je Schmiedestufe, und die Schmiede steigt etwa jeden zweiten
+  // Tag. Ab Tag 25 lag ein einziger kritischer Treffer über dem halben
+  // Bossleben, ab Tag 70 über dem ganzen. Deshalb hängt das Bossleben jetzt an
+  // genau dieser Waffenkurve: dann bleibt ein Boss über das ganze Spiel hinweg
+  // ein Kampf und wird nie zum Einzelschlag.
+  const BOSS_HITS = 30;        // so viele echte Treffer soll ein Boss aushalten
+  // Wucht eines echten Treffers gegenüber dem rohen Waffenschaden: Königsschaden
+  // aus Markt, Forschung und Sternenbaum plus kritische Treffer.
+  const bossKingMul = day => Math.min(30, 1.8 + day * 0.38);
   function bossHp(day, tweak) {
-    let hp = 1550 * Math.pow(1.72, day / 5 - 1);
-    if (day > 50) hp = 1550 * Math.pow(1.72, 9) * Math.pow(1.32, (day - 50) / 5);
-    return Math.round(hp * (tweak || 1));
+    const w = weaponFor(Math.max(1, Math.round(day / 2)));
+    return Math.round(w.dmg * bossKingMul(day) * BOSS_HITS * (tweak || 1));
   }
 
   // ---------- Skalierung ----------
@@ -858,14 +885,23 @@ Die Wacht geht weiter — die Nächte werden härter, deine Legende größer. Ew
 
   // ---------- Sonstiges ----------
   const COINS = {
-    values: [1, 5, 25, 100],       // Münze, Großmünze, Beutel, Truhe
+    // Münze, Großmünze, Beutel, Truhe, Goldkiste, Hort. Die zwei großen
+    // Stückelungen sind reine Leistungsfrage: im späten Spiel fließen
+    // Millionen, und 1000 Truhen à 100 Gold bringen jedes Handy zum Stehen.
+    values: [1, 5, 25, 100, 2500, 60000],
     magnetSpeed: 620,
-    maxOnGround: 220,
+    maxOnGround: 150,
     // Absolute Obergrenze. Der Zusammenfasser greift nur bei liegenden
     // Münzen — bei starker Produktion stecken Hunderte im Flug und wären
     // sonst unbegrenzt. Ab hier wächst die nächstgelegene Münze weiter.
-    hardMax: 320,
+    hardMax: 210,
     lifetime: 90,                  // Sekunden bis Münzen zu funkeln beginnen (bleiben liegen)
+    // Ab wieviel Gold eine Auszahlung nur noch EINEN Haufen erzeugt statt
+    // eines Regens. Darunter fühlt sich Streuung gut an, darüber kostet sie nur.
+    lumpFrom: 4000,
+    // Wie weit ein Haufen an derselben Quelle weiterwachsen darf, bevor ein
+    // neuer entsteht (Quadrat der Pixel — spart die Wurzel).
+    pileR2: 90 * 90,
   };
 
   const DEPOSIT = {
@@ -901,21 +937,7 @@ Die Wacht geht weiter — die Nächte werden härter, deine Legende größer. Ew
     // Waffe zur Schmiedestufe. Jenseits der benannten Klingen wird die
     // letzte fortgeschrieben („Urlicht +3“) — sonst griffe die Suche ins
     // Leere, sobald die Schmiede über die Tabelle hinauswächst.
-    weaponFor(tier) {
-      const n = WEAPONS.length;
-      const t = Math.max(1, Math.round(tier) || 1);
-      if (t <= n) return WEAPONS[t - 1];
-      const last = WEAPONS[n - 1], k = t - n;
-      return {
-        name: `${last.name} +${k}`,
-        dmg: last.dmg * Math.pow(1.42, k),
-        rate: Math.min(3.4, last.rate + 0.02 * k),
-        range: Math.min(last.range * 1.4, last.range + 1.5 * k),
-        beam: Math.min(1.8, last.beam + 0.02 * k),
-        blade: last.blade, glow: last.glow,
-        look: n,                        // Grafik der letzten Klinge weiterverwenden
-      };
-    },
+    weaponFor,
     towerStats(type, tier) {
       const b = BUILDINGS[type];
       return {

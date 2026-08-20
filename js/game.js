@@ -68,6 +68,8 @@ KS.Game = (() => {
     G.villagers = []; G.depositFx = [];
     G.grid = new KS.Grid(72); G.qbuf = []; G.qbuf2 = [];
     G.towers = []; G.prodTimers = {}; G.buildBounce = {}; G.padDisplay = {};
+    G.purses = {};       // je Bauplatz ein Münzhaufen, der weiterwächst
+    G.mergeT = 0;
     G.time = 0; G.shake = 0; G.dark = state.phase === 'night' ? NIGHT_DARK : 0;
     G.baseFlash = 0; G.baseHitSfxT = 0; G.baseAlertT = 0;
     G.playerAnimT = 0; G.playerFace = 1;
@@ -629,7 +631,7 @@ KS.Game = (() => {
         const hp = st.wall.hp[it.p.seg];
         const pct = hp / G.wallMax;
         let spr;
-        if (hp <= 0) spr = KS.Art.wallRubble(it.p.v);
+        if (hp <= 0) spr = KS.Art.wallRubble(it.p.v, it.wTier);
         else spr = KS.Art.wallPost(it.wTier, it.p.v, pct < 0.5);
         const fl = G.wallFlash[it.p.seg];
         KS.Art.draw(ctx, spr, it.p.x, it.p.y, 1, 1, it.p.v === 1);

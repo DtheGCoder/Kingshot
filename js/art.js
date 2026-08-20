@@ -1876,10 +1876,85 @@ KS.Art = (() => {
   }
 
   // ---------- Stadtmauer: Pfosten, Trümmer, Torpfeiler ----------
-  function paintWallPost(g, tier, v, cracked) {
-    const hgt = 30 + tier * 2.2;
-    aoShadow(g, 15, 6, 0.28);
-    if (tier <= 3) {
+  // ---------- Stadtmauer: 20 Looks bis Stufe 50 ----------
+  // paintPrestige ist für Gebäude gebaut (Aura mit 46–76 px, Kristalle bei
+  // y = −58…−92) und würde einen 44 px breiten Pfosten erschlagen. Deshalb
+  // eine eigene, kleine Fassung: dieselbe source-atop-Tönung, aber Aura und
+  // Kristalle in Pfostengröße.
+  function wallPrestige(g, look, hgt, halb, opts = {}) {
+    if (look <= 10) return;
+    const k = (look - 10) / (LOOKS - 10);          // 0…1
+    const m = matFor(look);
+    // Materialtönung über alles, was schon gemalt ist
+    g.save();
+    g.globalCompositeOperation = 'source-atop';
+    g.globalAlpha = 0.17 + k * 0.13;
+    g.fillStyle = m.w;
+    g.fillRect(-90, -220, 180, 260);
+    g.restore();
+    g.save();
+    g.globalCompositeOperation = 'source-atop';
+    g.globalAlpha = 0.20 + k * 0.12;
+    const lg = g.createLinearGradient(0, -hgt - 12, 0, 4);
+    lg.addColorStop(0, m.hi); lg.addColorStop(0.55, 'rgba(0,0,0,0)'); lg.addColorStop(1, m.d);
+    g.fillStyle = lg;
+    g.fillRect(-90, -220, 180, 260);
+    g.restore();
+    // Schein am Sockel
+    g.save();
+    g.globalAlpha = 0.22 + k * 0.24;
+    const R = halb + 8 + k * 9;
+    const gr = g.createRadialGradient(0, -4, 2, 0, -4, R);
+    gr.addColorStop(0, m.hi); gr.addColorStop(0.5, m.w); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = gr;
+    ell(g, 0, -2, R, R * 0.4); g.fill();
+    g.restore();
+    // Kristalle sind Orientierungspunkte, keine Deko: sie sitzen NUR auf den
+    // Torpfosten. Auf jedem Mauerpfosten war der ganze Ring eine Wolke aus
+    // Diamanten — man fand das Tor nicht mehr.
+    const n = opts.crystals || 0;
+    for (let i = 0; i < n; i++) {
+      const x = n === 1 ? 0 : (i ? halb * 0.6 : -halb * 0.6);
+      const y = -hgt - 13 - k * 8;
+      const sz = 2.6 + k * 2.2;
+      g.save();
+      g.translate(x, y);
+      g.shadowColor = m.hi; g.shadowBlur = 6 + k * 8;
+      const cg = g.createLinearGradient(0, -sz, 0, sz);
+      cg.addColorStop(0, m.hi); cg.addColorStop(1, m.w);
+      g.fillStyle = cg;
+      g.beginPath();
+      g.moveTo(0, -sz * 1.5); g.lineTo(sz * 0.7, 0); g.lineTo(0, sz * 1.5); g.lineTo(-sz * 0.7, 0);
+      g.closePath(); g.fill();
+      g.strokeStyle = 'rgba(255,255,255,0.7)'; g.lineWidth = 0.9; g.stroke();
+      g.restore();
+    }
+    // Runenband auf dem Schaft
+    if (look >= 12 && opts.runes !== false) {
+      g.save();
+      g.globalAlpha = 0.55 + k * 0.35;
+      g.strokeStyle = m.hi; g.lineWidth = 1.3;
+      g.shadowColor = m.hi; g.shadowBlur = 5;
+      for (let i = 0; i < 3; i++) {
+        const y = -hgt * (0.28 + i * 0.22);
+        g.beginPath();
+        g.moveTo(-halb * 0.55, y);
+        g.lineTo(0, y - 3);
+        g.lineTo(halb * 0.55, y);
+        g.stroke();
+      }
+      g.restore();
+    }
+  }
+
+  function paintWallPost(g, look, v, cracked) {
+    const m = matFor(look);
+    const hgt = 28 + look * 2.9;                 // Stufe 1 ≈ 31, Stufe 50 ≈ 86
+    const halb = 12 + look * 0.35;               // wird oben herum breiter
+    const holz = look <= 2;
+    aoShadow(g, halb + 3, 6, 0.28);
+
+    if (holz) {
       // Palisade: Doppel-Stamm mit Spitzen
       for (const [dx, dh] of [[-6, 0], [6, -4], [0, 3]]) {
         const hh = hgt + dh + (v ? 2 : 0);
@@ -1889,7 +1964,6 @@ KS.Art = (() => {
         texOver(g, 'wood', dx - 5, -hh, 10, hh, 1);
         rr(g, dx - 5, -hh, 10, hh, 3);
         outline(g, 2);
-        // Spitze
         g.beginPath();
         g.moveTo(dx - 5, -hh + 2); g.lineTo(dx, -hh - 7); g.lineTo(dx + 5, -hh + 2);
         g.closePath();
@@ -1897,7 +1971,6 @@ KS.Art = (() => {
         g.strokeStyle = 'rgba(255,230,180,0.35)'; g.lineWidth = 1.2;
         g.beginPath(); g.moveTo(dx - 3, -hh + 4); g.lineTo(dx - 3, -6); g.stroke();
       }
-      // Seil-Bindung
       g.strokeStyle = '#c9a86a'; g.lineWidth = 2.6;
       g.beginPath(); g.moveTo(-11, -hgt * 0.55); g.lineTo(11, -hgt * 0.55 - 2); g.stroke();
       g.beginPath(); g.moveTo(-11, -hgt * 0.3); g.lineTo(11, -hgt * 0.3 + 1.4); g.stroke();
@@ -1905,46 +1978,91 @@ KS.Art = (() => {
         g.strokeStyle = 'rgba(20,12,6,0.75)'; g.lineWidth = 1.8;
         g.beginPath(); g.moveTo(2, -hgt); g.lineTo(-1, -hgt * 0.6); g.lineTo(3, -hgt * 0.35); g.stroke();
       }
-    } else {
-      const gold = tier >= 8;
-      const c0 = gold ? '#efe6d2' : '#b3b4be', c1 = gold ? '#b9ac90' : '#7d7e8a';
-      g.save();
-      rr(g, -12, -hgt, 24, hgt, 2.4);
-      g.clip();
-      brickWall(g, -12, -hgt, 24, hgt, cracked ? U.shade(c0, -0.14) : c0, cracked ? U.shade(c1, -0.14) : c1, tier * 7 + v, 11, 6.4);
-      g.restore();
-      rr(g, -12, -hgt, 24, hgt, 2.4);
-      outline(g, 2.2);
-      // Zinnen (2 Merlonen; bei Schaden abgebrochen)
-      const merlons = cracked ? [[-11, 8]] : [[-11, 8], [3, 8]];
-      for (const [mx, mw] of merlons) {
-        rr(g, mx, -hgt - 6, mw, 7, 1.4);
-        g.fillStyle = gold ? '#e2d7bd' : '#a3a4ae'; g.fill(); outline(g, 1.8);
-      }
-      if (gold) {
-        g.strokeStyle = '#e8bb4a'; g.lineWidth = 2.2;
-        g.beginPath(); g.moveTo(-11, -hgt + 6); g.lineTo(11, -hgt + 6); g.stroke();
-      }
-      g.fillStyle = 'rgba(255,255,255,0.22)';
-      g.fillRect(-11, -hgt + 1, 3, hgt - 3);
-      if (cracked) {
-        g.strokeStyle = 'rgba(15,12,10,0.8)'; g.lineWidth = 2;
-        g.beginPath();
-        g.moveTo(4, -hgt + 2); g.lineTo(0, -hgt * 0.6); g.lineTo(5, -hgt * 0.42) ; g.lineTo(1, -hgt * 0.2);
-        g.stroke();
-        // Abgeplatzte Steinchen am Fuß
-        g.fillStyle = '#8d867b';
-        ell(g, 9, -2, 3, 2); g.fill();
-        ell(g, -10, -1.4, 2.4, 1.8); g.fill();
+      return;
+    }
+
+    // Mauerwerk. Farbe kommt aus dem Material der Optik-Stufe, damit sich
+    // Stein → Eisen → Gold → Kristall → Obsidian … sichtbar durchzieht.
+    const c0 = cracked ? U.shade(m.w, -0.14) : m.w;
+    const c1 = cracked ? U.shade(m.d, -0.14) : m.d;
+    // Sockel wird nach oben schmaler — gibt dem Ring Statur
+    const fuss = halb + (look >= 5 ? 2.4 : 0);
+    if (look >= 5) {
+      rr(g, -fuss, -7, fuss * 2, 8, 2);
+      g.fillStyle = vgrad(g, -7, 1, m.hi, m.d); g.fill(); outline(g, 2);
+    }
+    g.save();
+    rr(g, -halb, -hgt, halb * 2, hgt, 2.4);
+    g.clip();
+    brickWall(g, -halb, -hgt, halb * 2, hgt, c0, c1, look * 7 + v, 11, 6.4);
+    g.restore();
+    rr(g, -halb, -hgt, halb * 2, hgt, 2.4);
+    outline(g, 2.2);
+
+    // Zinnen: mit der Stufe mehr und feiner
+    const zahl = look <= 4 ? 2 : look <= 9 ? 3 : 4;
+    const merlons = cracked ? Math.max(1, zahl - 2) : zahl;
+    crenellation(g, -halb + 1, halb - 1, -hgt, 6 + look * 0.16, merlons, m.hi);
+
+    // Schießscharte ab Stufe 7 — das Mauerwerk wird bewohnt
+    if (look >= 7) {
+      rr(g, -2.4, -hgt * 0.62, 4.8, 10 + look * 0.2, 2);
+      g.fillStyle = '#2a2620'; g.fill(); outline(g, 1.5);
+      if (look >= 9) {
+        g.fillStyle = 'rgba(255,214,120,0.7)';
+        rr(g, -1.4, -hgt * 0.62 + 2, 2.8, 5, 1.2); g.fill();
       }
     }
+    // Umlaufendes Band ab Stufe 6
+    if (look >= 6) {
+      g.strokeStyle = m.hi; g.lineWidth = 2.2;
+      g.beginPath(); g.moveTo(-halb + 1, -hgt + 7); g.lineTo(halb - 1, -hgt + 7); g.stroke();
+      g.strokeStyle = U.shade(m.d, -0.1); g.lineWidth = 1;
+      g.beginPath(); g.moveTo(-halb + 1, -hgt + 9.4); g.lineTo(halb - 1, -hgt + 9.4); g.stroke();
+    }
+    // Strebepfeiler ab Stufe 8
+    if (look >= 8 && !cracked) {
+      for (const sx of [-1, 1]) {
+        g.beginPath();
+        g.moveTo(sx * halb, -hgt * 0.55);
+        g.lineTo(sx * (halb + 4 + look * 0.12), -2);
+        g.lineTo(sx * halb, -2);
+        g.closePath();
+        g.fillStyle = vgrad(g, -hgt * 0.55, 0, m.w, m.d); g.fill(); outline(g, 1.8);
+      }
+    }
+    // Spitzen ab Stufe 15 — die Mauer wird wehrhaft, nicht nur hoch
+    if (look >= 15 && !cracked) {
+      for (const sx of [-1, 1]) {
+        g.beginPath();
+        g.moveTo(sx * (halb - 1), -hgt * 0.78);
+        g.lineTo(sx * (halb + 7), -hgt * 0.86);
+        g.lineTo(sx * (halb - 1), -hgt * 0.66);
+        g.closePath();
+        g.fillStyle = m.hi; g.fill(); outline(g, 1.5);
+      }
+    }
+    // Glanzkante links
+    g.fillStyle = 'rgba(255,255,255,0.22)';
+    g.fillRect(-halb + 1, -hgt + 1, 3, hgt - 3);
+    if (cracked) {
+      g.strokeStyle = 'rgba(15,12,10,0.8)'; g.lineWidth = 2;
+      g.beginPath();
+      g.moveTo(4, -hgt + 2); g.lineTo(0, -hgt * 0.6); g.lineTo(5, -hgt * 0.42); g.lineTo(1, -hgt * 0.2);
+      g.stroke();
+      g.fillStyle = U.shade(m.d, -0.2);
+      ell(g, 9, -2, 3, 2); g.fill();
+      ell(g, -10, -1.4, 2.4, 1.8); g.fill();
+    }
+    wallPrestige(g, look, hgt, halb, { crystals: 0 });
   }
 
   function wallPost(tier, v, cracked) {
     // Optik-Stufe statt roher Stufe: sonst wächst der Pfosten bis Stufe 50
     // ins Unförmige und es lägen 50 Varianten im Zwischenspeicher.
     const t = lookOf(tier);
-    return make(`wallpost:${t}:${v}:${cracked ? 1 : 0}`, 44, 76, g => paintWallPost(g, t, v, cracked), 7);
+    const w = 46 + Math.round(t * 1.3), h = 78 + Math.round(t * 3.4);
+    return make(`wallpost:${t}:${v}:${cracked ? 1 : 0}`, w, h, g => paintWallPost(g, t, v, cracked), 7);
   }
 
   // ---------- Stadttor (Torflügel im Durchgang) ----------
@@ -1956,18 +2074,24 @@ KS.Art = (() => {
   // Jetzt sind es vier schmale Flügel in Mauerpfosten-Breite, die entlang der
   // Öffnung gesetzt werden. Damit folgt das Tor der Mauer in jedem Winkel.
   function paintGateLeaf(g, tier, dmg, side) {
-    const w = 26, doorH = 30 + tier * 2.2;
+    const m = matFor(tier);
+    const w = 26 + tier * 0.5, doorH = 28 + tier * 2.9;
     const gold = tier >= 8, iron = tier >= 5;
+    // Ab Stufe 11 ist der Flügel kein Holz mehr, sondern das Material der Stufe
+    const exot = tier >= 11;
     aoShadow(g, w * 0.56, 6, 0.28);
     const lean = dmg >= 2 ? side * 0.06 : 0;      // hängt schief, wenn stark beschädigt
     g.save();
     g.rotate(lean);
     const x0 = -w / 2;
     rr(g, x0, -doorH, w, doorH, 2.4);
-    g.fillStyle = vgrad(g, -doorH, 0,
-      dmg ? '#8a6234' : '#a8794a', dmg ? '#402a12' : '#5c3f1c');
+    // Deutlich dunkler als die Mauer: sonst verschwindet das Tor im Ring und
+    // man findet den Durchgang nicht mehr.
+    g.fillStyle = exot
+      ? vgrad(g, -doorH, 0, U.shade(m.d, dmg ? -0.3 : -0.12), U.shade(m.d, dmg ? -0.5 : -0.38))
+      : vgrad(g, -doorH, 0, dmg ? '#8a6234' : '#a8794a', dmg ? '#402a12' : '#5c3f1c');
     g.fill();
-    texOver(g, 'wood', x0, -doorH, w, doorH, dmg ? 1.25 : 1);
+    texOver(g, exot ? 'stone' : 'wood', x0, -doorH, w, doorH, dmg ? 1.25 : 1);
     rr(g, x0, -doorH, w, doorH, 2.4);
     outline(g, 2.2);
     // Senkrechte Planken
@@ -1977,11 +2101,13 @@ KS.Art = (() => {
       g.beginPath(); g.moveTo(px, -doorH + 2.5); g.lineTo(px, -2); g.stroke();
     }
     // Eisenbänder mit Nieten
-    const band = iron ? (gold ? '#e8bb4a' : '#6e727e') : '#7a5a34';
-    for (const by of [-doorH * 0.76, -doorH * 0.34]) {
+    const band = exot ? m.hi : iron ? (gold ? '#e8bb4a' : '#6e727e') : '#7a5a34';
+    const baender = tier >= 13 ? [-doorH * 0.84, -doorH * 0.58, -doorH * 0.28]
+                               : [-doorH * 0.76, -doorH * 0.34];
+    for (const by of baender) {
       g.fillStyle = band;
       g.fillRect(x0 + 1.2, by, w - 2.4, 3);
-      g.fillStyle = iron ? '#c9ccd4' : '#a8834a';
+      g.fillStyle = exot ? m.w : iron ? '#c9ccd4' : '#a8834a';
       for (const px of [x0 + 3.5, x0 + w - 3.5]) { ell(g, px, by + 1.5, 1.1, 1.1); g.fill(); }
     }
     // Ring-Griff nur an den beiden mittleren Flügeln (side === 0)
@@ -1990,7 +2116,7 @@ KS.Art = (() => {
       g.beginPath(); g.arc(0, -doorH * 0.5, 3.6, 0, Math.PI * 2); g.stroke();
     } else if (tier >= 6) {
       // Wappen auf den äußeren Flügeln
-      g.fillStyle = gold ? '#f7d774' : '#c9ccd4';
+      g.fillStyle = exot ? m.hi : gold ? '#f7d774' : '#c9ccd4';
       g.beginPath();
       g.moveTo(0, -doorH * 0.62); g.lineTo(4.6, -doorH * 0.56);
       g.lineTo(0, -doorH * 0.42); g.lineTo(-4.6, -doorH * 0.56);
@@ -2008,50 +2134,83 @@ KS.Art = (() => {
       }
     }
     g.restore();
+    // Sturzbalken über dem Flügel ab Stufe 9. Bewusst KEINE Zinnen: die
+    // machen aus dem Tor optisch Mauer, und dann sucht man den Durchgang.
+    if (tier >= 9) {
+      rr(g, -w / 2 - 1, -doorH - 5.5, w + 2, 6, 1.6);
+      g.fillStyle = exot ? m.hi : gold ? '#e2d7bd' : '#a9aab4';
+      g.fill(); outline(g, 1.8);
+    }
+    wallPrestige(g, tier, doorH, w / 2, { crystals: 0, runes: false });
   }
 
   function gateLeaf(tier, dmg, side) {
     const t = lookOf(tier);
-    return make(`gateleaf:${t}:${dmg}:${side}`, 40, 80, g => paintGateLeaf(g, t, dmg, side), 7);
+    const cw = 44 + Math.round(t * 1.4), ch = 82 + Math.round(t * 3.2);
+    return make(`gateleaf:${t}:${dmg}:${side}`, cw, ch, g => paintGateLeaf(g, t, dmg, side), 7);
   }
 
-  // Zerschlagener Flügel: Angel, Splitter, Trümmer am Boden
+  // Zerschlagener Flügel: Angel, Splitter, Trümmer am Boden. Wächst und
+  // färbt mit der Optik-Stufe, damit ein zerborstenes Ätherglas-Tor nicht
+  // aussieht wie eine geplatzte Holzlatte.
   function gateLeafBroken(tierRaw, side) {
     const tier = lookOf(tierRaw);
-    return make(`gateleafbroken:${tier}:${side}`, 40, 50, g => {
-      aoShadow(g, 13, 5, 0.24);
+    const m = matFor(tier);
+    const exot = tier >= 11;
+    const w = 44 + Math.round(tier * 1.4), h = 54 + Math.round(tier * 1.2);
+    return make(`gateleafbroken:${tier}:${side}`, w, h, g => {
+      const hoch = 16 + tier * 0.7;
+      aoShadow(g, 13 + tier * 0.2, 5, 0.24);
       const rnd = U.seededRng(tier * 31 + 7 + (side > 0 ? 5 : 0));
       // Reststück am Pfosten, schief hängend
       g.save();
       g.translate((side || 1) * 4, 0);
       g.rotate((side || 1) * 0.46);
-      rr(g, -7, -18, 14, 18, 2);
-      g.fillStyle = vgrad(g, -18, 0, '#8a6234', '#402a12'); g.fill();
-      texOver(g, 'wood', -7, -18, 14, 18, 1.3);
-      rr(g, -7, -18, 14, 18, 2);
+      rr(g, -7, -hoch, 14, hoch, 2);
+      g.fillStyle = exot
+        ? vgrad(g, -hoch, 0, U.shade(m.d, -0.3), U.shade(m.d, -0.5))
+        : vgrad(g, -hoch, 0, '#8a6234', '#402a12');
+      g.fill();
+      texOver(g, exot ? 'stone' : 'wood', -7, -hoch, 14, hoch, 1.3);
+      rr(g, -7, -hoch, 14, hoch, 2);
       outline(g, 2);
-      g.fillStyle = '#575b66';
-      g.fillRect(side < 0 ? -7 : 4, -14, 3, 5);
+      g.fillStyle = exot ? m.hi : '#575b66';
+      g.fillRect(side < 0 ? -7 : 4, -hoch + 4, 3, 5);
       g.restore();
       // Splitter und Bretter im Durchgang
       for (let i = 0; i < 4; i++) {
-        const x = (rnd() - 0.5) * 22, y = -rnd() * 6;
+        const x = (rnd() - 0.5) * (22 + tier * 0.6), y = -rnd() * 6;
         g.save(); g.translate(x, y); g.rotate((rnd() - 0.5) * 1.8);
         rr(g, -7, -2.6, 14, 4.6, 1.4);
-        g.fillStyle = rnd() < 0.5 ? '#8a6234' : '#6e4a26'; g.fill(); outline(g, 1.6);
+        g.fillStyle = exot ? (rnd() < 0.5 ? U.shade(m.d, -0.2) : U.shade(m.w, -0.3))
+                           : (rnd() < 0.5 ? '#8a6234' : '#6e4a26');
+        g.fill(); outline(g, 1.6);
+        g.restore();
+      }
+      // Ab Stufe 11 glimmt der Bruch noch nach
+      if (exot) {
+        g.save();
+        g.globalAlpha = 0.5;
+        const gr = g.createRadialGradient(0, -4, 1, 0, -4, 16 + tier * 0.4);
+        gr.addColorStop(0, m.hi); gr.addColorStop(1, 'rgba(0,0,0,0)');
+        g.fillStyle = gr; ell(g, 0, -3, 16 + tier * 0.4, 8); g.fill();
         g.restore();
       }
     }, 6);
   }
 
-  function wallRubble(v) {
-    return make(`wallrubble:${v}`, 44, 34, g => {
+  // Trümmer eines zerstörten Mauerabschnitts. Nimmt die Materialfarbe der
+  // Stufe mit — Obsidian bricht anders als Kalkstein.
+  function wallRubble(v, tierRaw) {
+    const look = tierRaw ? lookOf(tierRaw) : 2;
+    const m = matFor(look);
+    return make(`wallrubble:${v}:${look}`, 48, 38, g => {
       aoShadow(g, 16, 6, 0.26);
-      const rnd = U.seededRng(v * 77 + 5);
-      for (let i = 0; i < 6; i++) {
-        const x = (rnd() - 0.5) * 24, y = -rnd() * 7, r = 3 + rnd() * 4.4;
+      const rnd = U.seededRng(v * 77 + 5 + look);
+      for (let i = 0; i < 7; i++) {
+        const x = (rnd() - 0.5) * 26, y = -rnd() * 8, r = 3 + rnd() * 4.6;
         ell(g, x, y, r, r * 0.75);
-        g.fillStyle = rnd() < 0.5 ? '#9a938a' : '#7a746a';
+        g.fillStyle = rnd() < 0.5 ? U.shade(m.w, -0.12) : U.shade(m.d, -0.08);
         g.fill(); outline(g, 1.8);
         g.fillStyle = 'rgba(255,255,255,0.2)';
         ell(g, x - r * 0.3, y - r * 0.3, r * 0.3, r * 0.22); g.fill();
@@ -2061,16 +2220,27 @@ KS.Art = (() => {
       g.fillStyle = '#7a5a34';
       rr(g, -14, -4.4, 16, 3.6, 1); g.fill(); outline(g, 1.4);
       g.restore();
+      // Ab Stufe 11 glimmt der Bruch nach
+      if (look >= 11) {
+        g.save(); g.globalAlpha = 0.45;
+        const gr = g.createRadialGradient(0, -4, 1, 0, -4, 20);
+        gr.addColorStop(0, m.hi); gr.addColorStop(1, 'rgba(0,0,0,0)');
+        g.fillStyle = gr; ell(g, 0, -3, 20, 9); g.fill();
+        g.restore();
+      }
     }, 6);
   }
 
   function gatePost(tier) {
     const t = Math.max(1, lookOf(tier));
-    return make(`gatepost:${t}`, 40, 96, g => {
-      const hgt = 42 + t * 2.4;
-      aoShadow(g, 13, 5.4, 0.3);
-      const gold = t >= 8, wood = t <= 3;
-      if (wood) {
+    const w = 44 + Math.round(t * 1.6), h = 100 + Math.round(t * 3.6);
+    return make(`gatepost:${t}`, w, h, g => {
+      const m = matFor(t);
+      const hgt = 40 + t * 3.2;                 // Stufe 1 ≈ 43, Stufe 50 ≈ 104
+      const halb = 8 + t * 0.3;
+      aoShadow(g, halb + 5, 5.4, 0.3);
+      const holz = t <= 2;
+      if (holz) {
         rr(g, -6.5, -hgt, 13, hgt, 3);
         g.fillStyle = vgrad(g, -hgt, 0, '#a87c46', '#5f3f1c');
         g.fill();
@@ -2078,28 +2248,46 @@ KS.Art = (() => {
         rr(g, -6.5, -hgt, 13, hgt, 3);
         outline(g, 2.2);
       } else {
+        // Breiter Sockel ab Stufe 5
+        if (t >= 5) {
+          rr(g, -halb - 3, -9, (halb + 3) * 2, 10, 2);
+          g.fillStyle = vgrad(g, -9, 1, m.hi, m.d); g.fill(); outline(g, 2);
+        }
         g.save();
-        rr(g, -8, -hgt, 16, hgt, 2.4);
+        rr(g, -halb, -hgt, halb * 2, hgt, 2.4);
         g.clip();
-        brickWall(g, -8, -hgt, 16, hgt, gold ? '#efe6d2' : '#b3b4be', gold ? '#b9ac90' : '#7d7e8a', t * 3, 10, 6);
+        brickWall(g, -halb, -hgt, halb * 2, hgt, m.w, m.d, t * 3, 10, 6);
         g.restore();
-        rr(g, -8, -hgt, 16, hgt, 2.4);
+        rr(g, -halb, -hgt, halb * 2, hgt, 2.4);
         outline(g, 2.2);
+        // Umlaufende Ringe: einer je vier Optik-Stufen
+        const ringe = Math.min(4, 1 + Math.floor(t / 4));
+        g.strokeStyle = m.hi; g.lineWidth = 2;
+        for (let i2 = 0; i2 < ringe; i2++) {
+          const y = -hgt * (0.22 + i2 * 0.19);
+          g.beginPath(); g.moveTo(-halb - 1.5, y); g.lineTo(halb + 1.5, y); g.stroke();
+        }
       }
-      // Dach-Kappe
+      // Dach-Kappe — ab Stufe 11 in Materialfarbe statt Ziegelrot
+      const kappe = t >= 11 ? [m.hi, m.d] : ['#c0392b', '#8a2620'];
+      const kw = halb + 3.5, kh = 11 + t * 0.4;
       g.beginPath();
-      g.moveTo(-11, -hgt); g.lineTo(0, -hgt - 11); g.lineTo(11, -hgt);
+      g.moveTo(-kw, -hgt); g.lineTo(0, -hgt - kh); g.lineTo(kw, -hgt);
       g.closePath();
-      g.fillStyle = vgrad(g, -hgt - 11, -hgt, '#c0392b', '#8a2620');
+      g.fillStyle = vgrad(g, -hgt - kh, -hgt, kappe[0], kappe[1]);
       g.fill(); outline(g, 2);
-      // Laterne
-      const lg = g.createRadialGradient(0, -hgt * 0.62, 1, 0, -hgt * 0.62, 12);
-      lg.addColorStop(0, 'rgba(255,220,120,0.85)'); lg.addColorStop(1, 'rgba(255,220,120,0)');
-      g.fillStyle = lg; ell(g, 0, -hgt * 0.62, 12, 12); g.fill();
+      // Laterne — hell und größer, je höher die Stufe
+      const lr = 12 + t * 0.5;
+      const lg2 = g.createRadialGradient(0, -hgt * 0.62, 1, 0, -hgt * 0.62, lr);
+      const licht = t >= 11 ? m.hi : '#ffdc78';
+      lg2.addColorStop(0, licht); lg2.addColorStop(1, 'rgba(255,220,120,0)');
+      g.save(); g.globalAlpha = 0.85; g.fillStyle = lg2;
+      ell(g, 0, -hgt * 0.62, lr, lr); g.fill(); g.restore();
       rr(g, -3.4, -hgt * 0.62 - 4, 6.8, 8, 1.6);
-      g.fillStyle = '#ffe084'; g.fill(); outline(g, 1.6);
-      // Banner
-      if (gold) flagPole(g, 0, -hgt - 11, 10, '#f2d24a');
+      g.fillStyle = t >= 11 ? m.hi : '#ffe084'; g.fill(); outline(g, 1.6);
+      // Banner ab Stufe 8
+      if (t >= 8) flagPole(g, 0, -hgt - kh, 10 + t * 0.3, t >= 11 ? m.hi : '#f2d24a');
+      wallPrestige(g, t, hgt + kh, halb + 2, { crystals: t >= 15 ? 2 : 1 });
     }, 7);
   }
 
@@ -3564,6 +3752,69 @@ KS.Art = (() => {
   // ============================================================
 
   function coin(kind) {
+    // Goldkiste und Hort: die dicken Stückelungen des späten Spiels. Sie
+    // ersetzen ganze Münzregen — ein Bild statt zweihundert Objekten.
+    if (kind === 4 || kind === 5) {
+      const hort = kind === 5;
+      const w = hort ? 62 : 50, h = hort ? 58 : 48;
+      return make(`coin:${hort ? 'hort' : 'kiste'}`, w, h, g => {
+        const bw = hort ? 22 : 17;          // halbe Kistenbreite
+        aoShadow(g, bw + 6, 6, 0.3);
+        // Münzberg hinter der Kiste
+        const rnd = U.seededRng(hort ? 91 : 47);
+        for (let i = 0; i < (hort ? 14 : 8); i++) {
+          const cx = (rnd() - 0.5) * bw * 2.1;
+          const cy = -8 - rnd() * (hort ? 26 : 16);
+          const r = 3.2 + rnd() * 2.2;
+          ell(g, cx, cy, r, r * 0.9);
+          const cg = g.createRadialGradient(cx - 1, cy - 1, 0.5, cx, cy, r);
+          cg.addColorStop(0, '#fff3c0'); cg.addColorStop(0.6, '#ffd34e'); cg.addColorStop(1, '#c9992e');
+          g.fillStyle = cg; g.fill(); outline(g, 1.4);
+        }
+        // Kiste mit Eisenbändern
+        rr(g, -bw, -16, bw * 2, 16, 3);
+        g.fillStyle = vgrad(g, -16, 0, hort ? '#8d6a3c' : '#a8763e', '#4d3016'); g.fill();
+        texOver(g, 'wood', -bw, -16, bw * 2, 16, 0.9);
+        rr(g, -bw, -16, bw * 2, 16, 3);
+        outline(g, 2.4);
+        g.beginPath();
+        g.moveTo(-bw, -16); g.lineTo(-bw, -19.5); g.arc(0, -19.5, bw, Math.PI, 0); g.lineTo(bw, -16);
+        g.closePath();
+        g.fillStyle = vgrad(g, -19.5 - bw, -15, hort ? '#d8b070' : '#c08c50', '#6b4a26'); g.fill();
+        outline(g, 2.4);
+        g.strokeStyle = hort ? '#ffe9a8' : '#f2d24a'; g.lineWidth = 2.6;
+        g.beginPath(); g.moveTo(-bw, -15.4); g.lineTo(bw, -15.4); g.stroke();
+        for (const bx of [-bw * 0.55, bw * 0.55]) {
+          g.strokeStyle = 'rgba(90,70,40,0.7)'; g.lineWidth = 2;
+          g.beginPath(); g.moveTo(bx, -16); g.lineTo(bx, -1); g.stroke();
+        }
+        // Schloss
+        rr(g, -4, -18.5, 8, 8.5, 1.6);
+        g.fillStyle = vgrad(g, -18.5, -10, '#fff3c0', '#c9992e'); g.fill(); outline(g, 1.8);
+        // Überlaufende Münzen vorn
+        for (const [cx, cy] of hort ? [[-16, -1], [-8, 0], [1, -1], [10, 0], [18, -1]]
+                                    : [[-11, -1], [-2, 0], [8, -1]]) {
+          ell(g, cx, cy, 4, 3.4);
+          const cg = g.createRadialGradient(cx - 1, cy - 1, 0.5, cx, cy, 4);
+          cg.addColorStop(0, '#fff6cc'); cg.addColorStop(0.6, '#ffd34e'); cg.addColorStop(1, '#cf8c0a');
+          g.fillStyle = cg; g.fill(); outline(g, 1.5);
+        }
+        // Der Hort funkelt: Edelsteine oben drauf
+        if (hort) {
+          for (const [gx, gy, col] of [[-9, -32, '#7ad0e8'], [4, -36, '#ff8fb0'], [14, -30, '#b9f5a0']]) {
+            g.beginPath();
+            g.moveTo(gx, gy - 4); g.lineTo(gx + 3.2, gy); g.lineTo(gx, gy + 4); g.lineTo(gx - 3.2, gy);
+            g.closePath();
+            g.fillStyle = col; g.fill(); outline(g, 1.4);
+            g.fillStyle = 'rgba(255,255,255,0.6)';
+            g.beginPath(); g.moveTo(gx - 1, gy - 2); g.lineTo(gx + 0.6, gy - 0.5); g.lineTo(gx - 1, gy + 0.4);
+            g.closePath(); g.fill();
+          }
+          drawStar(g, -bw - 3, -26, 3.2, 'rgba(255,240,180,0.9)');
+          drawStar(g, bw + 2, -20, 2.6, 'rgba(255,240,180,0.8)');
+        }
+      }, 4);
+    }
     if (kind === 2) {
       return make('coin:sack', 34, 36, g => {
         g.beginPath();

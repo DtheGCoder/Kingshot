@@ -131,7 +131,8 @@ KS.Ent = (() => {
   }
 
   // ============ MÜNZEN ============
-  const COIN_KIND = v => v >= 100 ? 3 : v >= 25 ? 2 : v >= 5 ? 1 : 0;
+  const COIN_KIND = v => v >= 60000 ? 5 : v >= 2500 ? 4
+    : v >= 100 ? 3 : v >= 25 ? 2 : v >= 5 ? 1 : 0;
 
   function spawnCoin(G, x, y, value, opts = {}) {
     // Münzprägung / Schatzkammer: jede Münze ist mehr wert
@@ -155,37 +156,51 @@ KS.Ent = (() => {
     }
     const a = Math.random() * TAU;
     const sp = opts.speed !== undefined ? opts.speed : U.rand(40, 130);
-    G.coins.push({
+    const c = {
       x, y, value,
       kind: COIN_KIND(value),
       vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.6,
       z: opts.z || 10, vz: U.rand(120, 230),
       state: 'fly', t: Math.random() * 10,
-      spin: U.rand(3, 5),
-    });
+      spin: U.rand(3, 5), pop: 0,
+    };
+    G.coins.push(c);
+    return c;
   }
 
   // Wert hübsch in Münz-Stückelungen zerlegen. Kleine Beträge werden in
   // Münze/Großmünze/Beutel/Truhe aufgeteilt — das fühlt sich am besten an.
-  // Große Beträge dagegen in wenige dicke Truhen, sonst liegt am Ende das
-  // halbe Dorf voller Münzen und die Bildrate bricht ein.
+  // Ab CFG.COINS.lumpFrom entsteht dagegen genau EIN Haufen: im späten Spiel
+  // zahlen Dutzende Werke ständig Millionen aus, und jede gestreute Münze
+  // kostet Kollision, Magnet, Partikel und Zeichnung. Ein Hort sieht dabei
+  // nicht schlechter aus — er ist nur einer.
   const BURST_MAX = 8;
-  function spawnCoinBurst(G, x, y, value) {
+  function spawnCoinBurst(G, x, y, value, purse) {
     let v = Math.max(1, Math.round(value));
-    const drops = [];
-    if (v <= 100 * BURST_MAX) {
-      while (v >= 100 && drops.length < 3) { drops.push(100); v -= 100; }
-      while (v >= 25 && drops.length < 8) { drops.push(25); v -= 25; }
-      while (v >= 5 && drops.length < 16) { drops.push(5); v -= 5; }
-      while (v > 0 && drops.length < 22) { drops.push(1); v -= 1; }
-      if (v > 0 && drops.length) drops[drops.length - 1] += v;
-    } else {
-      // Reiche Beute: gleichmäßig auf wenige Truhen verteilen
-      const n = BURST_MAX;
-      const each = Math.floor(v / n);
-      for (let i = 0; i < n; i++) drops.push(each);
-      drops[0] += v - each * n;
+    if (v >= CFG.COINS.lumpFrom) {
+      // Erst versuchen, den Haufen dieser Quelle weiterwachsen zu lassen.
+      // Das ist O(1) — kein Suchen über alle Münzen.
+      if (purse) {
+        const c = purse.coin;
+        if (c && !c.gone && c.state !== 'magnet'
+            && U.dist2(c.x, c.y, x, y) < CFG.COINS.pileR2) {
+          c.value += v;
+          c.kind = COIN_KIND(c.value);
+          c.pop = 0.18;                  // kurzer Zuwachs-Hüpfer
+          return;
+        }
+        purse.coin = spawnCoin(G, x, y, v, { speed: 30 });
+        return;
+      }
+      spawnCoin(G, x, y, v, { speed: 30 });
+      return;
     }
+    const drops = [];
+    while (v >= 100 && drops.length < 3) { drops.push(100); v -= 100; }
+    while (v >= 25 && drops.length < 8) { drops.push(25); v -= 25; }
+    while (v >= 5 && drops.length < 14) { drops.push(5); v -= 5; }
+    while (v > 0 && drops.length < 18) { drops.push(1); v -= 1; }
+    if (v > 0 && drops.length) drops[drops.length - 1] += v;
     for (const d of drops) spawnCoin(G, x + U.rand(-6, 6), y + U.rand(-6, 6), d);
   }
 
@@ -197,6 +212,7 @@ KS.Ent = (() => {
     for (let i = C.length - 1; i >= 0; i--) {
       const c = C[i];
       c.t += dt;
+      if (c.pop > 0) c.pop = Math.max(0, c.pop - dt * 1.6);
       // Magnet greift SOFORT — auch während die Münze noch fliegt/hüpft
       if (c.state !== 'magnet' && !G.playerDown && U.dist2(c.x, c.y, pl.x, pl.y) < mag2) {
         c.state = 'magnet';
@@ -222,6 +238,7 @@ KS.Ent = (() => {
         c.y += dy / d * sp * dt;
         c.z = Math.max(0, c.z - 120 * dt);
         if (d < 22) {
+          c.gone = true;
           C.splice(i, 1);
           G.state.gold += c.value;
           G.state.goldCollected += c.value;
@@ -236,14 +253,22 @@ KS.Ent = (() => {
     }
     // Zu viele Münzen? Liegengebliebene je Umgebung zu einer dicken Truhe
     // zusammenfassen. Kein Gold geht verloren, nur die Zahl der Münzen sinkt —
-    // sonst überlebt die Bildrate den Vollausbau nicht.
-    if (C.length > CFG.COINS.maxOnGround) mergeCoins(G, C);
+    // sonst überlebt die Bildrate den Vollausbau nicht. Höchstens viermal je
+    // Sekunde: der Zusammenfasser legt Listen und eine Map an, und das jeden
+    // Frame zu tun kostet mehr, als es spart.
+    G.mergeT = (G.mergeT || 0) + dt;
+    if (C.length > CFG.COINS.maxOnGround && G.mergeT >= 0.25) {
+      G.mergeT = 0;
+      mergeCoins(G, C);
+    }
   }
 
   const MERGE_CELL = 150;
+  const mergeCells = new Map();          // wiederverwendet, spart Zuweisungen
   function mergeCoins(G, C) {
     // Nach Rasterzelle bündeln, damit Haufen dort bleiben, wo sie liegen
-    const cells = new Map();
+    const cells = mergeCells;
+    cells.clear();
     for (let i = 0; i < C.length; i++) {
       const c = C[i];
       if (c.state !== 'idle') continue;
@@ -274,7 +299,7 @@ KS.Ent = (() => {
     if (dead.size) {
       // Von hinten löschen, damit die gemerkten Indizes gültig bleiben
       const idx = [...dead].sort((a, b) => b - a);
-      for (const i of idx) C.splice(i, 1);
+      for (const i of idx) { C[i].gone = true; C.splice(i, 1); }
     }
   }
 
@@ -283,14 +308,17 @@ KS.Ent = (() => {
     ctx.globalAlpha = 0.25;
     ctx.fillStyle = '#1c2814';
     ctx.beginPath();
-    const shr = (c.kind >= 2 ? 10 : c.kind === 1 ? 7 : 5) * (1 - Math.min(0.5, c.z / 60));
+    const shr = (c.kind >= 4 ? 16 : c.kind >= 2 ? 10 : c.kind === 1 ? 7 : 5)
+      * (1 - Math.min(0.5, c.z / 60));
     ctx.ellipse(c.x, c.y, shr, shr * 0.4, 0, 0, TAU);
     ctx.fill();
     ctx.globalAlpha = 1;
     const spr = KS.Art.coin(c.kind);
     let sx = 1;
     if (c.kind <= 1) sx = 0.35 + Math.abs(Math.sin(c.t * c.spin)) * 0.65;  // Dreh-Glitzern
-    KS.Art.draw(ctx, spr, c.x, c.y - c.z, 1, 1, false);
+    // Wächst ein Haufen weiter, hüpft er kurz — sonst merkt man den Zuwachs nicht
+    const pop = c.pop > 0 ? 1 + c.pop * 0.9 : 1;
+    KS.Art.draw(ctx, spr, c.x, c.y - c.z, pop, 1, false);
     if (c.kind <= 1 && sx < 0.55) {
       // Funkeln beim Drehen
       ctx.globalAlpha = 0.75;

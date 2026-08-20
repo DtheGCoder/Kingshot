@@ -23,7 +23,9 @@ Läuft auf jedem Handy und Desktop-Browser, direkt von deinem eigenen nginx-Serv
 | ![Bauen bestätigen](docs/screenshots/bauen.jpg) | ![Stadttore](docs/screenshots/tore.jpg) | ![Quest eingeklappt](docs/screenshots/quest-eingeklappt.jpg) |
 | ![Bau-Menü](docs/screenshots/bauen-menu.jpg) | ![Gebäude platzieren](docs/screenshots/platzieren.jpg) | ![Techtree](docs/screenshots/forschung.jpg) |
 | ![Wirtschaft](docs/screenshots/wirtschaft.jpg) | ![Sternenbaum](docs/screenshots/sternenbaum.jpg) | ![Lauf beenden](docs/screenshots/lauf-ende.jpg) |
-| ![Stadt bei Nacht](docs/screenshots/nacht-stadt.jpg) | ![Schräges Stadttor](docs/screenshots/tor-schraeg.jpg) | |
+| ![Stadt bei Nacht](docs/screenshots/nacht-stadt.jpg) | ![Schräges Stadttor](docs/screenshots/tor-schraeg.jpg) | ![Markt](docs/screenshots/markt.jpg) |
+
+![Mauer und Tore über 50 Stufen](docs/screenshots/mauer-stufen.jpg)
 
 ![Desktop](docs/screenshots/desktop.jpg)
 
@@ -312,6 +314,38 @@ Die Stadt ist nachts also so gut lesbar wie am Tag, die Ferne halb so hell.
 Fackeln, Fenster, Schmiedefeuer und der Schein des Königs kommen zusätzlich
 obendrauf.
 
+### 🧱 Mauer und Tore — 20 Looks bis Stufe 50
+
+Mauerpfosten, Torpfosten und Torflügel hatten nur **zwei** Aussehen (Palisade und
+Stein) und wuchsen sonst nur in der Höhe. Jetzt durchlaufen sie dieselben **zehn
+Materialien** wie die Gebäude — Holz → Stein → Eisen → Gold → Kristall → Obsidian
+→ Mithril → Blutrubin → Sternenstahl → Ätherglas — mit einem eigenen, kleinen
+Prestige-Durchgang (die Gebäude-Fassung hat eine 76 px große Aura und hätte einen
+44 px breiten Pfosten erschlagen).
+
+Dazu kommen Silhouetten-Sprünge, damit man den Aufstieg auch ohne Farbe sieht:
+
+| ab Look | was dazukommt |
+|---|---|
+| 3 | Mauerwerk statt Palisade |
+| 5 | breiter Sockel |
+| 6 | umlaufendes Band |
+| 7 | Schießscharte (ab 9 mit Licht darin) |
+| 8 | Strebepfeiler, Banner auf den Torpfosten |
+| 9 | Sturzbalken über dem Torflügel |
+| 10 | vier Zinnen statt zwei |
+| 11 | Materialtönung, Dachkappe und Laterne in Materialfarbe, Torflügel aus Stein statt Holz |
+| 12 | Runenband auf dem Schaft |
+| 13 | drittes Eisenband am Flügel |
+| 15 | Wehrspitzen, zweiter Kristall auf dem Torpfosten |
+
+Zwei Dinge habe ich dabei bewusst **weggelassen**, nachdem der erste Versuch im
+Spiel unbrauchbar war: Kristalle auf jedem Mauerpfosten (der ganze Ring war eine
+Wolke aus Diamanten, man fand das Tor nicht mehr) und eine Zinnenkrone auf den
+Torflügeln (dann sah das Tor aus wie Mauer und der Durchgang verschwand). Kristalle
+sitzen jetzt nur auf den **Torpfosten** — als Wahrzeichen —, und der Flügel bleibt
+deutlich dunkler als der Ring, damit man immer sieht, wo man durchkommt.
+
 ### 🚪 Warum die Tore jetzt in der Mauer stehen
 
 Das Stadttor war ein **einziges breites Bild** samt eigener Pfosten und Sturz —
@@ -428,6 +462,29 @@ deshalb trägt er die Plakette SCHLÜSSEL.
 Weltenessenz, Segnungen, Laufzähler und Rekorde liegen **außerhalb** des Laufs im
 Spielstand: sie überleben jede Niederlage, jeden neuen Lauf und jedes Update.
 
+### ⚔️ Warum Bosse jetzt ein Kampf sind
+
+Bosse hatten eine **eigene HP-Kurve** — und die Waffe des Königs lief ihnen davon:
+×1,42 je Schmiedestufe, und die Schmiede steigt etwa jeden zweiten Tag. Ergebnis:
+ab Tag 25 lag ein einziger kritischer Treffer über dem halben Bossleben, ab Tag 70
+über dem *ganzen*.
+
+Jetzt hängt das Bossleben an **genau dieser Waffenkurve**: ein Boss soll rund 30
+echte Treffer aushalten, gerechnet mit dem Königsschaden, den man an diesem Tag
+realistisch hat. Damit bleibt ein Boss über das ganze Spiel ein Kampf.
+
+| Boss | Tag | vorher | jetzt | Faktor |
+|---|---|---|---|---|
+| Spinnenkönigin | 15 | 4 586 | 26 100 | ×5,7 |
+| Ork-Kriegsherr | 25 | 13 566 | 232 554 | ×17 |
+| Golem-Koloss | 35 | 52 173 | 2 332 044 | ×45 |
+| Weltenfresser | 50 | 306 323 | 43 151 162 | ×141 |
+| Leerentitan | 120 | 19,9 Mio | 17,7 Bio | ×891 000 |
+
+Nachgemessen mit einem Spieler, der **alle** Verbesserungen des Spiels gekauft hat:
+selbst dann braucht jeder Boss zwischen 3 (Tutorial-Schleimkönig) und 42
+Volltreffern — nie einen einzigen.
+
 ## 👹 Monster — 44 Arten in 22 Klassen + 17 Bosse
 
 Von **Klasse 1** (Grünschleim, ganz harmlos) über Goblins, Spinnen, Untote, Orks,
@@ -488,6 +545,16 @@ unten rechts von selbst.
   Handys bleiben spielbar, starke behalten volle Schärfe
 - Nacht-Beleuchtung über einen Lichtpuffer mit einem Drittel Auflösung
   (spart ~90 % Füllrate, ohne sichtbaren Unterschied)
+- **Münzbündelung fürs späte Spiel.** Im Vollausbau zahlen Dutzende Werke ständig
+  Millionen aus, und jede gestreute Münze kostet Kollision, Magnet, Partikel und
+  Zeichnung. Deshalb: zwei neue Stückelungen (**Goldkiste** 2 500, **Hort** 60 000)
+  mit eigener Grafik; ab 4 000 Gold entsteht statt eines Regens genau **ein**
+  Haufen; und jeder Bauplatz hat einen eigenen Haufen, der weiterwächst — das ist
+  O(1), ohne Suche über alle Münzen. Der Zusammenfasser läuft höchstens viermal je
+  Sekunde statt jeden Frame und benutzt eine wiederverwendete Map.
+  Gemessen an Tag 140 im Vollausbau: **21 Münzen statt 320**, Bildrate von 51 ms
+  auf 41,7 ms. 200 Auszahlungen à 90 000 Gold ergeben eine einzige Münze — ohne
+  ein Goldstück zu verlieren.
 - Sämtliche Grafiken werden **prozedural** gezeichnet (kein einziges Bild-Asset) — mit Ziegel-,
   Holz- und Stein-Texturen, Schindeldächern, weichen Schatten und Glanzlichtern
 - UI komplett mit **eigenen SVG-Icons** (keine Emojis)
