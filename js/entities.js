@@ -134,6 +134,23 @@ KS.Ent = (() => {
   const COIN_KIND = v => v >= 100 ? 3 : v >= 25 ? 2 : v >= 5 ? 1 : 0;
 
   function spawnCoin(G, x, y, value, opts = {}) {
+    const C = G.coins;
+    // Harte Obergrenze: statt einer weiteren Münze wächst die nächstgelegene.
+    // Der Zusammenfasser weiter unten fasst nur liegende Münzen an; bei
+    // starker Produktion stecken Hunderte im Flug und die Bildrate bricht
+    // ein. Kein Gold geht verloren, es wandert nur in einen dickeren Haufen.
+    if (C.length >= CFG.COINS.hardMax) {
+      let best = null, bd = Infinity;
+      for (let i = 0; i < C.length; i += 3) {      // Stichprobe genügt
+        const d = U.dist2(x, y, C[i].x, C[i].y);
+        if (d < bd) { bd = d; best = C[i]; }
+      }
+      if (best) {
+        best.value += Math.max(1, Math.round(value));
+        best.kind = COIN_KIND(best.value);
+        return;
+      }
+    }
     const a = Math.random() * TAU;
     const sp = opts.speed !== undefined ? opts.speed : U.rand(40, 130);
     G.coins.push({
@@ -847,7 +864,10 @@ KS.Ent = (() => {
       const pct = Math.max(0, m.hp / m.hpMax);
       ctx.fillStyle = pct > 0.5 ? '#58d162' : pct > 0.25 ? '#ffd34e' : '#e5484d';
       ctx.fillRect(m.x - w / 2, y, w * pct, h);
-      if (m.elite) {
+      // Elite-Beschriftung nur in der Nähe: Text zeichnen ist teuer, und in
+      // späten Nächten stehen dutzende Elitegegner gleichzeitig auf der Karte.
+      // Der goldene Ring markiert sie ohnehin überall.
+      if (m.elite && U.dist2(m.x, m.y, G.state.player.x, G.state.player.y) < 260 * 260) {
         ctx.fillStyle = '#ffd34e';
         ctx.font = '900 9px Nunito, sans-serif';
         ctx.textAlign = 'center';

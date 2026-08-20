@@ -194,7 +194,7 @@ tail -f /var/log/kingshot-update.log     # was ist passiert?
   Goldes geht verloren — weiter geht's am selben Tag. Gebäudestufen bleiben natürlich
   erhalten. Du gehst also nie mit offenen Breschen in die nächste Nacht.
 
-## 🏰 Gebäude (je 10 Stufen, mit sichtbarer Evolution: Holz → Stein → Eisen → Gold → Kristall)
+## 🏰 Gebäude (je **50 Stufen**, mit sichtbarer Evolution über zehn Materialien)
 
 | Gebäude | Wirkung |
 |---|---|
@@ -206,7 +206,7 @@ tail -f /var/log/kingshot-update.log     # was ist passiert?
 | 🔥 **Flammenturm** | Feuerkegel + Brandschaden |
 | ⛏️ **Goldminen** (2×) | Produzieren laufend Münzen zum Abholen |
 | 🍺 **Tavernen** (2×) | Beherbergen Überlebende, die Steuern zahlen |
-| ⚒️ **Schmiede** | Schmiedet 10 immer mächtigere Königsklingen (ab Stufe 5 mit Klingenwelle!) |
+| ⚒️ **Schmiede** | Schmiedet 20 benannte Königsklingen vom Rostigen Schwert bis zum **Urlicht** (ab Stufe 5 mit Klingenwelle!), darüber hinaus als verstärkte Fassungen |
 | 🛒 **Markt** | Shop mit 6 dauerhaften König-Upgrades: Leben, Tempo, Magnet, Krit, Gold, Rüstung. Öffnet per Tipp aufs Gebäude — solange er offen ist, **ruht das ganze Spiel** |
 | 🧱 **Stadtmauer** | Ring aus 16 Abschnitten mit eigenen HP (780 auf Stufe 1, ×1,5 je Stufe) — Monster brechen einzelne Abschnitte durch, morgens wird repariert. Auf der Mauer stehen **Bogenschützen**: sie beschießen jeden, der an Mauer oder Tor nagt, überall am Ring. Zahl und Schaden wachsen mit der Mauerstufe |
 | 🚪 **Stadttore** | Verschließen alle acht Durchgänge, sonst spaziert die Horde einfach hindurch. Eigene HP (1020 auf Stufe 1), werden aufgebrochen und im Morgengrauen wieder eingesetzt |
@@ -216,6 +216,18 @@ tail -f /var/log/kingshot-update.log     # was ist passiert?
 > Tore. Frisch gemauert ist frisch gemauert. Ohne Ausbau bleibt Schaden bis zum
 > Morgengrauen stehen.
 | ✨ **Schrein des Lichts** | Heil-Aura für König und Burg |
+
+### ⛰️ 50 Stufen — was sich dabei ändert
+
+Jedes Gebäude geht bis **Stufe 50**. Bis Stufe 10 bleibt alles wie gehabt, danach
+wächst der Preis mit Faktor 1,62 je Stufe — knapp über dem Einkommenswachstum, jede
+Stufe kostet also mehr Zeit als die vorige, bleibt aber erreichbar (gemessen: 20
+Sekunden Minen-Einkommen für Stufe 1, 450 Sekunden für Stufe 50).
+
+Optisch durchläuft jedes Bauwerk zehn Materialien — Holz, Stein, Eisen, Gold,
+Kristall, **Obsidian, Mithril, Blutrubin, Sternenstahl, Ätherglas**. Ab Stufe 11 kommt
+Prunk dazu: eine Aura am Sockel, schwebende Kristalle, ab Stufe 13 Banner, ab Stufe 17
+eine Lichtkrone über dem Dach.
 
 ### 🌾 Wirtschaft — alles endet in Gold
 
@@ -258,14 +270,26 @@ Angriff auf die Mauer teuer. Türme bleiben trotzdem die Hauptverteidigung —
 und die Türme priorisieren jetzt Gegner, die an Mauer oder Tor hängen, statt
 immer nur das nächstgelegene Ziel zu nehmen.
 
-## 👹 Monster — 24 Arten in 12 Klassen + 10 Bosse
+## 👹 Monster — 44 Arten in 22 Klassen + 17 Bosse
 
 Von **Klasse 1** (Grünschleim, ganz harmlos) über Goblins, Spinnen, Untote, Orks,
-Schattenwölfe, Trolle und Golems bis zu Dämonen und **Klasse 12** (Junge Drachen).
+Schattenwölfe, Trolle, Golems und Dämonen bis zu Drachen — und dann weiter durch die
+ganze Fantasy-Welt: **Riesen** und Frostriesen, **Minotauren**, **Harpyien**,
+**Baumriesen**, **Wyvern**, **Basilisken**, **Hydren**, **Elementare** aus Flamme und
+Leere, **Landkraken**, **Grabschemen**, **Liche** und **Todesfürsten** bis zum
+**Leerentitan** in Klasse 22. 25 eigene Familien, jede mit eigener Silhouette.
+
 Monster werden mit jedem Tag stärker *und sichtbar größer*; ab Tag 12 erscheinen
-goldene **Elite**-Varianten. Bosse alle 5 Nächte: Schleimkönig, Goblin-Häuptling,
-Spinnenkönigin, Knochenfürst, Ork-Kriegsherr, Trollkönig, Golem-Koloss, Dämonenfürst,
-Drachenmutter — und in Nacht 50 der **Weltenfresser**.
+goldene **Elite**-Varianten. Späte Nächte schicken bewusst **nicht mehr, sondern
+stärkere** Gegner: die Zahl deckelt bei rund 100 pro Nacht, das übrige Wellenbudget
+wird in Leben und Schaden umgerechnet (an Tag 200 ein Faktor 33). Das hält die Nächte
+gefährlich, ohne die Bildrate zu opfern.
+
+17 Bosse: Schleimkönig, Goblin-Häuptling, Spinnenkönigin, Knochenfürst,
+Ork-Kriegsherr, Trollkönig, Golem-Koloss, Dämonenfürst, Drachenmutter, in Nacht 50
+der **Weltenfresser** — und danach Jarl der Riesen, Herr des Labyrinths, Uralter
+Hüter, Aschekönigin, die Neunköpfige, **Der Namenlose** und der **Leerentitan**.
+Danach rotieren sie in immer stärkeren Rängen weiter.
 
 ## 📖 Der rote Faden
 

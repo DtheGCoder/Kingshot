@@ -400,6 +400,28 @@ KS.CFG = (() => {
     // Klasse 12 — Junge Drachen
     dragon_young: { name: 'Junger Drache',    cls: 12, minDay: 48, hp: 3200, dmg: 150, speed: 70,  r: 30, gold: 260, cost: 90, fam: 'drake',  c1: '#3a7ac9', c2: '#22528a', fly: true, big: 1.35 },
     dragon_frost: { name: 'Frostdrache',      cls: 12, minDay: 50, hp: 2800, dmg: 135, speed: 76,  r: 30, gold: 290, cost: 95, fam: 'drake',  c1: '#7ad0e8', c2: '#3a8aa8', fly: true, big: 1.35, ranged: { range: 240, rate: 0.5, proj: 'frostball' } },
+
+    // ═══ Klasse 13–20: die tiefere Fantasy-Welt ═══
+    giant:        { name: 'Hügelriese',        cls: 13, minDay: 54, hp: 4200,   dmg: 165, speed: 40, r: 34, gold: 380,   cost: 120, fam: 'giant',     c1: '#c9a882', c2: '#8a6f4e', big: 1.5 },
+    giant_frost:  { name: 'Frostriese',        cls: 13, minDay: 57, hp: 5400,   dmg: 190, speed: 36, r: 36, gold: 470,   cost: 145, fam: 'giant',     c1: '#bcd8ea', c2: '#6d92ab', big: 1.6 },
+    minotaur:     { name: 'Minotaur',          cls: 14, minDay: 60, hp: 6200,   dmg: 230, speed: 72, r: 28, gold: 560,   cost: 165, fam: 'minotaur',  c1: '#8a5a3e', c2: '#5a3624', big: 1.25 },
+    minotaur_war: { name: 'Labyrinthwächter',  cls: 14, minDay: 63, hp: 8000,   dmg: 270, speed: 66, r: 30, gold: 680,   cost: 195, fam: 'minotaur',  c1: '#6a4f6e', c2: '#3f2c46', big: 1.35 },
+    harpy:        { name: 'Harpyie',           cls: 15, minDay: 66, hp: 6800,   dmg: 210, speed: 104, r: 22, gold: 640,  cost: 175, fam: 'harpy',     c1: '#d8c58a', c2: '#93794a', fly: true },
+    harpy_storm:  { name: 'Sturmharpyie',      cls: 15, minDay: 69, hp: 8400,   dmg: 240, speed: 116, r: 23, gold: 760,  cost: 205, fam: 'harpy',     c1: '#a8c8f0', c2: '#5d7fb5', fly: true, ranged: { range: 210, rate: 0.7, proj: 'bolt' } },
+    treant:       { name: 'Baumriese',         cls: 16, minDay: 72, hp: 13000,  dmg: 250, speed: 32, r: 34, gold: 820,   cost: 240, fam: 'treant',    c1: '#5f9a4a', c2: '#6b4d2e', big: 1.5 },
+    treant_dark:  { name: 'Moderwächter',      cls: 16, minDay: 75, hp: 16500,  dmg: 290, speed: 30, r: 36, gold: 980,   cost: 275, fam: 'treant',    c1: '#7a6a3a', c2: '#4a3826', big: 1.6 },
+    wyvern:       { name: 'Wyvern',            cls: 17, minDay: 78, hp: 12000,  dmg: 320, speed: 112, r: 27, gold: 1100, cost: 300, fam: 'wyvern',    c1: '#8fbf6a', c2: '#54803c', fly: true, big: 1.3 },
+    wyvern_ash:   { name: 'Aschewyvern',       cls: 17, minDay: 81, hp: 15000,  dmg: 370, speed: 118, r: 28, gold: 1300, cost: 340, fam: 'wyvern',    c1: '#c07a5a', c2: '#7a4230', fly: true, big: 1.35, ranged: { range: 230, rate: 0.55, proj: 'fireball' } },
+    basilisk:     { name: 'Basilisk',          cls: 18, minDay: 84, hp: 19000,  dmg: 360, speed: 78, r: 26, gold: 1450,  cost: 370, fam: 'basilisk',  c1: '#7fae5e', c2: '#4a6b38', venom: true, big: 1.3 },
+    hydra:        { name: 'Hydra',             cls: 18, minDay: 87, hp: 26000,  dmg: 400, speed: 62, r: 32, gold: 1750,  cost: 420, fam: 'hydra',     c1: '#4aa88a', c2: '#2a6a58', big: 1.5 },
+    elemental_fire:{ name: 'Flammenelementar', cls: 19, minDay: 90, hp: 22000,  dmg: 420, speed: 88, r: 24, gold: 1650,  cost: 400, fam: 'elemental', c1: '#ff8a3a', c2: '#b03a18', fly: true, ranged: { range: 220, rate: 0.65, proj: 'fireball' } },
+    elemental_void:{ name: 'Leerenelementar',  cls: 19, minDay: 93, hp: 28000,  dmg: 470, speed: 82, r: 26, gold: 1950,  cost: 455, fam: 'elemental', c1: '#b06ef0', c2: '#5a2a90', fly: true, ranged: { range: 235, rate: 0.6, proj: 'bolt' } },
+    kraken:       { name: 'Landkrake',         cls: 20, minDay: 96, hp: 40000,  dmg: 520, speed: 54, r: 34, gold: 2400,  cost: 520, fam: 'kraken',    c1: '#6a5ab8', c2: '#3a2e72', big: 1.55 },
+    wraith:       { name: 'Grabschemen',       cls: 20, minDay: 99, hp: 34000,  dmg: 560, speed: 96, r: 24, gold: 2600,  cost: 545, fam: 'wraith',    c1: '#8a7ad0', c2: '#3e3266', fly: true },
+    lich:         { name: 'Lich',              cls: 21, minDay: 104, hp: 46000, dmg: 620, speed: 70, r: 25, gold: 3200,  cost: 610, fam: 'lich',      c1: '#7ae0c0', c2: '#2a5a4a', ranged: { range: 260, rate: 0.5, proj: 'bolt' } },
+    lich_king:    { name: 'Todesfürst',        cls: 21, minDay: 108, hp: 60000, dmg: 700, speed: 66, r: 27, gold: 3900,  cost: 690, fam: 'lich',      c1: '#e06a9a', c2: '#5a2040', big: 1.2, ranged: { range: 270, rate: 0.55, proj: 'bolt' } },
+    titan:        { name: 'Titan',             cls: 22, minDay: 112, hp: 90000, dmg: 820, speed: 46, r: 38, gold: 5200,  cost: 820, fam: 'titan',     c1: '#c8b06a', c2: '#6e5a30', big: 1.7 },
+    titan_void:   { name: 'Leerentitan',       cls: 22, minDay: 118, hp: 130000, dmg: 980, speed: 44, r: 40, gold: 6800, cost: 950, fam: 'titan',     c1: '#8a6ee8', c2: '#3a2868', big: 1.85 },
   };
 
   // ---------- Bosse (alle 5 Nächte) ----------
@@ -415,6 +437,14 @@ KS.CFG = (() => {
     { day: 40, id: 'boss_demon',  base: 'demon',    name: 'Dämonenfürst',    sub: 'Schatten über Alderian',  hpTweak: 1.1,  dmgMul: 2.8, size: 2.5, gold: 6000, speed: 46 },
     { day: 45, id: 'boss_dragonm',base: 'drakeling',name: 'Drachenmutter',   sub: 'Der Himmel brennt',       hpTweak: 1.15, dmgMul: 2.9, size: 2.8, gold: 8500, speed: 56 },
     { day: 50, id: 'boss_world',  base: 'demon',    name: 'Weltenfresser',   sub: 'Das Ende aller Dinge',    hpTweak: 1.5,  dmgMul: 3.2, size: 3.4, gold: 15000, speed: 40 },
+    // ═══ Die Ewige Wacht bekommt eigene Herren ═══
+    { day: 55, id: 'boss_giant',  base: 'giant_frost', name: 'Jarl der Riesen',  sub: 'Sein Schritt spaltet Fels', hpTweak: 1.3, dmgMul: 3.0, size: 2.6, gold: 22000,  speed: 32 },
+    { day: 60, id: 'boss_mino',   base: 'minotaur_war',name: 'Herr des Labyrinths', sub: 'Kein Faden führt hinaus', hpTweak: 1.35, dmgMul: 3.1, size: 2.5, gold: 30000, speed: 62 },
+    { day: 70, id: 'boss_treant', base: 'treant_dark', name: 'Uralter Hüter',    sub: 'Wurzeln bis zum Weltrand',  hpTweak: 1.5, dmgMul: 3.0, size: 2.6, gold: 48000,  speed: 26 },
+    { day: 80, id: 'boss_wyvern', base: 'wyvern_ash',  name: 'Aschekönigin',     sub: 'Der Himmel wird Rauch',     hpTweak: 1.4, dmgMul: 3.2, size: 2.7, gold: 70000,  speed: 104 },
+    { day: 90, id: 'boss_hydra',  base: 'hydra',       name: 'Neunköpfige',      sub: 'Schlag zwei ab, drei wachsen', hpTweak: 1.6, dmgMul: 3.2, size: 2.6, gold: 105000, speed: 56 },
+    { day: 100, id: 'boss_lich',  base: 'lich_king',   name: 'Der Namenlose',    sub: 'Er war vor dem ersten Tag',  hpTweak: 1.8, dmgMul: 3.4, size: 2.8, gold: 180000, speed: 64 },
+    { day: 120, id: 'boss_titan', base: 'titan_void',  name: 'Leerentitan',      sub: 'Wo er geht, endet die Welt', hpTweak: 2.0, dmgMul: 3.6, size: 3.0, gold: 300000, speed: 42 },
   ];
 
   // Boss-HP: eigene Kurve, ausgelegt auf ~30–60 s Kampf je nach Ausbau
@@ -429,12 +459,12 @@ KS.CFG = (() => {
     hpMul: d => {
       if (d <= 25) return Math.pow(1.105, d - 1);
       if (d <= 50) return Math.pow(1.105, 24) * Math.pow(1.05, d - 25);
-      return Math.pow(1.105, 24) * Math.pow(1.05, 25) * Math.pow(1.035, d - 50);
+      return Math.pow(1.105, 24) * Math.pow(1.05, 25) * Math.pow(1.048, d - 50);
     },
     dmgMul: d => {
       if (d <= 25) return Math.pow(1.065, d - 1);
       if (d <= 50) return Math.pow(1.065, 24) * Math.pow(1.04, d - 25);
-      return Math.pow(1.065, 24) * Math.pow(1.04, 25) * Math.pow(1.03, d - 50);
+      return Math.pow(1.065, 24) * Math.pow(1.04, 25) * Math.pow(1.035, d - 50);
     },
     goldMul: d => 1 + 0.075 * (d - 1),
     budget: d => {
@@ -442,7 +472,12 @@ KS.CFG = (() => {
       if (d === 2) return 12;
       if (d <= 15) return 13 * Math.pow(1.24, d - 1);
       if (d <= 30) return 13 * Math.pow(1.24, 14) * Math.pow(1.10, d - 15);
-      return 13 * Math.pow(1.24, 14) * Math.pow(1.10, 15) * Math.pow(1.06, d - 30);
+      if (d <= 60) return 13 * Math.pow(1.24, 14) * Math.pow(1.10, 15) * Math.pow(1.06, d - 30);
+      // Ab Tag 60 wächst das Budget flacher. Die Monster werden weiter
+      // stärker (HP je Tag ×1,048), aber die ANZAHL soll nicht explodieren:
+      // 130 Monster gleichzeitig kosten Bildrate und wirken als Masse
+      // weniger bedrohlich als wenige, die richtig einstecken.
+      return 13 * Math.pow(1.24, 14) * Math.pow(1.10, 15) * Math.pow(1.06, 30) * Math.pow(1.045, d - 60);
     },
     eliteChance: d => (d < 12 ? 0 : Math.min(0.18, 0.03 + (d - 12) * 0.006)),
     sizeMul: d => Math.min(1.35, 1 + (d - 1) * 0.006),   // Monster werden mit der Zeit sichtbar größer
@@ -635,6 +670,10 @@ Die Wacht geht weiter — die Nächte werden härter, deine Legende größer. Ew
     values: [1, 5, 25, 100],       // Münze, Großmünze, Beutel, Truhe
     magnetSpeed: 620,
     maxOnGround: 220,
+    // Absolute Obergrenze. Der Zusammenfasser greift nur bei liegenden
+    // Münzen — bei starker Produktion stecken Hunderte im Flug und wären
+    // sonst unbegrenzt. Ab hier wächst die nächstgelegene Münze weiter.
+    hardMax: 320,
     lifetime: 90,                  // Sekunden bis Münzen zu funkeln beginnen (bleiben liegen)
   };
 

@@ -2784,6 +2784,545 @@ KS.Art = (() => {
     }
   };
 
+  // ============================================================
+  //  NEUE FAMILIEN — die Fantasy-Welt jenseits der Drachen
+  // ============================================================
+
+  // Riese: massiger Humanoid mit Keule
+  M.giant = (g, sp, f) => {
+    const s = sp.r, sw = f ? 1 : -1;
+    limb(g, -s * 0.34, -s * 0.62, -s * 0.42 - sw * 3, 0, s * 0.3, sp.c2);
+    limb(g, s * 0.34, -s * 0.62, s * 0.42 + sw * 3, 0, s * 0.3, sp.c2);
+    g.fillStyle = U.shade(sp.c2, -0.2);
+    ell(g, -s * 0.44 - sw * 3, -1, s * 0.24, s * 0.12); g.fill();
+    ell(g, s * 0.44 + sw * 3, -1, s * 0.24, s * 0.12); g.fill();
+    // Rumpf
+    rr(g, -s * 0.6, -s * 1.5, s * 1.2, s * 0.95, s * 0.28);
+    g.fillStyle = vgrad(g, -s * 1.5, -s * 0.5, U.shade(sp.c1, 0.12), sp.c2); g.fill(); outline(g, 2.8);
+    // Fellschurz
+    g.fillStyle = '#8a6a42';
+    rr(g, -s * 0.58, -s * 0.75, s * 1.16, s * 0.3, 4); g.fill(); outline(g, 1.8);
+    // Kopf mit Stirnwulst
+    ell(g, 0, -s * 1.72, s * 0.42, s * 0.38);
+    g.fillStyle = vgrad(g, -s * 2.1, -s * 1.4, U.shade(sp.c1, 0.2), sp.c1); g.fill(); outline(g, 2.4);
+    g.fillStyle = U.shade(sp.c2, -0.1);
+    rr(g, -s * 0.4, -s * 1.95, s * 0.8, s * 0.16, 3); g.fill();
+    eyes(g, s * 0.17, -s * 1.74, s * 0.13);
+    // Keule
+    g.save();
+    g.translate(s * 0.7, -s * 1.15 + sw * 3); g.rotate(-0.5 + sw * 0.12);
+    g.fillStyle = '#7a5a34';
+    rr(g, -s * 0.1, -s * 0.2, s * 0.2, s * 1.1, s * 0.08); g.fill(); outline(g, 2);
+    ell(g, 0, -s * 0.3, s * 0.3, s * 0.34);
+    g.fillStyle = vgrad(g, -s * 0.6, 0, '#a08258', '#6b4c2c'); g.fill(); outline(g, 2.2);
+    for (let i = 0; i < 4; i++) {
+      const a = i / 4 * Math.PI * 2;
+      ell(g, Math.cos(a) * s * 0.2, -s * 0.3 + Math.sin(a) * s * 0.2, 2.4, 2.4);
+      g.fillStyle = '#cfc6b4'; g.fill();
+    }
+    g.restore();
+    limb(g, -s * 0.5, -s * 1.3, -s * 0.8, -s * 0.7 - sw * 2, s * 0.26, sp.c1);
+  };
+
+  // Minotaur: Bullenkopf, Doppelaxt
+  M.minotaur = (g, sp, f) => {
+    const s = sp.r, sw = f ? 1 : -1;
+    limb(g, -s * 0.3, -s * 0.6, -s * 0.36 - sw * 3, 0, s * 0.26, sp.c2);
+    limb(g, s * 0.3, -s * 0.6, s * 0.36 + sw * 3, 0, s * 0.26, sp.c2);
+    // Hufe
+    g.fillStyle = '#2e2620';
+    ell(g, -s * 0.38 - sw * 3, -1, s * 0.2, s * 0.12); g.fill();
+    ell(g, s * 0.38 + sw * 3, -1, s * 0.2, s * 0.12); g.fill();
+    rr(g, -s * 0.55, -s * 1.45, s * 1.1, s * 0.9, s * 0.24);
+    g.fillStyle = vgrad(g, -s * 1.45, -s * 0.5, U.shade(sp.c1, 0.1), sp.c2); g.fill(); outline(g, 2.6);
+    // Brustpelz
+    g.fillStyle = U.shade(sp.c1, 0.3); g.globalAlpha = 0.6;
+    ell(g, 0, -s * 1.05, s * 0.32, s * 0.26); g.fill(); g.globalAlpha = 1;
+    // Kopf: lange Schnauze
+    ell(g, s * 0.06, -s * 1.66, s * 0.4, s * 0.32);
+    g.fillStyle = vgrad(g, -s * 2, -s * 1.35, U.shade(sp.c1, 0.16), sp.c2); g.fill(); outline(g, 2.4);
+    ell(g, s * 0.3, -s * 1.58, s * 0.2, s * 0.16);
+    g.fillStyle = U.shade(sp.c1, 0.34); g.fill(); outline(g, 1.6);
+    g.fillStyle = '#2a2020';
+    ell(g, s * 0.36, -s * 1.56, 1.7, 1.4); g.fill();
+    // Hörner
+    g.strokeStyle = '#e8dcc0'; g.lineWidth = s * 0.15; g.lineCap = 'round';
+    for (const dir of [-1, 1]) {
+      g.beginPath();
+      g.moveTo(dir * s * 0.28, -s * 1.86);
+      g.quadraticCurveTo(dir * s * 0.66, -s * 2.0, dir * s * 0.6, -s * 1.6);
+      g.stroke();
+    }
+    eyes(g, s * 0.16, -s * 1.72, s * 0.12);
+    // Doppelaxt
+    g.save();
+    g.translate(s * 0.75, -s * 1.05 + sw * 3); g.rotate(-0.4 + sw * 0.14);
+    g.strokeStyle = '#6b4c2c'; g.lineWidth = s * 0.13;
+    g.beginPath(); g.moveTo(0, s * 0.4); g.lineTo(0, -s * 0.85); g.stroke();
+    for (const dir of [-1, 1]) {
+      g.beginPath();
+      g.moveTo(0, -s * 0.8);
+      g.quadraticCurveTo(dir * s * 0.5, -s * 0.72, dir * s * 0.36, -s * 0.34);
+      g.quadraticCurveTo(dir * s * 0.16, -s * 0.5, 0, -s * 0.46);
+      g.closePath();
+      g.fillStyle = vgrad(g, -s * 0.9, -s * 0.3, '#e6ecf5', '#8a94a8'); g.fill(); outline(g, 2);
+    }
+    g.restore();
+  };
+
+  // Wyvern: Flugechse mit langem Hals
+  M.wyvern = (g, sp, f) => {
+    const s = sp.r, sw = f ? 1 : -1;
+    // Flügel hinten
+    for (const dir of [-1, 1]) {
+      g.beginPath();
+      g.moveTo(dir * s * 0.2, -s * 1.15);
+      g.quadraticCurveTo(dir * s * 1.5, -s * 2.0 - sw * 7, dir * s * 2.1, -s * 1.1 - sw * 5);
+      g.quadraticCurveTo(dir * s * 1.2, -s * 1.1, dir * s * 0.4, -s * 0.85);
+      g.closePath();
+      g.fillStyle = vgrad(g, -s * 2.2, -s * 0.8, U.shade(sp.c2, 0.24), sp.c2); g.fill(); outline(g, 2.2);
+      g.strokeStyle = 'rgba(20,20,20,0.3)'; g.lineWidth = 1.5;
+      for (let i = 1; i <= 2; i++) {
+        g.beginPath();
+        g.moveTo(dir * s * 0.3, -s * 1.05);
+        g.lineTo(dir * s * (0.9 + i * 0.5), -s * (1.2 + i * 0.2) - sw * 4);
+        g.stroke();
+      }
+    }
+    // Rumpf
+    ell(g, 0, -s * 0.9, s * 0.62, s * 0.46);
+    g.fillStyle = vgrad(g, -s * 1.4, -s * 0.4, U.shade(sp.c1, 0.14), sp.c2); g.fill(); outline(g, 2.4);
+    // Hals + Kopf
+    g.strokeStyle = sp.c1; g.lineWidth = s * 0.28;
+    g.beginPath();
+    g.moveTo(s * 0.3, -s * 1.05);
+    g.quadraticCurveTo(s * 0.85, -s * 1.5, s * 0.8, -s * 1.95);
+    g.stroke();
+    ell(g, s * 0.86, -s * 2.05, s * 0.3, s * 0.22);
+    g.fillStyle = vgrad(g, -s * 2.4, -s * 1.8, U.shade(sp.c1, 0.2), sp.c1); g.fill(); outline(g, 2.2);
+    g.fillStyle = sp.c2;
+    g.beginPath();
+    g.moveTo(s * 1.1, -s * 2.1); g.lineTo(s * 1.45, -s * 2.0); g.lineTo(s * 1.1, -s * 1.94);
+    g.closePath(); g.fill(); outline(g, 1.6);
+    g.fillStyle = '#ffe37a';
+    ell(g, s * 0.95, -s * 2.1, 2, 1.7); g.fill();
+    // Beine & Schwanz
+    limb(g, -s * 0.16, -s * 0.6, -s * 0.24 - sw * 2, 0, s * 0.18, sp.c2);
+    limb(g, s * 0.24, -s * 0.6, s * 0.3 + sw * 2, 0, s * 0.18, sp.c2);
+    g.strokeStyle = sp.c1; g.lineWidth = s * 0.2;
+    g.beginPath();
+    g.moveTo(-s * 0.5, -s * 0.9);
+    g.quadraticCurveTo(-s * 1.3, -s * 0.7 + sw * 3, -s * 1.6, -s * 1.2 + sw * 4);
+    g.stroke();
+  };
+
+  // Lich: Skelettmagier mit Krone und Stab
+  M.lich = (g, sp, f) => {
+    const s = sp.r, sw = f ? 1 : -1;
+    const bob = sw * 1.6;
+    // Robe
+    g.beginPath();
+    g.moveTo(-s * 0.16, -s * 1.4 + bob);
+    g.quadraticCurveTo(-s * 0.85, -s * 0.6 + bob, -s * 0.68, s * 0.05 + bob);
+    g.quadraticCurveTo(0, -s * 0.12 + bob, s * 0.68, s * 0.05 + bob);
+    g.quadraticCurveTo(s * 0.85, -s * 0.6 + bob, s * 0.16, -s * 1.4 + bob);
+    g.closePath();
+    g.fillStyle = vgrad(g, -s * 1.5, 0, sp.c1, sp.c2); g.fill(); outline(g, 2.4);
+    // Saum
+    g.strokeStyle = U.shade(sp.c1, 0.4); g.lineWidth = 1.8;
+    g.beginPath(); g.moveTo(-s * 0.6, -s * 0.2 + bob); g.quadraticCurveTo(0, -s * 0.42 + bob, s * 0.6, -s * 0.2 + bob); g.stroke();
+    // Totenschädel
+    ell(g, 0, -s * 1.62 + bob, s * 0.3, s * 0.3);
+    g.fillStyle = vgrad(g, -s * 1.95, -s * 1.3, '#efe8d4', '#b8ae96'); g.fill(); outline(g, 2.2);
+    g.fillStyle = '#2a2430';
+    ell(g, -s * 0.12, -s * 1.66 + bob, s * 0.09, s * 0.1); g.fill();
+    ell(g, s * 0.12, -s * 1.66 + bob, s * 0.09, s * 0.1); g.fill();
+    g.fillStyle = sp.c1;
+    ell(g, -s * 0.12, -s * 1.66 + bob, s * 0.05, s * 0.06); g.fill();
+    ell(g, s * 0.12, -s * 1.66 + bob, s * 0.05, s * 0.06); g.fill();
+    g.strokeStyle = '#8a8070'; g.lineWidth = 1.2;
+    g.beginPath(); g.moveTo(-s * 0.1, -s * 1.44 + bob); g.lineTo(s * 0.1, -s * 1.44 + bob); g.stroke();
+    // Krone
+    g.fillStyle = '#e8c14a';
+    g.beginPath();
+    g.moveTo(-s * 0.3, -s * 1.86 + bob);
+    for (let i = 0; i < 4; i++) {
+      const x = -s * 0.3 + (i + 0.5) * s * 0.2;
+      g.lineTo(x, -s * 2.06 + bob);
+      g.lineTo(x + s * 0.1, -s * 1.86 + bob);
+    }
+    g.closePath(); g.fill(); outline(g, 1.6);
+    // Stab mit Kugel
+    g.save();
+    g.translate(s * 0.7, -s * 0.9 + bob); g.rotate(0.1);
+    g.strokeStyle = '#4a3f52'; g.lineWidth = s * 0.1;
+    g.beginPath(); g.moveTo(0, s * 0.55); g.lineTo(0, -s * 1.15); g.stroke();
+    g.shadowColor = sp.c1; g.shadowBlur = 10;
+    ell(g, 0, -s * 1.3, s * 0.2, s * 0.2);
+    g.fillStyle = U.shade(sp.c1, 0.5); g.fill(); outline(g, 1.6);
+    g.restore();
+  };
+
+  // Hydra: mehrköpfige Schlange
+  M.hydra = (g, sp, f) => {
+    const s = sp.r, sw = f ? 1 : -1;
+    // Leib
+    ell(g, 0, -s * 0.62, s * 0.85, s * 0.44);
+    g.fillStyle = vgrad(g, -s * 1.1, -s * 0.2, U.shade(sp.c1, 0.14), sp.c2); g.fill(); outline(g, 2.6);
+    g.fillStyle = U.shade(sp.c1, 0.34); g.globalAlpha = 0.5;
+    ell(g, 0, -s * 0.42, s * 0.6, s * 0.2); g.fill(); g.globalAlpha = 1;
+    // Drei Hälse
+    const halses = [[-0.55, -1.7, -0.75], [0.05, -2.0, 0.1], [0.6, -1.66, 0.8]];
+    halses.forEach(([hx, hy, kx], i) => {
+      const wob = sw * (i === 1 ? 2.4 : -1.6);
+      g.strokeStyle = i === 1 ? sp.c1 : U.shade(sp.c1, -0.08);
+      g.lineWidth = s * 0.22;
+      g.beginPath();
+      g.moveTo(hx * s * 0.6, -s * 0.8);
+      g.quadraticCurveTo(hx * s, hy * s * 0.6 + wob, kx * s, hy * s + wob);
+      g.stroke();
+      ell(g, kx * s, hy * s + wob, s * 0.24, s * 0.18);
+      g.fillStyle = vgrad(g, hy * s - s * 0.3, hy * s + s * 0.2, U.shade(sp.c1, 0.2), sp.c2);
+      g.fill(); outline(g, 2);
+      g.fillStyle = '#ffd24e';
+      ell(g, kx * s + s * 0.08, hy * s + wob - s * 0.03, 1.6, 1.4); g.fill();
+      // Maul
+      g.strokeStyle = 'rgba(30,20,20,0.6)'; g.lineWidth = 1.4;
+      g.beginPath(); g.moveTo(kx * s + s * 0.1, hy * s + wob + s * 0.08);
+      g.lineTo(kx * s + s * 0.26, hy * s + wob + s * 0.1); g.stroke();
+    });
+    // Beine
+    limb(g, -s * 0.4, -s * 0.4, -s * 0.5 - sw * 2, 0, s * 0.2, sp.c2);
+    limb(g, s * 0.4, -s * 0.4, s * 0.5 + sw * 2, 0, s * 0.2, sp.c2);
+    // Schwanz
+    g.strokeStyle = sp.c2; g.lineWidth = s * 0.18;
+    g.beginPath();
+    g.moveTo(-s * 0.8, -s * 0.6);
+    g.quadraticCurveTo(-s * 1.5, -s * 0.5 + sw * 3, -s * 1.8, -s * 0.95 + sw * 4);
+    g.stroke();
+  };
+
+  // Elementar: schwebender Kern mit kreisenden Splittern
+  M.elemental = (g, sp, f) => {
+    const s = sp.r, sw = f ? 1 : -1;
+    const bob = sw * 2.2;
+    // Aura
+    g.save();
+    g.globalAlpha = 0.42;
+    const gr = g.createRadialGradient(0, -s * 1.1 + bob, s * 0.15, 0, -s * 1.1 + bob, s * 1.25);
+    gr.addColorStop(0, U.shade(sp.c1, 0.5)); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = gr;
+    ell(g, 0, -s * 1.1 + bob, s * 1.25, s * 1.25); g.fill();
+    g.restore();
+    // Kern
+    g.save();
+    g.shadowColor = sp.c1; g.shadowBlur = 12;
+    ell(g, 0, -s * 1.1 + bob, s * 0.46, s * 0.52);
+    g.fillStyle = vgrad(g, -s * 1.7 + bob, -s * 0.6 + bob, U.shade(sp.c1, 0.55), sp.c2);
+    g.fill(); outline(g, 2.2);
+    g.restore();
+    eyes(g, s * 0.17, -s * 1.16 + bob, s * 0.12);
+    // Kreisende Splitter
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2 + (f ? 0.5 : 0);
+      const rx = s * 0.9, ry = s * 0.5;
+      const x = Math.cos(a) * rx, y = -s * 1.1 + bob + Math.sin(a) * ry;
+      const sz = s * (0.16 + (i % 2) * 0.06);
+      g.save();
+      g.translate(x, y); g.rotate(a);
+      g.fillStyle = i % 2 ? sp.c1 : U.shade(sp.c1, 0.4);
+      g.beginPath();
+      g.moveTo(0, -sz); g.lineTo(sz * 0.7, 0); g.lineTo(0, sz); g.lineTo(-sz * 0.7, 0);
+      g.closePath(); g.fill(); outline(g, 1.4);
+      g.restore();
+    }
+  };
+
+  // Baumriese: wandelnder Baum
+  M.treant = (g, sp, f) => {
+    const s = sp.r, sw = f ? 1 : -1;
+    // Wurzelbeine
+    for (const dir of [-1, 1]) {
+      g.strokeStyle = sp.c2; g.lineWidth = s * 0.26; g.lineCap = 'round';
+      g.beginPath();
+      g.moveTo(dir * s * 0.3, -s * 0.85);
+      g.quadraticCurveTo(dir * s * 0.44, -s * 0.4, dir * s * (0.4 + (dir === (f ? 1 : -1) ? 0.2 : 0)), 0);
+      g.stroke();
+    }
+    // Stamm
+    g.beginPath();
+    g.moveTo(-s * 0.42, -s * 0.8);
+    g.quadraticCurveTo(-s * 0.5, -s * 1.6, -s * 0.3, -s * 1.95);
+    g.lineTo(s * 0.3, -s * 1.95);
+    g.quadraticCurveTo(s * 0.5, -s * 1.6, s * 0.42, -s * 0.8);
+    g.closePath();
+    g.fillStyle = vgrad(g, -s * 2, -s * 0.7, U.shade(sp.c2, 0.22), sp.c2); g.fill(); outline(g, 2.8);
+    // Rindenfurchen
+    g.strokeStyle = 'rgba(40,28,16,0.45)'; g.lineWidth = 1.6;
+    for (let i = -1; i <= 1; i++) {
+      g.beginPath();
+      g.moveTo(i * s * 0.22, -s * 0.85);
+      g.quadraticCurveTo(i * s * 0.3, -s * 1.4, i * s * 0.18, -s * 1.9);
+      g.stroke();
+    }
+    // Gesicht im Stamm
+    g.fillStyle = '#2b1f12';
+    ell(g, -s * 0.16, -s * 1.5, s * 0.1, s * 0.13); g.fill();
+    ell(g, s * 0.16, -s * 1.5, s * 0.1, s * 0.13); g.fill();
+    g.fillStyle = '#ffd24e';
+    ell(g, -s * 0.16, -s * 1.5, s * 0.05, s * 0.07); g.fill();
+    ell(g, s * 0.16, -s * 1.5, s * 0.05, s * 0.07); g.fill();
+    g.strokeStyle = '#2b1f12'; g.lineWidth = 2;
+    g.beginPath(); g.arc(0, -s * 1.3, s * 0.16, 0.2, Math.PI - 0.2); g.stroke();
+    // Astarme
+    for (const dir of [-1, 1]) {
+      g.strokeStyle = sp.c2; g.lineWidth = s * 0.16;
+      g.beginPath();
+      g.moveTo(dir * s * 0.38, -s * 1.5);
+      g.quadraticCurveTo(dir * s * 0.95, -s * 1.6 - sw * 2, dir * s * 1.1, -s * 1.15 - sw * 3);
+      g.stroke();
+    }
+    // Krone
+    for (const [cx, cy, cr] of [[-0.42, -2.1, 0.42], [0.42, -2.1, 0.42], [0, -2.4, 0.5]]) {
+      ell(g, cx * s, cy * s, cr * s, cr * s * 0.82);
+      g.fillStyle = vgrad(g, cy * s - cr * s, cy * s + cr * s, U.shade(sp.c1, 0.26), sp.c1);
+      g.fill(); outline(g, 2.2);
+    }
+  };
+
+  // Harpyie: geflügelte Jägerin
+  M.harpy = (g, sp, f) => {
+    const s = sp.r, sw = f ? 1 : -1;
+    const bob = sw * 2;
+    for (const dir of [-1, 1]) {
+      g.beginPath();
+      g.moveTo(dir * s * 0.2, -s * 1.25 + bob);
+      g.quadraticCurveTo(dir * s * 1.3, -s * 1.9 - sw * 6, dir * s * 1.75, -s * 0.9 - sw * 4);
+      g.quadraticCurveTo(dir * s * 0.9, -s * 1.0 + bob, dir * s * 0.3, -s * 0.9 + bob);
+      g.closePath();
+      g.fillStyle = vgrad(g, -s * 2, -s * 0.7, U.shade(sp.c1, 0.3), sp.c2); g.fill(); outline(g, 2.2);
+      g.strokeStyle = 'rgba(30,25,20,0.3)'; g.lineWidth = 1.4;
+      for (let i = 1; i <= 3; i++) {
+        g.beginPath();
+        g.moveTo(dir * s * 0.28, -s * 1.15 + bob);
+        g.lineTo(dir * s * (0.6 + i * 0.35), -s * (1.0 + i * 0.18) - sw * 3);
+        g.stroke();
+      }
+    }
+    // Körper
+    ell(g, 0, -s * 1.05 + bob, s * 0.36, s * 0.5);
+    g.fillStyle = vgrad(g, -s * 1.6 + bob, -s * 0.5 + bob, U.shade(sp.c1, 0.16), sp.c2); g.fill(); outline(g, 2.2);
+    // Kopf
+    ell(g, 0, -s * 1.72 + bob, s * 0.26, s * 0.24);
+    g.fillStyle = U.shade(sp.c1, 0.3); g.fill(); outline(g, 2);
+    g.fillStyle = '#e8a53a';
+    g.beginPath();
+    g.moveTo(s * 0.2, -s * 1.74 + bob); g.lineTo(s * 0.5, -s * 1.68 + bob); g.lineTo(s * 0.2, -s * 1.62 + bob);
+    g.closePath(); g.fill(); outline(g, 1.5);
+    eyes(g, s * 0.11, -s * 1.78 + bob, s * 0.1);
+    // Federschopf
+    g.strokeStyle = sp.c2; g.lineWidth = 2.2;
+    for (let i = -1; i <= 1; i++) {
+      g.beginPath();
+      g.moveTo(i * s * 0.1, -s * 1.92 + bob);
+      g.lineTo(i * s * 0.2 - s * 0.05, -s * 2.18 + bob);
+      g.stroke();
+    }
+    // Krallenbeine
+    for (const dir of [-1, 1]) {
+      g.strokeStyle = '#e8a53a'; g.lineWidth = s * 0.1;
+      g.beginPath();
+      g.moveTo(dir * s * 0.16, -s * 0.62 + bob);
+      g.lineTo(dir * s * 0.22, -s * 0.2 + bob);
+      g.stroke();
+      for (let t = -1; t <= 1; t++) {
+        g.beginPath();
+        g.moveTo(dir * s * 0.22, -s * 0.2 + bob);
+        g.lineTo(dir * s * 0.22 + t * s * 0.14, -s * 0.02 + bob);
+        g.stroke();
+      }
+    }
+  };
+
+  // Krake: Tentakelschrecken
+  M.kraken = (g, sp, f) => {
+    const s = sp.r, sw = f ? 1 : -1;
+    // Tentakel
+    for (let i = 0; i < 6; i++) {
+      const dir = i < 3 ? -1 : 1;
+      const k = (i % 3);
+      g.strokeStyle = i % 2 ? sp.c2 : U.shade(sp.c2, 0.14);
+      g.lineWidth = s * (0.22 - k * 0.04);
+      g.lineCap = 'round';
+      g.beginPath();
+      g.moveTo(dir * s * 0.2, -s * 0.7);
+      g.quadraticCurveTo(
+        dir * s * (0.8 + k * 0.4), -s * (0.55 - k * 0.12) + sw * (2 + k),
+        dir * s * (1.2 + k * 0.5), -s * (0.1 + k * 0.05) + sw * (k % 2 ? 3 : -2));
+      g.stroke();
+    }
+    // Mantel
+    g.beginPath();
+    g.moveTo(-s * 0.62, -s * 0.75);
+    g.bezierCurveTo(-s * 0.7, -s * 1.9, s * 0.7, -s * 1.9, s * 0.62, -s * 0.75);
+    g.quadraticCurveTo(0, -s * 0.55, -s * 0.62, -s * 0.75);
+    g.closePath();
+    g.fillStyle = vgrad(g, -s * 1.9, -s * 0.6, U.shade(sp.c1, 0.2), sp.c2); g.fill(); outline(g, 2.6);
+    // Saugnapf-Muster
+    g.fillStyle = 'rgba(255,255,255,0.18)';
+    for (let i = 0; i < 4; i++) { ell(g, -s * 0.3 + i * s * 0.2, -s * 1.5 + (i % 2) * s * 0.2, s * 0.07, s * 0.07); g.fill(); }
+    eyes(g, s * 0.24, -s * 1.15, s * 0.17);
+    // Schnabel
+    g.fillStyle = '#2e2a30';
+    g.beginPath();
+    g.moveTo(-s * 0.12, -s * 0.78); g.lineTo(s * 0.12, -s * 0.78); g.lineTo(0, -s * 0.6);
+    g.closePath(); g.fill();
+  };
+
+  // Schemen: schwebender Geist mit zerfetztem Umhang
+  M.wraith = (g, sp, f) => {
+    const s = sp.r, sw = f ? 1 : -1;
+    const bob = sw * 2.6;
+    g.save();
+    g.globalAlpha = 0.9;
+    // Zerfetzter Umhang
+    g.beginPath();
+    g.moveTo(0, -s * 1.9 + bob);
+    g.quadraticCurveTo(-s * 0.75, -s * 1.5 + bob, -s * 0.62, -s * 0.5 + bob);
+    for (let i = 0; i < 4; i++) {
+      const x = -s * 0.62 + i * s * 0.4;
+      g.lineTo(x + s * 0.2, -s * (0.12 + (i % 2) * 0.28) + bob);
+      g.lineTo(x + s * 0.4, -s * 0.5 + bob);
+    }
+    g.quadraticCurveTo(s * 0.75, -s * 1.5 + bob, 0, -s * 1.9 + bob);
+    g.closePath();
+    g.fillStyle = vgrad(g, -s * 2 + bob, 0 + bob, sp.c1, sp.c2); g.fill(); outline(g, 2.2);
+    g.restore();
+    // Kapuzenschatten
+    g.fillStyle = 'rgba(10,8,16,0.85)';
+    ell(g, 0, -s * 1.52 + bob, s * 0.3, s * 0.34); g.fill();
+    // Glühende Augen
+    g.save();
+    g.shadowColor = U.shade(sp.c1, 0.6); g.shadowBlur = 10;
+    g.fillStyle = U.shade(sp.c1, 0.7);
+    ell(g, -s * 0.12, -s * 1.56 + bob, s * 0.07, s * 0.09); g.fill();
+    ell(g, s * 0.12, -s * 1.56 + bob, s * 0.07, s * 0.09); g.fill();
+    g.restore();
+    // Klauenhände
+    for (const dir of [-1, 1]) {
+      g.strokeStyle = U.shade(sp.c1, 0.3); g.lineWidth = s * 0.09;
+      g.beginPath();
+      g.moveTo(dir * s * 0.5, -s * 1.2 + bob);
+      g.lineTo(dir * s * 0.8, -s * 0.95 + bob);
+      g.stroke();
+      for (let t = -1; t <= 1; t++) {
+        g.beginPath();
+        g.moveTo(dir * s * 0.8, -s * 0.95 + bob);
+        g.lineTo(dir * s * 0.95, -s * 0.95 + bob + t * s * 0.14);
+        g.stroke();
+      }
+    }
+  };
+
+  // Basilisk: langer Echsenleib mit vielen Beinen
+  M.basilisk = (g, sp, f) => {
+    const s = sp.r, sw = f ? 1 : -1;
+    // Beine
+    for (let i = 0; i < 3; i++) {
+      const bx = -s * 0.5 + i * s * 0.5;
+      const ph = (i % 2 ? sw : -sw) * 2;
+      limb(g, bx, -s * 0.45, bx - s * 0.12 + ph, 0, s * 0.13, sp.c2);
+      limb(g, bx + s * 0.1, -s * 0.45, bx + s * 0.2 - ph, 0, s * 0.13, U.shade(sp.c2, -0.1));
+    }
+    // Leib
+    g.beginPath();
+    g.moveTo(-s * 1.0, -s * 0.5);
+    g.quadraticCurveTo(-s * 0.5, -s * 0.95, s * 0.3, -s * 0.9);
+    g.quadraticCurveTo(s * 0.95, -s * 0.85, s * 1.0, -s * 0.5);
+    g.quadraticCurveTo(0, -s * 0.28, -s * 1.0, -s * 0.5);
+    g.closePath();
+    g.fillStyle = vgrad(g, -s * 1.1, -s * 0.3, U.shade(sp.c1, 0.16), sp.c2); g.fill(); outline(g, 2.4);
+    // Rückenkamm
+    g.fillStyle = U.shade(sp.c1, 0.4);
+    for (let i = 0; i < 5; i++) {
+      const x = -s * 0.7 + i * s * 0.35;
+      g.beginPath();
+      g.moveTo(x, -s * 0.86); g.lineTo(x + s * 0.1, -s * 1.15); g.lineTo(x + s * 0.2, -s * 0.86);
+      g.closePath(); g.fill(); outline(g, 1.4);
+    }
+    // Kopf
+    ell(g, s * 1.15, -s * 0.62, s * 0.34, s * 0.24);
+    g.fillStyle = vgrad(g, -s * 0.95, -s * 0.35, U.shade(sp.c1, 0.22), sp.c2); g.fill(); outline(g, 2.2);
+    g.save();
+    g.shadowColor = '#b6ff6a'; g.shadowBlur = 8;
+    g.fillStyle = '#d4ff8a';
+    ell(g, s * 1.22, -s * 0.68, s * 0.08, s * 0.07); g.fill();
+    g.restore();
+    // Gespaltene Zunge
+    g.strokeStyle = '#e0566a'; g.lineWidth = 1.4;
+    g.beginPath();
+    g.moveTo(s * 1.45, -s * 0.56);
+    g.lineTo(s * 1.7 + sw, -s * 0.5);
+    g.stroke();
+    // Schwanz
+    g.strokeStyle = sp.c2; g.lineWidth = s * 0.16;
+    g.beginPath();
+    g.moveTo(-s * 1.0, -s * 0.5);
+    g.quadraticCurveTo(-s * 1.7, -s * 0.42 + sw * 3, -s * 2.0, -s * 0.75 + sw * 4);
+    g.stroke();
+  };
+
+  // Titan: kolossaler Gepanzerter
+  M.titan = (g, sp, f) => {
+    const s = sp.r, sw = f ? 1 : -1;
+    limb(g, -s * 0.36, -s * 0.7, -s * 0.44 - sw * 3, 0, s * 0.32, sp.c2);
+    limb(g, s * 0.36, -s * 0.7, s * 0.44 + sw * 3, 0, s * 0.32, sp.c2);
+    g.fillStyle = U.shade(sp.c2, -0.25);
+    rr(g, -s * 0.62 - sw * 3, -s * 0.16, s * 0.36, s * 0.16, 3); g.fill();
+    rr(g, s * 0.26 + sw * 3, -s * 0.16, s * 0.36, s * 0.16, 3); g.fill();
+    // Rumpfpanzer
+    g.beginPath();
+    g.moveTo(-s * 0.66, -s * 1.55);
+    g.lineTo(s * 0.66, -s * 1.55);
+    g.lineTo(s * 0.54, -s * 0.6);
+    g.lineTo(-s * 0.54, -s * 0.6);
+    g.closePath();
+    g.fillStyle = vgrad(g, -s * 1.6, -s * 0.5, U.shade(sp.c1, 0.2), sp.c2); g.fill(); outline(g, 3);
+    // Glühende Fugen
+    g.save();
+    g.shadowColor = U.shade(sp.c1, 0.6); g.shadowBlur = 8;
+    g.strokeStyle = U.shade(sp.c1, 0.7); g.lineWidth = 2;
+    g.beginPath(); g.moveTo(-s * 0.4, -s * 1.2); g.lineTo(s * 0.4, -s * 1.2); g.stroke();
+    g.beginPath(); g.moveTo(0, -s * 1.2); g.lineTo(0, -s * 0.7); g.stroke();
+    g.restore();
+    // Schulterplatten
+    for (const dir of [-1, 1]) {
+      ell(g, dir * s * 0.72, -s * 1.45, s * 0.3, s * 0.22);
+      g.fillStyle = vgrad(g, -s * 1.7, -s * 1.2, U.shade(sp.c1, 0.3), sp.c2); g.fill(); outline(g, 2.4);
+      g.fillStyle = U.shade(sp.c1, 0.5);
+      g.beginPath();
+      g.moveTo(dir * s * 0.72, -s * 1.72); g.lineTo(dir * s * 0.86, -s * 1.5); g.lineTo(dir * s * 0.58, -s * 1.5);
+      g.closePath(); g.fill(); outline(g, 1.6);
+    }
+    // Helm ohne Gesicht
+    rr(g, -s * 0.3, -s * 2.0, s * 0.6, s * 0.46, s * 0.12);
+    g.fillStyle = vgrad(g, -s * 2.1, -s * 1.5, U.shade(sp.c1, 0.26), sp.c2); g.fill(); outline(g, 2.6);
+    g.save();
+    g.shadowColor = U.shade(sp.c1, 0.7); g.shadowBlur = 10;
+    g.fillStyle = U.shade(sp.c1, 0.8);
+    rr(g, -s * 0.2, -s * 1.82, s * 0.4, s * 0.08, 2); g.fill();
+    g.restore();
+    // Hammerarm
+    g.save();
+    g.translate(s * 0.85, -s * 1.1 + sw * 3); g.rotate(-0.35 + sw * 0.1);
+    g.strokeStyle = U.shade(sp.c2, -0.15); g.lineWidth = s * 0.16;
+    g.beginPath(); g.moveTo(0, s * 0.4); g.lineTo(0, -s * 0.8); g.stroke();
+    rr(g, -s * 0.34, -s * 1.15, s * 0.68, s * 0.42, s * 0.1);
+    g.fillStyle = vgrad(g, -s * 1.2, -s * 0.7, U.shade(sp.c1, 0.24), sp.c2); g.fill(); outline(g, 2.4);
+    g.restore();
+  };
+
+
   function monster(spKey, sp, frame, sizeBucket) {
     const size = 5.4 * sp.r * (sp.big || 1) * sizeBucket;
     return make(`mon:${spKey}:${frame}:${sizeBucket.toFixed(2)}`, size, size, g => {

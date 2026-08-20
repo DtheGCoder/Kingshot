@@ -1254,14 +1254,27 @@ KS.Systems = (() => {
   function generateNightPlan(G, day) {
     const bossDef = CFG.bossForDay(day);
     let budget = CFG.SCALE.budget(day) * (bossDef ? 0.55 : 1);
+    const budget0 = budget;
     const nightLen = CFG.PHASES.nightLen(day);
-    const speciesPool = Object.entries(CFG.MONSTERS)
+    let speciesPool = Object.entries(CFG.MONSTERS)
       .filter(([k, s]) => s.minDay <= day)
       .map(([k, s]) => ({ key: k, sp: s, w: (1 + s.cls * 0.25) * (day - s.minDay < 6 ? 2.2 : 1) }));
+    // Späte Nächte gehören den stärkeren Arten. Ohne diesen Schnitt bestünde
+    // eine Nacht an Tag 100 zur Hälfte aus Schleimen: das Budget reicht dann
+    // für Hunderte billige Monster, was weder bedrohlich wirkt noch flüssig
+    // läuft. Sieben Klassen bleiben in Rotation — Abwechslung genug.
+    if (speciesPool.length > 8) {
+      const maxCls = Math.max(...speciesPool.map(p => p.sp.cls));
+      const minCls = Math.max(1, maxCls - 6);
+      const eng = speciesPool.filter(p => p.sp.cls >= minCls);
+      if (eng.length >= 4) speciesPool = eng;
+    }
     const totalW = speciesPool.reduce((a, s) => a + s.w, 0);
     const plan = [];
     const eliteCh = CFG.SCALE.eliteChance(day);
-    const maxEntries = bossDef ? 130 : 220;
+    // Weniger Einträge als früher: 130 gleichzeitig anrennende Monster kosten
+    // Bildrate. Das übrige Budget wird unten in Stärke umgemünzt.
+    const maxEntries = bossDef ? 100 : 170;
     // Wellen-Fenster: 3 Stoßwellen + Tröpfeln
     const windows = [
       [0.04, 0.16, 0.34], [0.32, 0.46, 0.3], [0.62, 0.8, 0.26],
@@ -1286,9 +1299,17 @@ KS.Systems = (() => {
         budget -= chosen.sp.cost;
       }
     }
+    // Restbudget nicht verfallen lassen, aber auch nicht in mehr Monster
+    // stecken: jedes zusätzliche Monster kostet Zeichenzeit (gemessen ~0,3 ms
+    // pro Stück), und eine Masse wirkt weniger bedrohlich als wenige, die
+    // richtig einstecken. Der Überschuss wird daher zu einem Stärkefaktor auf
+    // Leben und Schaden — „mehr stärkere“ statt „mehr“, und das Zeichnen
+    // kostet dabei keinen Pixel mehr.
+    const spent = Math.max(1, budget0 - Math.max(0, budget));
+    const power = U.clamp(budget0 / spent, 1, 60);
     plan.sort((a, b) => a.t - b.t);
     return {
-      plan, idx: 0,
+      plan, idx: 0, power,
       bossId: bossDef ? bossDef.id : null,
       bossSpawned: false, bossDead: !bossDef,
     };
@@ -1300,7 +1321,13 @@ KS.Systems = (() => {
     const a = e.gate + U.rand(-0.22, 0.22);
     const x = U.clamp(cx + Math.cos(a) * R, 30, w - 30);
     const y = U.clamp(cy + Math.sin(a) * R, 30, w - 30);
-    const m = Ent.makeMonster(G, e.key, x, y, { elite: e.elite });
+    // Stärkefaktor der Nacht (siehe generateNightPlan): spätere Nächte
+    // schicken nicht mehr Monster, sondern härtere.
+    const pw = (G.night && G.night.power) || 1;
+    const m = Ent.makeMonster(G, e.key, x, y, {
+      elite: e.elite,
+      hpMul: pw, dmgMul: Math.pow(pw, 0.6),
+    });
     Ent.particle(G, x, y - 10, { life: 0.5, size: 8, endSize: 1, color: 'rgba(60,30,80,0.4)', grav: 0 });
     return m;
   }
@@ -1401,7 +1428,10 @@ KS.Systems = (() => {
       if (night) {
         // Spawns freigeben
         while (night.idx < night.plan.length && night.plan[night.idx].t <= st.phaseT) {
-          if (G.monsters.length >= 70) { night.plan[night.idx].t += 1.2; break; }
+          // Deckel für gleichzeitig lebende Monster. Jedes kostet gemessen
+          // ~0,3 ms Zeichenzeit; der Plan wird dadurch nicht kürzer, nur
+          // gleichmäßiger über die Nacht verteilt.
+          if (G.monsters.length >= 58) { night.plan[night.idx].t += 1.2; break; }
           spawnFromEntry(G, night.plan[night.idx]);
           night.idx++;
         }
