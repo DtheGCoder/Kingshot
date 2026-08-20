@@ -1104,7 +1104,7 @@ KS.Game = (() => {
     const pl = G.state.player;
     if (G.playerDown) {
       // Wiederbelebungs-Ring
-      const k = G.playerDownT / CFG.PLAYER.reviveTime;
+      const k = G.playerDownT / (G.reviveTime || CFG.PLAYER.reviveTime);
       ctx.strokeStyle = 'rgba(20,14,10,0.5)'; ctx.lineWidth = 5;
       ctx.beginPath(); ctx.arc(pl.x, pl.y - 14, 22, 0, TAU); ctx.stroke();
       ctx.strokeStyle = '#7ad0ec'; ctx.lineCap = 'round';

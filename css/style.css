@@ -1313,3 +1313,30 @@ html, body {
   font-size: 17px;
 }
 #meta-next .ico { width: 19px; height: 19px; }
+
+/* 36 Marktwaren: Gruppenchip, gesperrte Zeile und Zähler */
+.mk-grp {
+  display: inline-block; margin-left: 5px;
+  padding: 0 5px 1px;
+  font-size: 9.5px; font-weight: 900; letter-spacing: 0.3px;
+  border-radius: 5px; vertical-align: 1.5px;
+  color: #2a1d08; background: #d8cdb4;
+}
+.mk-g-koenig { background: #a8ccf5; }
+.mk-g-kampf  { background: #f5aeb4; }
+.mk-g-wehr   { background: #cfcbc4; }
+.mk-g-reich  { background: #f2d98a; }
+.mk-locked {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 2px; margin-top: 4px;
+  border-top: 1px dashed rgba(90,61,36,0.35);
+  opacity: 0.72;
+}
+.mk-ico.locked { color: #8a7a5a; }
+.mk-need {
+  margin-top: 3px;
+  display: flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 800; color: #8a5a22;
+}
+.mk-need .ico { width: 13px; height: 13px; flex: none; }
+#market-count { font-weight: 900; color: #8a6018; }

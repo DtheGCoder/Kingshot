@@ -82,14 +82,55 @@ KS.CFG = (() => {
   };
 
   // ---------- Markt: dauerhafte König-Verbesserungen ----------
+  // ---------- Markt: 36 dauerhafte Verbesserungen für den König ----------
+  // Die Reihenfolge ist die Freischalt-Reihenfolge: je höher der Markt, desto
+  // mehr Waren liegen aus (slots). Deshalb stehen die Grundlagen vorn und die
+  // teuren Spezialitäten hinten — Markt ausbauen lohnt bis Stufe 37.
+  // grp: koenig · kampf · wehr · reich (nur für die Anzeige)
   const MARKET = [
-    { id: 'hp',     ico: 'heart',  name: 'Königliche Vitalität', desc: '+12 % max. Leben',        max: 20, base: 45, mul: 1.42 },
-    { id: 'speed',  ico: 'boot',   name: 'Windläufer-Stiefel',   desc: '+3 % Tempo',              max: 12, base: 60, mul: 1.50 },
-    { id: 'magnet', ico: 'magnet', name: 'Goldmagnet',           desc: '+10 % Sammelradius',      max: 12, base: 50, mul: 1.45 },
-    { id: 'crit',   ico: 'swords', name: 'Königsschlag',         desc: '+2 % kritische Treffer',  max: 15, base: 80, mul: 1.50 },
-    { id: 'gold',   ico: 'clover', name: 'Steuerprivileg',       desc: '+4 % Gold von Monstern',  max: 20, base: 75, mul: 1.50 },
-    { id: 'armor',  ico: 'shield', name: 'Königsplatte',         desc: '2 % weniger Schaden',     max: 15, base: 90, mul: 1.50 },
+    { id: 'hp',          grp: 'koenig', ico: 'heart',  name: 'Königliche Vitalität', desc: '+10 % max. Leben',                 max: 20, base: 45,  mul: 1.40 },
+    { id: 'gold',        grp: 'reich',  ico: 'clover', name: 'Steuerprivileg',       desc: '+4 % Gold von Monstern',           max: 20, base: 75,  mul: 1.46 },
+    { id: 'magnet',      grp: 'reich',  ico: 'magnet', name: 'Goldmagnet',           desc: '+10 % Sammelradius',               max: 12, base: 50,  mul: 1.44 },
+    { id: 'crit',        grp: 'kampf',  ico: 'swords', name: 'Königsschlag',         desc: '+2 % kritische Treffer',           max: 15, base: 80,  mul: 1.46 },
+    { id: 'speed',       grp: 'koenig', ico: 'boot',   name: 'Windläufer-Stiefel',   desc: '+3 % Tempo',                       max: 12, base: 60,  mul: 1.46 },
+    { id: 'armor',       grp: 'koenig', ico: 'shield', name: 'Königsplatte',         desc: '2 % weniger Schaden',              max: 15, base: 90,  mul: 1.46 },
+    { id: 'towerdmg',    grp: 'wehr',   ico: 'bow',    name: 'Schützenausbildung',   desc: '+4 % Turmschaden',                 max: 20, base: 160, mul: 1.44 },
+    { id: 'wallhp',      grp: 'wehr',   ico: 'wall',   name: 'Mörtel & Stein',       desc: '+8 % Mauerleben',                  max: 15, base: 140, mul: 1.44 },
+    { id: 'kingdmg',     grp: 'kampf',  ico: 'sword',  name: 'Klingenschliff',       desc: '+6 % Königsschaden',               max: 20, base: 130, mul: 1.44 },
+    { id: 'coinval',     grp: 'reich',  ico: 'coin',   name: 'Münzprägung',          desc: '+5 % Münzwert',                    max: 15, base: 180, mul: 1.48 },
+    { id: 'gatehp',      grp: 'wehr',   ico: 'gate',   name: 'Eisenbeschlag',        desc: '+10 % Torleben',                   max: 15, base: 150, mul: 1.44 },
+    { id: 'deposit',     grp: 'reich',  ico: 'hammer', name: 'Fleißige Maurer',      desc: 'Einzahlen +10 % schneller',        max: 12, base: 190, mul: 1.48 },
+    { id: 'workerload',  grp: 'reich',  ico: 'crate',  name: 'Größere Körbe',        desc: 'Arbeiter tragen +6 % mehr',        max: 12, base: 170, mul: 1.46 },
+    { id: 'regen',       grp: 'koenig', ico: 'heart',  name: 'Heilende Ruhe',        desc: 'Regeneration +12 %',               max: 12, base: 70,  mul: 1.44 },
+    { id: 'towerrate',   grp: 'wehr',   ico: 'swords', name: 'Nachladedrill',        desc: '+3 % Turmtempo',                   max: 12, base: 220, mul: 1.48 },
+    { id: 'critdmg',     grp: 'kampf',  ico: 'flame',  name: 'Tödliche Präzision',   desc: 'Kritische Treffer +15 % Schaden',  max: 12, base: 180, mul: 1.48 },
+    { id: 'workerspeed', grp: 'reich',  ico: 'boot',   name: 'Feste Wege',           desc: 'Arbeiter laufen +5 % schneller',   max: 12, base: 160, mul: 1.46 },
+    { id: 'harvest',     grp: 'reich',  ico: 'axe',    name: 'Bessere Werkzeuge',    desc: 'Ernten +5 % schneller',            max: 12, base: 175, mul: 1.46 },
+    { id: 'basehp',      grp: 'wehr',   ico: 'castle', name: 'Verstärkter Bergfried', desc: '+8 % Burgleben',                  max: 15, base: 200, mul: 1.46 },
+    { id: 'kingrate',    grp: 'kampf',  ico: 'time',   name: 'Schnelle Hand',        desc: '+4 % Angriffstempo',               max: 12, base: 200, mul: 1.50 },
+    { id: 'towerrange',  grp: 'wehr',   ico: 'bow',    name: 'Sichtturm',            desc: '+3 % Turmreichweite',              max: 10, base: 240, mul: 1.48 },
+    { id: 'craft',       grp: 'reich',  ico: 'saw',    name: 'Werksmeister',         desc: 'Verarbeiter +6 % Gold',            max: 15, base: 230, mul: 1.48 },
+    { id: 'storecap',    grp: 'reich',  ico: 'crate',  name: 'Tieferer Keller',      desc: 'Lagerkapazität +8 %',              max: 12, base: 210, mul: 1.48 },
+    { id: 'garrdmg',     grp: 'wehr',   ico: 'bow',    name: 'Scharfe Bolzen',       desc: 'Mauerwache +12 % Schaden',         max: 12, base: 320, mul: 1.50 },
+    { id: 'buildcost',   grp: 'reich',  ico: 'book',   name: 'Verhandlungskunst',    desc: 'Bauten kosten 1,5 % weniger',      max: 12, base: 260, mul: 1.52 },
+    { id: 'kingrange',   grp: 'kampf',  ico: 'sword',  name: 'Lange Klinge',         desc: '+4 % Angriffsreichweite',          max: 10, base: 220, mul: 1.48 },
+    { id: 'regenfast',   grp: 'koenig', ico: 'time',   name: 'Zähe Konstitution',    desc: 'Heilung setzt 0,2 s früher ein',   max: 10, base: 120, mul: 1.44 },
+    { id: 'kb',          grp: 'koenig', ico: 'shield', name: 'Standfest',            desc: '12 % weniger Rückstoß',            max: 8,  base: 150, mul: 1.48 },
+    { id: 'execute',     grp: 'kampf',  ico: 'skull',  name: 'Henkersstreich',       desc: '+10 % Schaden unter 30 % Leben',   max: 10, base: 300, mul: 1.50 },
+    { id: 'wallregen',   grp: 'wehr',   ico: 'moon',   name: 'Maurertrupp',          desc: 'Mauer heilt nachts +25 %',         max: 8,  base: 420, mul: 1.52 },
+    { id: 'beam',        grp: 'kampf',  ico: 'bolt',   name: 'Klingenwelle',         desc: 'Klingenwelle +20 % Schaden',       max: 10, base: 350, mul: 1.52 },
+    { id: 'revive',      grp: 'koenig', ico: 'crown',  name: 'Zweiter Atem',         desc: 'Wiederbelebung 0,25 s schneller',  max: 8,  base: 200, mul: 1.48 },
+    { id: 'invuln',      grp: 'koenig', ico: 'sparkle', name: 'Geweihtes Wappen',    desc: '+0,15 s unverwundbar nach Treffer', max: 8, base: 260, mul: 1.52 },
+    { id: 'lifesteal',   grp: 'kampf',  ico: 'heart',  name: 'Blutzoll',             desc: 'Heilt 0,4 % des angerichteten Schadens', max: 10, base: 480, mul: 1.55 },
+    { id: 'garrison',    grp: 'wehr',   ico: 'person', name: 'Wachtruf',             desc: '+1 Bogenschütze auf der Mauer',    max: 6,  base: 600, mul: 1.60 },
+    { id: 'arc',         grp: 'kampf',  ico: 'swords', name: 'Breiter Schwung',      desc: 'Trifft in weiterem Bogen',         max: 6,  base: 700, mul: 1.62 },
   ];
+  const MARKET_GRP = {
+    koenig: { name: 'König',      color: '#7ab6ff' },
+    kampf:  { name: 'Kampf',      color: '#ff6a7a' },
+    wehr:   { name: 'Verteidigung', color: '#a5a09a' },
+    reich:  { name: 'Reich',      color: '#ffd34e' },
+  };
 
   // ---------- Waffe (über Schmiede-Stufe) ----------
   // Stufe 1..10 — Schaden, Angriffe/s, Reichweite, Klingenwelle
@@ -188,20 +229,20 @@ KS.CFG = (() => {
     markt: {
       name: 'Markt', ico: 'market', kind: 'market', tiers: 50,
       baseCost: 120, costMul: 1.9,
-      slots: t => Math.min(6, 3 + Math.floor(t / 2)),         // sichtbare Angebote
+      slots: t => Math.min(36, 3 + Math.floor(t * 0.92)),     // sichtbare Angebote (voll ab Stufe 36)
       discount: t => Math.max(0.82, 1 - 0.02 * (t - 1)),      // Rabatt je Stufe
       desc: 'Dauerhafte Verbesserungen für den König — Ware gegen Gold.',
     },
     wall: {
       name: 'Stadtmauer', ico: 'wall', kind: 'wall', tiers: 50,
       baseCost: 150, costMul: 1.85,
-      segHp: t => Math.round(780 * Math.pow(1.5, t - 1)),
+      segHp: t => Math.round(468 * Math.pow(1.5, t - 1)),
       desc: 'Schützt das Dorf. Abschnitte können brechen — im Morgengrauen wird repariert.',
     },
     gates: {
       name: 'Stadttore', ico: 'gate', kind: 'gates', tiers: 50,
       baseCost: 200, costMul: 1.85,
-      gateHp: t => Math.round(1020 * Math.pow(1.5, t - 1)),  // etwas zäher als die Mauer
+      gateHp: t => Math.round(612 * Math.pow(1.5, t - 1)),  // etwas zäher als die Mauer
       desc: 'Verschließt alle acht Durchgänge. Ohne Tore läuft die Horde einfach hindurch.',
     },
     // ---- Wirtschaft: Sammler (schicken Arbeiter ins Feld) ----
@@ -298,6 +339,18 @@ KS.CFG = (() => {
       desc: 'Minen, Tavernen und Verarbeiter +25 % Gold', gold: 4200, res: { wood: 150, stone: 120 }, req: ['guilds'] },
     { id: 'mechanised',  br: 'eco', tier: 4, name: 'Wasserkraft',        ico: 'mill',
       desc: 'Verarbeiter arbeiten doppelt so schnell', gold: 6500, res: { wood: 220, stone: 180 }, req: ['guilds', 'crew'] },
+    { id: 'deep_mines',  br: 'eco', tier: 3, name: 'Tiefe Schächte',     ico: 'pickaxe',
+      desc: 'Minen liefern 60 % mehr Gold', gold: 2800, res: { stone: 110 }, req: ['saw_basics'] },
+    { id: 'crop_rota',   br: 'eco', tier: 3, name: 'Dreifelderwirtschaft', ico: 'wheat',
+      desc: 'Bauernhöfe ernten doppelt so viel', gold: 2600, res: { grain: 100 }, req: ['sharp_axes'] },
+    { id: 'granite_saws', br: 'eco', tier: 4, name: 'Granitsägen',       ico: 'chisel',
+      desc: 'Steinmetze geben 80 % mehr Gold', gold: 5400, res: { stone: 240 }, req: ['guilds', 'deep_mines'] },
+    { id: 'caravans',    br: 'eco', tier: 5, name: 'Karawanen',          ico: 'crate',
+      desc: 'Alle Verarbeiter +60 % Gold', gold: 55000, res: { wood: 600, stone: 500, grain: 400 }, req: ['trade_route', 'granite_saws'] },
+    { id: 'guild_master', br: 'eco', tier: 5, name: 'Zunftmeister',      ico: 'anvil',
+      desc: 'Verarbeiter arbeiten 70 % schneller', gold: 62000, res: { wood: 700, stone: 550 }, req: ['mechanised'] },
+    { id: 'royal_mint',  br: 'eco', tier: 6, name: 'Königliche Münze',   ico: 'coin',
+      desc: 'Alles Gold +50 %', gold: 260000, res: { wood: 1400, stone: 1400, grain: 1200 }, req: ['caravans', 'guild_master'] },
 
     // ═══ Militär ═══
     { id: 'fletching',   br: 'mil', tier: 1, name: 'Federn & Schäfte',   ico: 'bow',
@@ -316,6 +369,20 @@ KS.CFG = (() => {
       desc: 'Mauer & Tore heilen sich nachts langsam', gold: 2400, res: { wood: 120 }, req: ['masonry'] },
     { id: 'grand_arsenal', br: 'mil', tier: 4, name: 'Großes Arsenal',   ico: 'anvil',
       desc: 'Alle Türme +50 % Schaden', gold: 7000, res: { stone: 260, wood: 180 }, req: ['ballistics'] },
+    { id: 'hard_gates',  br: 'mil', tier: 2, name: 'Beschlagene Tore',   ico: 'gate',
+      desc: 'Tore +80 % Trefferpunkte', gold: 1100, res: { wood: 70 }, req: ['drill'] },
+    { id: 'wall_watch',  br: 'mil', tier: 3, name: 'Mauerwache',         ico: 'person',
+      desc: '+2 Bogenschützen auf der Mauer', gold: 2600, res: { wood: 130 }, req: ['masonry'] },
+    { id: 'oil_pots',    br: 'mil', tier: 3, name: 'Pechtöpfe',          ico: 'flame',
+      desc: 'Mauerwache macht 60 % mehr Schaden', gold: 2900, res: { stone: 120 }, req: ['hard_gates'] },
+    { id: 'siege_focus', br: 'mil', tier: 4, name: 'Belagerungsdrill',   ico: 'cannon',
+      desc: 'Türme +70 % Schaden gegen Angreifer an Mauer und Tor', gold: 5600, res: { stone: 220 }, req: ['wall_watch', 'spyglass'] },
+    { id: 'royal_guard', br: 'mil', tier: 4, name: 'Königsgarde',        ico: 'crown',
+      desc: 'Der König macht 50 % mehr Schaden', gold: 6400, res: { stone: 180, wood: 140 }, req: ['kings_edge'] },
+    { id: 'bastions',    br: 'mil', tier: 5, name: 'Bastionen',          ico: 'wall',
+      desc: 'Mauer & Tore +120 % Trefferpunkte', gold: 48000, res: { stone: 750, wood: 400 }, req: ['night_watch', 'oil_pots'] },
+    { id: 'dragonfire',  br: 'mil', tier: 6, name: 'Drachenfeuer',       ico: 'flame',
+      desc: 'Alle Türme +120 % Schaden', gold: 320000, res: { stone: 1600, wood: 1200 }, req: ['grand_arsenal', 'bastions'] },
 
     // ═══ Reich ═══
     { id: 'surveying',   br: 'realm', tier: 1, name: 'Landvermessung',   ico: 'hammer',
@@ -332,6 +399,20 @@ KS.CFG = (() => {
       desc: 'Überlebende zahlen 50 % mehr Steuern', gold: 2100, res: { grain: 140 }, req: ['heralds'] },
     { id: 'golden_age',  br: 'realm', tier: 4, name: 'Goldenes Zeitalter', ico: 'crown',
       desc: 'Alles Gold +30 %', gold: 9000, res: { wood: 200, stone: 200, grain: 200 }, req: ['architects', 'granary'] },
+    { id: 'couriers',    br: 'realm', tier: 2, name: 'Boten des Königs', ico: 'scroll',
+      desc: 'Quest-Belohnungen +50 %', gold: 900, req: ['ledger'] },
+    { id: 'treasury',    br: 'realm', tier: 3, name: 'Schatzkammer',     ico: 'coin',
+      desc: 'Münzen sind 40 % mehr wert', gold: 2500, res: { stone: 90 }, req: ['magnet_tech'] },
+    { id: 'roads',       br: 'realm', tier: 3, name: 'Gepflasterte Wege', ico: 'boot',
+      desc: 'Arbeiter laufen 40 % schneller', gold: 2300, res: { stone: 130 }, req: ['surveying'] },
+    { id: 'census',      br: 'realm', tier: 4, name: 'Volkszählung',     ico: 'book',
+      desc: 'Steuern der Überlebenden verdoppelt', gold: 5800, res: { grain: 220 }, req: ['granary'] },
+    { id: 'kings_peace', br: 'realm', tier: 4, name: 'Königsfrieden',    ico: 'heart',
+      desc: 'Der König heilt doppelt so schnell', gold: 5000, res: { grain: 180 }, req: ['couriers'] },
+    { id: 'grand_bazaar', br: 'realm', tier: 5, name: 'Großer Basar',    ico: 'market',
+      desc: 'Alle Marktwaren kosten 25 % weniger', gold: 58000, res: { wood: 500, grain: 500 }, req: ['treasury', 'census'] },
+    { id: 'eternal_crown', br: 'realm', tier: 6, name: 'Ewige Krone',    ico: 'crown',
+      desc: '+25 % auf Turmschaden, Königsschaden und Mauerleben', gold: 400000, res: { wood: 1500, stone: 1500, grain: 1500 }, req: ['golden_age', 'grand_bazaar'] },
   ];
   const TECH_BRANCHES = {
     eco:   { name: 'Wirtschaft', ico: 'crate',  color: '#7ecb5a' },
@@ -541,28 +622,37 @@ KS.CFG = (() => {
   // Nacht schwerer wiegt. Er wächst schneller als jede Wirtschaft in einem
   // einzelnen Lauf — irgendwann fällt die Burg, immer. Genau das ist gewollt:
   // aus jedem Lauf nimmt man Weltenessenz mit und kommt im nächsten weiter.
-  const VOID_DAY = 8;          // bis hierhin ist das Land noch unverflucht
-  const VOID_STEP = 1.115;     // je Nacht danach +11,5 % Monsterleben
+  const VOID_DAY = 9;          // bis Tag 9 ist das Land noch unverflucht
+  const VOID_SPAN = 4;         // alle vier Nächte eine neue Bannstufe
+  const VOID_STEP = 2.1;       // je Stufe +110 % Monsterleben — ein Sprung, kein Rinnsal
   // delay = gnädige Tage aus dem Sternenbaum („Siegel der Ahnen“)
   const voidStart = delay => VOID_DAY + (delay || 0);
-  const voidMul = (d, delay) => {
+  // Der Bann kommt in Stufen, nicht als stetiges Rinnsal: Tag 10 ist Stufe 1,
+  // dann jede vierte Nacht eine mehr. So merkt man den Sprung und weiß,
+  // wofür man Weltenessenz ausgibt.
+  const voidTier = (d, delay) => {
     const s0 = voidStart(delay);
-    return d <= s0 ? 1 : Math.pow(VOID_STEP, d - s0);
+    if (d <= s0) return 0;
+    return Math.floor((d - s0 - 1) / VOID_SPAN) + 1;
   };
+  const voidMul = (d, delay) => Math.pow(VOID_STEP, voidTier(d, delay));
+  // Monster sind grundsätzlich 20 % stärker als früher — dafür gibt es
+  // deutlich mehr Verbesserungen in Markt und Forschung.
+  const MON_POWER = 1.2;
 
   const SCALE = {
-    voidMul, voidStart, VOID_STEP,
+    voidMul, voidStart, voidTier, VOID_STEP, VOID_SPAN, MON_POWER,
     // Der Bann trifft das Leben voll, den Schaden gedämpft (^0,6) — sonst
     // würde ein einziger Treffer den König ab Tag 30 sofort umlegen.
     voidDmgMul: (d, delay) => Math.pow(voidMul(d, delay), 0.6),
     hpMul: (d, vd) => {
-      const v = voidMul(d, vd);
+      const v = voidMul(d, vd) * MON_POWER;
       if (d <= 25) return v * Math.pow(1.105, d - 1);
       if (d <= 50) return v * Math.pow(1.105, 24) * Math.pow(1.05, d - 25);
       return v * Math.pow(1.105, 24) * Math.pow(1.05, 25) * Math.pow(1.048, d - 50);
     },
     dmgMul: (d, vd) => {
-      const v = Math.pow(voidMul(d, vd), 0.6);
+      const v = Math.pow(voidMul(d, vd), 0.6) * MON_POWER;
       if (d <= 25) return v * Math.pow(1.065, d - 1);
       if (d <= 50) return v * Math.pow(1.065, 24) * Math.pow(1.04, d - 25);
       return v * Math.pow(1.065, 24) * Math.pow(1.04, 25) * Math.pow(1.035, d - 50);
@@ -791,7 +881,7 @@ Die Wacht geht weiter — die Nächte werden härter, deine Legende größer. Ew
 
   return {
     WORLD, PLAYER, WEAPONS, BUILDINGS, PADS, MONSTERS, BOSSES, bossHp,
-    GATES, WALL, MARKET, migrateQuestIdx, QUEST_VERSION, interactR,
+    GATES, WALL, MARKET, MARKET_GRP, migrateQuestIdx, QUEST_VERSION, interactR,
     RESOURCES, RES_ORDER, BUILD_ZONE, TECH, TECH_BRANCHES,
     META, META_BRANCHES, metaCost, essenceFor,
     SCALE, PHASES, CHAPTERS, QUESTS, endlessQuest,

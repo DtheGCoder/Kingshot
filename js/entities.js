@@ -134,6 +134,8 @@ KS.Ent = (() => {
   const COIN_KIND = v => v >= 100 ? 3 : v >= 25 ? 2 : v >= 5 ? 1 : 0;
 
   function spawnCoin(G, x, y, value, opts = {}) {
+    // Münzprägung / Schatzkammer: jede Münze ist mehr wert
+    if (!opts.raw) value = Math.max(1, Math.round(value * (G.coinValueMul || 1)));
     const C = G.coins;
     // Harte Obergrenze: statt einer weiteren Münze wächst die nächstgelegene.
     // Der Zusammenfasser weiter unten fasst nur liegende Münzen an; bei
@@ -358,15 +360,17 @@ KS.Ent = (() => {
     const pl = G.state.player;
     if (G.playerDown || G.playerInvuln > 0) return;
     dmg *= (G.armorMul || 1);
+    if (G.hurtInvuln) G.playerInvuln = Math.max(G.playerInvuln, G.hurtInvuln - 0.6);
     pl.hp -= dmg;
     G.playerHurtT = 0.25;
-    G.regenWait = CFG.PLAYER.regenDelay;
+    G.regenWait = G.regenDelay || CFG.PLAYER.regenDelay;
     KS.Audio.SFX.playerHurt();
     G.shake = Math.max(G.shake, 5);
     if (fromX !== undefined) {
       const d = U.dist(fromX, fromY, pl.x, pl.y) || 1;
-      G.playerKx += (pl.x - fromX) / d * 130;
-      G.playerKy += (pl.y - fromY) / d * 130;
+      const kb = 130 * (1 - (G.kbResist || 0));   // „Standfest“
+      G.playerKx += (pl.x - fromX) / d * kb;
+      G.playerKy += (pl.y - fromY) / d * kb;
     }
     text(G, pl.x, pl.y - 56, '-' + Math.round(dmg), { color: '#ff8f8f', size: 15 });
     if (pl.hp <= 0) {
@@ -399,14 +403,14 @@ KS.Ent = (() => {
 
     if (G.playerDown) {
       G.playerDownT += dt;
-      if (G.playerDownT >= CFG.PLAYER.reviveTime) {
+      if (G.playerDownT >= (G.reviveTime || CFG.PLAYER.reviveTime)) {
         G.playerDown = false;
         pl.hp = G.playerHpMax;
         // Abseits jedes Bauplatzes aufstehen (sonst zahlt man sofort weiter ein)
         const sp = KS.Systems.safeSpawnPoint();
         pl.x = sp.x; pl.y = sp.y;
         G.buildArmed = null; G.buildLock = null; G.nearPad = null;
-        G.playerInvuln = 2.5;
+        G.playerInvuln = 2.5 + (G.hurtInvuln || 0.6) - 0.6;
         ring(G, pl.x, pl.y, { r0: 10, r1: 70, color: 'rgba(140,220,255,0.9)' });
         burst(G, pl.x, pl.y - 20, 14, { colors: ['#9adcf2', '#fff'], speed: 80, up: 90 });
       }
@@ -452,7 +456,8 @@ KS.Ent = (() => {
     // Regeneration
     if (G.regenWait > 0) G.regenWait -= dt;
     else if (pl.hp < G.playerHpMax) {
-      pl.hp = Math.min(G.playerHpMax, pl.hp + G.playerHpMax * CFG.PLAYER.regenRate * dt);
+      pl.hp = Math.min(G.playerHpMax,
+        pl.hp + G.playerHpMax * CFG.PLAYER.regenRate * (G.regenMul || 1) * dt);
     }
 
     // Auto-Angriff
@@ -462,46 +467,55 @@ KS.Ent = (() => {
       if (G.swing.t >= G.swing.dur) G.swing = null;
     }
     const w = CFG.weaponFor(G.weaponTier);
-    const kdmg = w.dmg * (G.tech ? G.tech.kingDmg : 1);   // „Königsschliff“
+    const kdmg = w.dmg * (G.tech ? G.tech.kingDmg : 1);   // „Königsschliff“ & Markt
+    const wRange = w.range * (G.kingRange || 1);
     if (G.attackCd <= 0) {
       // Nächstes Monster in Reichweite suchen
       let best = null, bestD = Infinity;
-      const R = w.range + 30;
+      const R = wRange + 30;
       G.grid.query(pl.x, pl.y, R + 40, G.qbuf);
       for (const m of G.qbuf) {
         if (m.dead) continue;
         const d = U.dist(pl.x, pl.y, m.x, m.y) - m.r;
         if (d < bestD) { bestD = d; best = m; }
       }
-      if (best && bestD <= w.range) {
+      if (best && bestD <= wRange) {
         const dir = U.angleTo(pl.x, pl.y, best.x, best.y);
         G.playerFace = Math.cos(dir) < 0 ? -1 : 1;
         G.swing = { t: 0, dur: 0.22, dir };
-        G.attackCd = 1 / w.rate;
+        G.attackCd = 1 / (w.rate * (G.kingRate || 1));
         KS.Audio.SFX.swing();
         // Schaden im Bogen
-        const arc = 1.5;
-        G.grid.query(pl.x, pl.y, w.range + 40, G.qbuf);
-        let hits = 0;
+        const arc = G.kingArc || 1.5;
+        G.grid.query(pl.x, pl.y, wRange + 40, G.qbuf);
+        let hits = 0, geheilt = 0;
         for (const m of G.qbuf) {
           if (m.dead) continue;
           const d = U.dist(pl.x, pl.y, m.x, m.y) - m.r;
-          if (d > w.range) continue;
+          if (d > wRange) continue;
           const a = U.angleTo(pl.x, pl.y, m.x, m.y);
           let da = Math.abs(a - dir);
           if (da > Math.PI) da = TAU - da;
           if (da > arc) continue;
           const crit = Math.random() < (G.critCh || 0.12);
-          damageMonster(G, m, kdmg * (crit ? 2 : 1), { kb: 130, kbx: m.x - pl.x, kby: m.y - pl.y, crit });
+          // Henkersstreich: extra Wucht gegen Angeschlagene
+          const exe = G.executeBonus && m.hp < m.hpMax * 0.3 ? 1 + G.executeBonus : 1;
+          const dealt = kdmg * (crit ? (G.critMul || 2) : 1) * exe;
+          damageMonster(G, m, dealt, { kb: 130, kbx: m.x - pl.x, kby: m.y - pl.y, crit });
+          geheilt += dealt;
           hits++;
         }
         if (hits) KS.Audio.SFX.hit();
+        // Blutzoll: ein Bruchteil des angerichteten Schadens heilt den König
+        if (G.lifesteal > 0 && geheilt > 0 && pl.hp < G.playerHpMax) {
+          pl.hp = Math.min(G.playerHpMax, pl.hp + geheilt * G.lifesteal);
+        }
         // Klingenwelle
         if (w.beam > 0) {
           G.projectiles.push({
             kind: 'beam', x: pl.x, y: pl.y - 16,
             vx: Math.cos(dir) * 420, vy: Math.sin(dir) * 420,
-            t: 0, ttl: 0.55, dmg: kdmg * w.beam, side: 'ally',
+            t: 0, ttl: 0.55, dmg: kdmg * w.beam * (G.beamMul || 1), side: 'ally',
             pierce: true, hitSet: new Set(), dir, color: w.glow || '#cfe0ff',
           });
         }
@@ -556,7 +570,7 @@ KS.Ent = (() => {
       ctx.fillStyle = w.glow || '#e8f0ff';
       ctx.beginPath();
       ctx.moveTo(0, 0);
-      ctx.arc(0, 0, w.range * 0.82, swingA - Math.PI / 2, trailA - Math.PI / 2, swingA < trailA);
+      ctx.arc(0, 0, w.range * (G.kingRange || 1) * 0.82, swingA - Math.PI / 2, trailA - Math.PI / 2, swingA < trailA);
       ctx.closePath(); ctx.fill();
       ctx.restore();
     } else {

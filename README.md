@@ -261,13 +261,34 @@ bringen den Rohstoff vom Lager zum Werk. Arbeiter wählen ihren Baum nach dem k�
 Rundweg, es lohnt sich also, das Lager klug zwischen Hütte und Wald zu setzen. Sammler und Werke wachsen im gleichen Takt: grob ein
 Sammler versorgt zwei Verarbeiter. Rohstoffe zahlen außerdem die Forschung.
 
-### 🧪 Techtree — 25 Neuerungen in drei Zweigen
+### 🧪 Techtree — 44 Neuerungen in sechs Stufen
 
 | Zweig | Beispiele |
 |---|---|
-| 📦 **Wirtschaft** | Schubkarren (+30 % je Fuhre), Große Speicher, Zünfte (+30 % Gold der Werke), Wasserkraft (Werke doppelt so schnell) |
-| ⚔️ **Militär** | Königsschliff (+25 % Königsschaden), Ballistik, Nachtwache (Mauer & Tore heilen nachts), Großes Arsenal (+50 % Turmschaden) |
-| 👑 **Reich** | Landvermessung (engere Bauplätze), Rechnungsbuch (−10 % Baukosten), Herolde (doppelte Zuwanderung), Baumeister (Einzahlen doppelt so schnell), Goldenes Zeitalter (+30 % auf alles Gold) |
+| 📦 **Wirtschaft** (15) | Schubkarren, Große Speicher, Zünfte, Wasserkraft, Tiefe Schächte (Minen +60 %), Dreifelderwirtschaft (Bauernhöfe doppelt), Granitsägen (Steinmetze +80 %), **Karawanen** (55 k), **Zunftmeister** (62 k), **Königliche Münze** (260 k, alles Gold +50 %) |
+| ⚔️ **Militär** (15) | Königsschliff, Ballistik, Nachtwache, Beschlagene Tore (+80 % Torleben), Mauerwache (+2 Bogenschützen), Pechtöpfe, Belagerungsdrill (+70 % gegen Mauerknabberer), Königsgarde, **Bastionen** (48 k, Mauer +120 %), **Drachenfeuer** (320 k, Türme +120 %) |
+| 👑 **Reich** (14) | Landvermessung, Rechnungsbuch, Herolde, Baumeister, Boten (+50 % Quest-Gold), Schatzkammer (+40 % Münzwert), Gepflasterte Wege, Volkszählung, Königsfrieden, **Großer Basar** (58 k, Markt −25 %), **Ewige Krone** (400 k, +25 % auf Turm, König und Mauer) |
+
+Die drei Stufe-6-Knoten kosten zusammen fast **1 Million Gold** — sie sind das
+Ziel eines tiefen Laufs, nicht der Alltag. Der ganze Baum kostet 1,3 Mio.
+
+### 🛒 Markt — 36 Waren, freigeschaltet durch Ausbau
+
+Der Markt zeigt nicht alles auf einmal: **Stufe 1 legt 3 Waren aus, jede Stufe
+etwa eine weitere, ab Stufe 36 liegt das ganze Sortiment bereit.** Die gesperrte
+nächste Ware steht immer sichtbar unten mit der Stufe, die sie freischaltet —
+deshalb lohnt sich das Aufleveln des Marktes bis ganz oben.
+
+| Gruppe | Waren |
+|---|---|
+| 🔵 **König** (8) | Vitalität, Windläufer-Stiefel, Königsplatte, Heilende Ruhe, Zähe Konstitution, Standfest, Zweiter Atem, Geweihtes Wappen |
+| 🔴 **Kampf** (9) | Königsschlag (Krit), Tödliche Präzision (Kritschaden), Klingenschliff, Schnelle Hand, Lange Klinge, Breiter Schwung, Klingenwelle, Blutzoll (Lebensraub), Henkersstreich |
+| ⚪ **Verteidigung** (9) | Schützenausbildung, Nachladedrill, Sichtturm, Mörtel & Stein, Eisenbeschlag, Verstärkter Bergfried, Wachtruf, Scharfe Bolzen, Maurertrupp |
+| 🟡 **Reich** (10) | Steuerprivileg, Goldmagnet, Münzprägung, Fleißige Maurer, Verhandlungskunst, Größere Körbe, Feste Wege, Bessere Werkzeuge, Werksmeister, Tieferer Keller |
+
+Alle 36 voll ausgebaut kosten rund **2,9 Millionen Gold** — ein Sog, der bis in
+die Ewige Wacht reicht. Jede Ware ist nachgemessen verdrahtet: es gibt keine
+Zeile, die nur nett klingt.
 
 ### 🌙 Licht in der Nacht
 
@@ -321,12 +342,25 @@ immer nur das nächstgelegene Ziel zu nehmen.
 
 **Kein einzelner Lauf ist zu gewinnen. Das ist Absicht.**
 
-Ab **Tag 9** legt sich der *Bann der Leere* über Alderian: jede weitere Nacht macht
-alle Monster **+11,5 % zäher** (der Schaden steigt gedämpft mit `^0,6` mit, sonst
-läge der König ab Tag 30 nach einem Treffer). Der Bann wächst schneller als jede
-Wirtschaft, die man in einem Lauf aufbauen kann — irgendwann fällt die Burg, immer.
-Der aktuelle Faktor steht dauerhaft im HUD (💀 ×4,6) und in jeder Nacht-Ankündigung,
-damit die Nächte nach einer **Regel** schwerer werden und nicht willkürlich.
+Ab **Tag 10** legt sich der *Bann der Leere* über Alderian — und zwar in
+**sichtbaren Stufen**, nicht als schleichendes Rinnsal: alle vier Nächte steigt er
+eine Stufe, und jede Stufe gibt allen Monstern **+110 % Leben** (der Schaden steigt
+gedämpft mit `^0,6` mit, sonst läge der König ab Stufe 5 nach einem Treffer).
+Monster sind zusätzlich grundsätzlich **20 % stärker** als früher, Mauer und Tore
+haben **60 %** ihres alten Lebens.
+
+| Tag | 9 | 10 | 14 | 18 | 22 | 30 | 40 | 50 |
+|---|---|---|---|---|---|---|---|---|
+| Bannstufe | – | 1 | 2 | 3 | 4 | 6 | 8 | 11 |
+| Monsterleben | ×1 | ×2,1 | ×4,4 | ×9,3 | ×19 | ×86 | ×378 | ×3 503 |
+
+Der Sprung wird angesagt („Der Bann der Leere steigt auf Stufe 3: alle Monster
+haben 110 % mehr Leben"), Stufe und Faktor stehen dauerhaft im HUD (💀 **3** ×9,3)
+und in jeder Nacht-Ankündigung. So werden die Nächte nach einer **Regel** schwerer
+und nicht willkürlich — und man merkt genau, wann es Zeit wird, aufzuhören.
+
+Der Bann wächst schneller als jede Wirtschaft, jeder Markt und jede Forschung, die
+man in einem Lauf aufbauen kann. Irgendwann fällt die Burg, immer.
 
 Was bleibt, ist **Weltenessenz**:
 
@@ -374,24 +408,22 @@ Der **Schlüsselknoten** ist das *Siegel der Ahnen*: es schiebt den Bann selbst 
 hinten (bis Tag 44) und entscheidet damit, wie weit ein Lauf überhaupt tragen kann.
 Er ist bewusst der teuerste Knoten des Baums (9 239 Essenz für alle 12 Stufen).
 
-**Der Bogen, nachgerechnet** (konservatives Modell, ohne Mauerwache, Königsschaden,
-Frostverlangsamung, Markt und Forschung — im echten Spiel geht es also etwas
-schneller):
+**Der Bogen, nachgerechnet** (Modell mit Markt- und Forschungskäufen im Lauf,
+ohne Mauerwache, Königsschaden, Frostverlangsamung — im echten Spiel geht es also
+etwas weiter):
 
 | Lauf | Bann ab | erreichter Tag |
 |---|---|---|
-| 1 | Tag 8 | ~15–21 |
-| 3 | Tag 20 | ~25–28 |
-| 6 | Tag 26 | ~31–35 |
-| 12 | Tag 29 | ~34–39 |
-| 24 | Tag 32–35 | ~43–48 |
-| ~26–36 | Tag 38–44 | **Tag 50 — Sieg** |
-| Baum voll | Tag 44 | Tag 52+ (Ewige Wacht) |
+| 1 | Tag 9 | ~14–18 |
+| 3 | Tag 18 | ~22–28 |
+| 6 | Tag 24 | ~28–36 |
+| 12 | Tag 30 | ~36–44 |
+| ~17–20 | Tag 36–39 | **Tag 50 — Sieg** |
+| Baum voll (Lauf ~30–33) | Tag 45 | Tag 60+ (Ewige Wacht) |
 
-Zum Vergleich: an Tag 50 braucht die Verteidigung rund **3,2 Mio DPS** ohne Siegel —
-mit dem Gold eines einzelnen Laufs sind höchstens **51 000** drin. Mit vollem Baum
-sinkt der Bedarf auf 64 000 und die Türme liefern 427 000. Ein Lauf allein reicht
-nie, der Baum macht es möglich.
+Der einzige Knoten, der den Bann selbst verschiebt, ist das **Siegel der Ahnen**.
+Ohne ihn bleibt jeder Lauf in den Stufen hängen, egal wie gut man baut — genau
+deshalb trägt er die Plakette SCHLÜSSEL.
 
 Weltenessenz, Segnungen, Laufzähler und Rekorde liegen **außerhalb** des Laufs im
 Spielstand: sie überleben jede Niederlage, jeden neuen Lauf und jedes Update.

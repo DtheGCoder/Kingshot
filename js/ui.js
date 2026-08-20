@@ -37,7 +37,7 @@ KS.UI = (() => {
       title: $('title-screen'), titleInfo: $('title-info'),
       defeat: $('defeat'), defeatTitle: $('defeat-title'), defeatText: $('defeat-text'),
       market: $('market-panel'), marketRows: $('market-rows'),
-      marketGold: $('market-gold-txt'),
+      marketGold: $('market-gold-txt'), marketCount: $('market-count'),
       actBtn: $('act-btn'), actIco: $('act-ico'), actTitle: $('act-title'),
       actSub: $('act-sub'), actHint: $('act-hint'),
       questToggle: $('quest-toggle'), questTab: $('quest-tab'), questTabProg: $('quest-tab-prog'),
@@ -510,17 +510,22 @@ KS.UI = (() => {
     const st = G.state;
     const b = st.buildings.markt;
     const slots = b && b.tier >= 1 ? CFG.BUILDINGS.markt.slots(b.tier) : 0;
+    const offen = Math.min(slots, CFG.MARKET.length);
     const rows = [];
-    for (let i = 0; i < Math.min(slots, CFG.MARKET.length); i++) {
+    let grp = '';
+    for (let i = 0; i < offen; i++) {
       const t = CFG.MARKET[i];
       const lvl = KS.Systems.marketLvl(G, t.id);
       const maxed = lvl >= t.max;
       const cost = maxed ? 0 : KS.Systems.marketCost(G, t, lvl);
+      const g = CFG.MARKET_GRP[t.grp] || { name: '' };
       rows.push(`
         <div class="mk-row">
           <div class="mk-ico">${icon(t.ico)}</div>
           <div class="mk-body">
-            <div class="mk-name">${t.name} <span class="mk-lvl">${lvl}/${t.max}</span></div>
+            <div class="mk-name">${t.name}
+              <span class="mk-grp mk-g-${t.grp}">${g.name}</span>
+              <span class="mk-lvl">${lvl}/${t.max}</span></div>
             <div class="mk-desc">${t.desc}</div>
           </div>
           <button class="mk-buy${maxed ? ' max' : ''}" data-track="${t.id}" data-cost="${cost}">
@@ -528,10 +533,27 @@ KS.UI = (() => {
           </button>
         </div>`);
     }
-    if (CFG.MARKET.length > slots) {
-      rows.push(`<div class="mk-row"><div class="mk-desc">${icon('lock')} Markt ausbauen schaltet weitere Waren frei</div></div>`);
+    // Was der nächste Marktausbau bringt — dafür baut man ihn ja aus
+    if (offen < CFG.MARKET.length) {
+      const naechste = CFG.MARKET[offen];
+      const def = CFG.BUILDINGS.markt;
+      let bis = (b ? b.tier : 0) + 1;
+      while (bis <= def.tiers && def.slots(bis) <= offen) bis++;
+      rows.push(`
+        <div class="mk-locked">
+          <div class="mk-ico locked">${icon('lock')}</div>
+          <div class="mk-body">
+            <div class="mk-name">${naechste.name}</div>
+            <div class="mk-desc">${naechste.desc}</div>
+            <div class="mk-need">${icon('market')} Markt auf Stufe ${bis} ausbauen
+              — dann liegen ${CFG.MARKET.length - offen} weitere Waren bereit</div>
+          </div>
+        </div>`);
     }
     els.marketRows.innerHTML = rows.join('');
+    if (els.marketCount) {
+      els.marketCount.textContent = `${offen} von ${CFG.MARKET.length} Waren`;
+    }
     refreshMarketAfford(G);
   }
 
@@ -551,9 +573,11 @@ KS.UI = (() => {
     // Nächte härter werden, und wofür man Weltenessenz ausgibt.
     // Direkt aus dem Tag gerechnet, nicht aus einem Zwischenwert: so stimmt
     // die Anzeige auch, wenn der Tag ohne Neuberechnung gewechselt hat.
+    const vt = CFG.SCALE.voidTier(G.state.day, G.voidDelay || 0);
     const vm = CFG.SCALE.voidMul(G.state.day, G.voidDelay || 0);
-    const bann = vm > 1.05
-      ? `<span class="res-pill res-bann">${icon('skull')}×${vm.toFixed(1)}</span>` : '';
+    const bann = vt > 0
+      ? `<span class="res-pill res-bann" title="Bann der Leere">${icon('skull')}` +
+        `<b>${vt}</b><span class="cap">×${vm < 100 ? vm.toFixed(1) : Math.round(vm)}</span></span>` : '';
     if (!G.storeCap) {
       if (bann) {
         if (els.resBar.innerHTML !== bann) { els.resBar.innerHTML = bann; lastResKey = 'b' + bann; }
@@ -1068,7 +1092,7 @@ KS.UI = (() => {
       ['sword', CFG.weaponFor(G.weaponTier).name, 'Waffe'],
       ['sparkle', U.fmt(st.essence || 0), 'Weltenessenz'],
       ['star', (st.runs || 0) + ' · Tag ' + (st.runBest || 0), 'Läufe / bester Tag'],
-      ['skull', '×' + CFG.SCALE.voidMul(st.day, G.voidDelay || 0).toFixed(1),
+      ['skull', 'Stufe ' + CFG.SCALE.voidTier(st.day, G.voidDelay || 0),
         'Bann der Leere (ab Tag ' + CFG.SCALE.voidStart(G.voidDelay || 0) + ')'],
     ];
     $('stats-grid').innerHTML = rows.map(r =>
